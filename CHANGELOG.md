@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.110.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.109.0...v0.110.0) (2026-11-14)
+
+
+### Features
+
+* **openbao:** declare one policy per arrangement identity ([#708](https://github.com/jpe-ansible/ansible-secrets-management/issues/708)) ([c5b1434](https://github.com/jpe-ansible/ansible-secrets-management/commit/c5b1434dd1b2a14540e680d2088d9cd67ff0a187))
+
+
+### Bug Fixes
+
+* **openbao:** reject arrangement grants the schema rejects ([#711](https://github.com/jpe-ansible/ansible-secrets-management/issues/711)) ([ed541bf](https://github.com/jpe-ansible/ansible-secrets-management/commit/ed541bf457d308c73c1d33b545e83ccf8f1254f3))
+
 ## [0.109.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.108.0...v0.109.0) (2026-11-14)
 
 
