@@ -36,6 +36,15 @@
 {% endif %}
 {% set grant_segments = grant.path.split('/') %}
 {% set grant_zone = grant_segments[0] %}
+{% if '*' in grant.path %}
+{{
+  undef(
+    hint='arrangement-policy: grant paths use + for one segment; * is not allowed'
+  ) | mandatory(
+    'arrangement-policy: grant paths use + for one segment; * is not allowed'
+  )
+}}
+{% endif %}
 {% if grant_identity['class'] != 'operator' and (grant_zone == '+' or (grant_zone == 'admin' and grant_segments[1] == '+')) %}
 {{
   undef(
@@ -49,6 +58,13 @@
 {{
   undef(
     hint='arrangement-policy: grant references undeclared zone ' ~ grant_zone
+  ) | mandatory('arrangement-policy: grant references undeclared zone')
+}}
+{% endif %}
+{% if grant_zone == 'admin' and grant_segments[1] != '+' and grant_segments[1] not in zone_names %}
+{{
+  undef(
+    hint='arrangement-policy: grant references undeclared zone ' ~ grant_segments[1]
   ) | mandatory('arrangement-policy: grant references undeclared zone')
 }}
 {% endif %}
@@ -80,11 +96,11 @@
   )
 }}
 {% endif %}
-{% if grant.path.split('/')[0] in zone_names %}
+{% if grant.path.split('/')[0] in zone_names or grant.path.split('/')[0] in ['admin', 'config'] %}
 {{
   undef(
-    hint='arrangement-policy: raw grant targets a declared zone; use grants ' ~ grant.path
-  ) | mandatory('arrangement-policy: raw grant targets a declared zone; use grants')
+    hint='arrangement-policy: raw grant targets a declared zone or an arrangement mount; use grants ' ~ grant.path
+  ) | mandatory('arrangement-policy: raw grant targets a declared zone or an arrangement mount; use grants')
 }}
 {% endif %}
 {% endfor %}
