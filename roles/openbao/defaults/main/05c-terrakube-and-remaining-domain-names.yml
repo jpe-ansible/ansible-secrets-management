@@ -183,6 +183,19 @@ openbao_github_org_pr_reconcile_exclude_path: github-org/pr-reconcile-exclude
 openbao_github_org_pr_reconcile_exclude_field: repos
 openbao_github_org_openrouter_provisioning_path: ai/saas/openrouter-provisioning
 openbao_github_org_openrouter_provisioning_field: provisioning_key
+# Extra org-secrets sources are KV-v2 leaves as <mount>/<path>, without
+# /data/. The estate's list arrives at converge time from
+# OPENBAO_GITHUB_ORG_SECRETS_READ_PATHS in config/platform/ansible/env so the
+# names stay out of this repo. Only exact leaves on these three mounts are granted.
+openbao_github_org_secrets_extra_read_path_pattern: "^(config|secret|secrets-external)/\
+  (?!data(?:/|$)|metadata(?:/|$))\
+  [A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)*$"
+openbao_github_org_secrets_extra_read_paths_raw: >-
+  {{ (lookup('env', 'OPENBAO_GITHUB_ORG_SECRETS_READ_PATHS') | default('', true)).split(',')
+     | map('trim') | reject('equalto', '') | unique | list }}
+openbao_github_org_secrets_extra_read_paths: >-
+  {{ openbao_github_org_secrets_extra_read_paths_raw
+     | select('match', openbao_github_org_secrets_extra_read_path_pattern) | list }}
 # Dedicated read-only leaf for the org-secrets workspace, registered in
 # openbao_base_policies (07c) and attached only to its Terrakube JWT role.
 openbao_github_org_secrets_read_policy_name: github-org-secrets-read
