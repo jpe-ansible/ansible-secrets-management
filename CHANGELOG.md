@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.109.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.108.0...v0.109.0) (2026-11-14)
+
+
+### Features
+
+* **openbao:** render identity policies from a secrets arrangement ([#706](https://github.com/jpe-ansible/ansible-secrets-management/issues/706)) ([e7869c5](https://github.com/jpe-ansible/ansible-secrets-management/commit/e7869c5385d0b69f549f5ef43a23c1368d8b8569))
+
 ## 0.108.0 (2026-11-14)
 
 
