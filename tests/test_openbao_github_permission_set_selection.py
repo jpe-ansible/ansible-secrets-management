@@ -220,6 +220,12 @@ def test_org_secrets_extra_read_paths_drop_duplicates_and_rejected_entries(monke
 def test_org_secrets_extra_read_path_pattern():
     source = yaml.safe_load(TERRAKUBE_DEFAULTS.read_text())
     pattern = source["openbao_github_org_secrets_extra_read_path_pattern"]
+    # The template renders these paths whole, so this pattern is the only mount limit.
+    agent_tier_mount = yaml.safe_load(
+        (ROLE / "defaults/main/05k-agent-tier-secret-paths.yml").read_text()
+    )["openbao_agent_tier_mount"]
+    for path in (f"{agent_tier_mount}/example-tier", "admin/int/example-svc/main"):
+        assert not re.match(pattern, path)
     for path in (
         "config/example-svc/example-instance",
         "secret/example-app/main",
