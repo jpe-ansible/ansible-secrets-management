@@ -192,7 +192,7 @@ openbao_github_org_secrets_extra_read_path_pattern: "^(config|secret|secrets-ext
   [A-Za-z0-9][A-Za-z0-9_-]*(?:/[A-Za-z0-9][A-Za-z0-9_-]*)*$"
 openbao_github_org_secrets_extra_read_paths_raw: >-
   {{ (lookup('env', 'OPENBAO_GITHUB_ORG_SECRETS_READ_PATHS') | default('', true)).split(',')
-     | map('trim') | reject('equalto', '') | list }}
+     | map('trim') | reject('equalto', '') | unique | list }}
 openbao_github_org_secrets_extra_read_paths: >-
   {{ openbao_github_org_secrets_extra_read_paths_raw
      | select('match', openbao_github_org_secrets_extra_read_path_pattern) | list }}

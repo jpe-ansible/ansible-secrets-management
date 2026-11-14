@@ -146,7 +146,8 @@ def test_org_secrets_read_policy_grants_only_declared_exact_kv_leaves():
 def test_org_secrets_read_policy_adds_declared_extra_leaves():
     source = yaml.safe_load(TERRAKUBE_DEFAULTS.read_text())
     template = (ROLE / "templates/github-org-secrets-read-policy.hcl.j2").read_text()
-    environment = Environment()
+    # Ansible renders templates with trim_blocks and keeps the trailing newline.
+    environment = Environment(trim_blocks=True, keep_trailing_newline=True)
     environment.filters["comment"] = lambda value: "\n".join(
         "# " + line for line in str(value).splitlines()
     )
@@ -172,12 +173,16 @@ def test_org_secrets_read_policy_adds_declared_extra_leaves():
         "secret/data/example-app/main",
     ]
     assert capabilities == ['["read"]'] * 8
+    assert '}\npath' not in rendered
 
 
 def test_org_secrets_read_policy_renders_unchanged_without_extra_leaves():
     source = yaml.safe_load(TERRAKUBE_DEFAULTS.read_text())
     template = (ROLE / "templates/github-org-secrets-read-policy.hcl.j2").read_text()
-    environment = Environment()
+    # The file without its trailing loop is the policy as it was before extra leaves existed.
+    baseline, marker, _ = template.partition("{# Estate-specific leaves")
+    assert marker
+    environment = Environment(trim_blocks=True, keep_trailing_newline=True)
     environment.filters["comment"] = lambda value: "\n".join(
         "# " + line for line in str(value).splitlines()
     )
@@ -192,7 +197,24 @@ def test_org_secrets_read_policy_renders_unchanged_without_extra_leaves():
         openbao_github_org_secrets_extra_read_paths=[],
         **variables,
     )
-    assert without_variable == with_empty_list
+    expected = environment.from_string(baseline).render(ansible_managed="fixture", **variables)
+    assert without_variable == with_empty_list == expected
+
+
+def test_org_secrets_extra_read_paths_drop_duplicates_and_rejected_entries(monkeypatch):
+    source = yaml.safe_load(TERRAKUBE_DEFAULTS.read_text())
+    monkeypatch.setenv(
+        "OPENBAO_GITHUB_ORG_SECRETS_READ_PATHS",
+        "config/example-svc/main, config/example-svc/main,sys/policies/acl/x,,"
+        "secret/example-app/main",
+    )
+    raw = render(source["openbao_github_org_secrets_extra_read_paths_raw"], {})
+    assert raw == ["config/example-svc/main", "sys/policies/acl/x", "secret/example-app/main"]
+    assert render(source["openbao_github_org_secrets_extra_read_paths"], {
+        "openbao_github_org_secrets_extra_read_paths_raw": raw,
+        "openbao_github_org_secrets_extra_read_path_pattern":
+            source["openbao_github_org_secrets_extra_read_path_pattern"],
+    }) == ["config/example-svc/main", "secret/example-app/main"]
 
 
 def test_org_secrets_extra_read_path_pattern():
