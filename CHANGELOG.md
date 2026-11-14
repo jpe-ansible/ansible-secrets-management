@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.111.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.111.0...v0.111.1) (2026-11-14)
+
+
+### Bug Fixes
+
+* **openbao:** derive the router snapshot installation from the docs repository owner ([#717](https://github.com/jpe-ansible/ansible-secrets-management/issues/717)) ([d78c879](https://github.com/jpe-ansible/ansible-secrets-management/commit/d78c879b8bdfbe53869398bd180e884225cced8b))
+
 ## [0.111.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.110.0...v0.111.0) (2026-11-14)
 
 
