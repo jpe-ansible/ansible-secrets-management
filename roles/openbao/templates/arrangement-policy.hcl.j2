@@ -1,16 +1,18 @@
 {{ ansible_managed | comment }}
 # Identity policy rendered from the OpenBao secrets arrangement.
-# The caller passes the identity name and full arrangement document in `item`.
+# The caller passes the full arrangement document in `item.arrangement` and the identity in
+# `item.identity`, or in `item.name` when the policy carries the identity's own name.
 
 {% set arrangement = item.arrangement %}
 {% set identities = arrangement.identities %}
-{% set current_identity = identities.get(item.name) %}
+{% set identity_name = item.identity | default(item.name) %}
+{% set current_identity = identities.get(identity_name) %}
 {% if current_identity is none %}
 {{
   undef(
-    hint='arrangement-policy: item.name must name an identity in item.arrangement.identities'
+    hint='arrangement-policy: the identity must be named in item.arrangement.identities'
   ) | mandatory(
-    'arrangement-policy: item.name must name an identity in item.arrangement.identities'
+    'arrangement-policy: the identity must be named in item.arrangement.identities'
   )
 }}
 {% endif %}
@@ -89,7 +91,7 @@
 
 {% set stanzas = [] %}
 {% for grant in arrangement.grants %}
-{% if grant.identity == item.name %}
+{% if grant.identity == identity_name %}
 {% set grant_segments = grant.path.split('/') %}
 {% set mount = grant_segments[0] %}
 {% set rest = grant_segments[1:] | join('/') %}
@@ -105,7 +107,7 @@
 {% endfor %}
 
 {% for grant in arrangement.raw_grants %}
-{% if grant.identity == item.name %}
+{% if grant.identity == identity_name %}
 {% set _ = stanzas.append({'path': grant.path, 'capabilities': grant.capabilities}) %}
 {% endif %}
 {% endfor %}
