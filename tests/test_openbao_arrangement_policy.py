@@ -190,6 +190,38 @@ def test_rejects_nonoperator_admin_grant_with_zone_wildcard():
         _render_identity(arrangement, "example-sudo")
 
 
+@pytest.mark.parametrize(
+    ("identity", "path"),
+    [
+        ("example-sudo", "admin/*"),
+        ("example-automation", "example-zone/example-svc/*"),
+        ("example-operator", "admin/*"),
+    ],
+)
+def test_rejects_grant_path_with_star(identity: str, path: str):
+    arrangement = _arrangement()
+    grant = copy.deepcopy(arrangement["grants"][0])
+    grant.update(identity=identity, path=path)
+    arrangement["grants"].append(grant)
+
+    with pytest.raises(AnsibleError, match=r"\* is not allowed"):
+        _render_identity(arrangement, identity)
+
+
+@pytest.mark.parametrize("identity", ["example-sudo", "example-operator"])
+def test_rejects_admin_grant_for_undeclared_zone(identity: str):
+    arrangement = _arrangement()
+    arrangement["grants"].append(
+        {
+            "identity": identity,
+            "path": "admin/missing-zone/example-vendor/main/owner",
+        }
+    )
+
+    with pytest.raises(AnsibleError, match="undeclared zone"):
+        _render_identity(arrangement, identity)
+
+
 def test_rejects_raw_grant_into_a_declared_zone():
     arrangement = _arrangement()
     arrangement["raw_grants"].append(
@@ -202,6 +234,30 @@ def test_rejects_raw_grant_into_a_declared_zone():
 
     with pytest.raises(AnsibleError, match="raw grant targets a declared zone"):
         _render_identity(arrangement, "example-automation")
+
+
+@pytest.mark.parametrize(
+    ("identity", "path"),
+    [
+        (
+            "example-everyday",
+            "admin/data/example-zone/example-svc/example-instance/management",
+        ),
+        ("example-automation", "admin/data/+/+/+/+"),
+        ("example-service", "config/data/example-svc/example-instance"),
+    ],
+)
+def test_rejects_raw_grant_into_an_arrangement_mount(identity: str, path: str):
+    arrangement = _arrangement()
+    grant = copy.deepcopy(arrangement["raw_grants"][0])
+    grant.update(identity=identity, path=path, capabilities=["read"])
+    arrangement["raw_grants"].append(grant)
+
+    with pytest.raises(
+        AnsibleError,
+        match="raw grant targets a declared zone or an arrangement mount",
+    ):
+        _render_identity(arrangement, identity)
 
 
 def test_rejects_zone_leaf_grant_for_undeclared_zone():
