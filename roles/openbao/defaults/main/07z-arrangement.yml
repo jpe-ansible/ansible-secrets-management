@@ -1,3 +1,16 @@
 ---
 # The converge supplies this document from OpenBao KV config/openbao/arrangement.
 openbao_arrangement: {}
+
+# One policy per arrangement identity. The prefix keeps it from replacing a hand-written
+# policy that carries the identity's own name.
+openbao_arrangement_policy_prefix: arrangement-
+openbao_arrangement_policies: >-
+  {%- set out = [] -%}
+  {%- for identity in (openbao_arrangement.identities | default({})) | sort -%}
+  {%- set _ = out.append({'name': openbao_arrangement_policy_prefix ~ identity,
+                          'identity': identity,
+                          'template': 'arrangement-policy.hcl.j2',
+                          'arrangement': openbao_arrangement}) -%}
+  {%- endfor -%}
+  {{ out }}
