@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.111.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.110.0...v0.111.0) (2026-11-14)
+
+
+### Features
+
+* **openbao:** read extra org-secrets source leaves from the converge env ([#714](https://github.com/jpe-ansible/ansible-secrets-management/issues/714)) ([45aff4e](https://github.com/jpe-ansible/ansible-secrets-management/commit/45aff4e6f5d439a35353984b85b6adc0fc674c72))
+
 ## [0.110.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.109.0...v0.110.0) (2026-11-14)
 
 
