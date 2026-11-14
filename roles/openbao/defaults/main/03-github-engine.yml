@@ -244,13 +244,19 @@ openbao_github_openhands_permission_sets: >-
 # keeps it out of the ambient mint and orchestrator policies; only the
 # docs-router-snapshot policy names it.
 openbao_github_router_snapshot_set_name: docs-router-snapshot
+# The installation follows the source repository's owner, so the set moves with
+# the repository; an owner outside the installation catalog yields no set.
+openbao_github_router_snapshot_installation_id: >-
+  {{ openbao_github_org_secrets_installations
+     | selectattr('name', 'equalto', (openbao_github_oidc_docs_repository.split('/') | first | lower))
+     | map(attribute='installation_id') | first | default('', true) }}
 openbao_github_router_snapshot_permission_sets: >-
   {{ [{'name': openbao_github_router_snapshot_set_name,
        'tier': 'agents',
-       'installation_id': openbao_github_dryvist_installation_id,
+       'installation_id': openbao_github_router_snapshot_installation_id,
        'repositories': [openbao_github_oidc_docs_repository.split('/') | last],
        'permissions': openbao_github_docs_publisher_permissions}]
-     if openbao_github_oidc_docs_repository | length > 0 else [] }}
+     if openbao_github_router_snapshot_installation_id | string | length > 0 else [] }}
 # The git mirror guest reads every repository of three owners, one installation
 # each, through read-only sets with no repository list (so each covers the whole
 # installation). Tier `agents` keeps them out of the ambient mint and orchestrator

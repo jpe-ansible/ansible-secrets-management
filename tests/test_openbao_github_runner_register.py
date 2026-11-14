@@ -335,3 +335,38 @@ def test_dedicated_policies_keep_their_reserved_permission_set_paths():
     for template_name, set_name in cases:
         rendered = _render_policy(template_name, variables)
         assert f"github-admin/token/{set_name}" in _paths(rendered)
+
+
+def test_router_snapshot_set_follows_the_docs_repository_owner():
+    defaults = yaml.safe_load(DEFAULTS.read_text(encoding="utf-8"))
+    catalog = [
+        {"name": "dryvist", "installation_id": "101"},
+        {"name": "jpe-private", "installation_id": "202"},
+        {"name": "jpe-claude", "installation_id": ""},
+    ]
+
+    def resolve(repository):
+        variables = {
+            "openbao_github_org_secrets_installations": catalog,
+            "openbao_github_oidc_docs_repository": repository,
+            "openbao_github_router_snapshot_set_name": "docs-router-snapshot",
+            "openbao_github_docs_publisher_permissions": {"contents": "write"},
+        }
+        variables["openbao_github_router_snapshot_installation_id"] = str(
+            _render(defaults["openbao_github_router_snapshot_installation_id"], variables)
+        )
+        sets = _render(defaults["openbao_github_router_snapshot_permission_sets"], variables)
+        return variables["openbao_github_router_snapshot_installation_id"], sets
+
+    installation, sets = resolve("dryvist/docs-example")
+    assert installation == "101"
+    assert sets == [{
+        "name": "docs-router-snapshot",
+        "tier": "agents",
+        "installation_id": "101",
+        "repositories": ["docs-example"],
+        "permissions": {"contents": "write"},
+    }]
+    assert resolve("Jpe-Private/docs-example")[1][0]["installation_id"] == "202"
+    for repository in ("", "jpe-claude/docs-example", "other-owner/docs-example"):
+        assert resolve(repository) == ("", [])
