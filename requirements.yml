@@ -13,7 +13,7 @@ collections:
     version: "5.4.0"  # docker driver create/destroy playbooks
 
   - name: community.general
-    version: "13.5.0"
+    version: "14.0.0"
 
   - name: community.hashi_vault
     version: "7.1.0"

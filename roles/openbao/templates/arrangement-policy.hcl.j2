@@ -1,0 +1,143 @@
+{{ ansible_managed | comment }}
+# Identity policy rendered from the OpenBao secrets arrangement.
+# The caller passes the full arrangement document in `item.arrangement` and the identity in
+# `item.identity`, or in `item.name` when the policy carries the identity's own name.
+
+{% set arrangement = item.arrangement %}
+{% set identities = arrangement.identities %}
+{% set identity_name = item.identity | default(item.name) %}
+{% set current_identity = identities.get(identity_name) %}
+{% if current_identity is none %}
+{{
+  undef(
+    hint='arrangement-policy: the identity must be named in item.arrangement.identities'
+  ) | mandatory(
+    'arrangement-policy: the identity must be named in item.arrangement.identities'
+  )
+}}
+{% endif %}
+{% set zone_names = arrangement.zones | map(attribute='name') | list %}
+{% set restricted_zone_names = [] %}
+{% for zone in arrangement.zones %}
+{% if zone.restricted | default(false) %}
+{% set _ = restricted_zone_names.append(zone.name) %}
+{% endif %}
+{% endfor %}
+{% set restricted_classes = ['everyday', 'service', 'sandbox'] %}
+
+{% for grant in arrangement.grants %}
+{% set grant_identity = identities.get(grant.identity) %}
+{% if grant_identity is none %}
+{{
+  undef(
+    hint='arrangement-policy: grant references unknown identity ' ~ grant.identity
+  ) | mandatory('arrangement-policy: grant references unknown identity')
+}}
+{% endif %}
+{% set grant_segments = grant.path.split('/') %}
+{% set grant_zone = grant_segments[0] %}
+{% if '*' in grant.path %}
+{{
+  undef(
+    hint='arrangement-policy: grant paths use + for one segment; * is not allowed'
+  ) | mandatory(
+    'arrangement-policy: grant paths use + for one segment; * is not allowed'
+  )
+}}
+{% endif %}
+{% if grant_identity['class'] != 'operator' and (grant_zone == '+' or (grant_zone == 'admin' and grant_segments[1] == '+')) %}
+{{
+  undef(
+    hint='arrangement-policy: only operator identities may wildcard the zone segment'
+  ) | mandatory(
+    'arrangement-policy: only operator identities may wildcard the zone segment'
+  )
+}}
+{% endif %}
+{% if grant_zone not in ['admin', 'config', '+'] and grant_zone not in zone_names %}
+{{
+  undef(
+    hint='arrangement-policy: grant references undeclared zone ' ~ grant_zone
+  ) | mandatory('arrangement-policy: grant references undeclared zone')
+}}
+{% endif %}
+{% if grant_zone == 'admin' and grant_segments[1] != '+' and grant_segments[1] not in zone_names %}
+{{
+  undef(
+    hint='arrangement-policy: grant references undeclared zone ' ~ grant_segments[1]
+  ) | mandatory('arrangement-policy: grant references undeclared zone')
+}}
+{% endif %}
+{% if grant_identity['class'] in restricted_classes %}
+{% if grant_zone == 'admin' or grant_zone in restricted_zone_names %}
+{{
+  undef(hint='arrangement-policy: forbidden admin/restricted-zone grant')
+  | mandatory('arrangement-policy: forbidden admin/restricted-zone grant')
+}}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% for grant in arrangement.raw_grants %}
+{% set grant_identity = identities.get(grant.identity) %}
+{% if grant_identity is none %}
+{{
+  undef(
+    hint='arrangement-policy: raw grant references unknown identity ' ~ grant.identity
+  ) | mandatory('arrangement-policy: raw grant references unknown identity')
+}}
+{% endif %}
+{% if grant_identity['class'] != 'operator' and grant.path.startswith('+') %}
+{{
+  undef(
+    hint='arrangement-policy: only operator identities may have a raw grant starting with +'
+  ) | mandatory(
+    'arrangement-policy: only operator identities may have a raw grant starting with +'
+  )
+}}
+{% endif %}
+{% if grant.path.split('/')[0] in zone_names or grant.path.split('/')[0] in ['admin', 'config'] %}
+{{
+  undef(
+    hint='arrangement-policy: raw grant targets a declared zone or an arrangement mount; use grants ' ~ grant.path
+  ) | mandatory('arrangement-policy: raw grant targets a declared zone or an arrangement mount; use grants')
+}}
+{% endif %}
+{% endfor %}
+
+{% set stanzas = [] %}
+{% for grant in arrangement.grants %}
+{% if grant.identity == identity_name %}
+{% set grant_segments = grant.path.split('/') %}
+{% set mount = grant_segments[0] %}
+{% set rest = grant_segments[1:] | join('/') %}
+{% set grant_capabilities = grant.capabilities | default(['read']) %}
+{% set data_capabilities = grant_capabilities | reject('equalto', 'list') | list %}
+{% if data_capabilities | length > 0 %}
+{% set _ = stanzas.append({'path': mount ~ '/data/' ~ rest, 'capabilities': data_capabilities}) %}
+{% endif %}
+{% if 'list' in grant_capabilities %}
+{% set _ = stanzas.append({'path': mount ~ '/metadata/' ~ rest, 'capabilities': ['list', 'read']}) %}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+{% for grant in arrangement.raw_grants %}
+{% if grant.identity == identity_name %}
+{% set _ = stanzas.append({'path': grant.path, 'capabilities': grant.capabilities}) %}
+{% endif %}
+{% endfor %}
+
+{% if current_identity['class'] in restricted_classes %}
+{% set _ = stanzas.append({'path': 'admin/*', 'capabilities': ['deny']}) %}
+{% for zone_name in restricted_zone_names %}
+{% set _ = stanzas.append({'path': zone_name ~ '/*', 'capabilities': ['deny']}) %}
+{% endfor %}
+{% endif %}
+
+{% for stanza in stanzas | sort(attribute='path') %}
+path "{{ stanza.path }}" {
+  capabilities = {{ stanza.capabilities | to_json }}
+}
+
+{% endfor %}

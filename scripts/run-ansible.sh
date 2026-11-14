@@ -10,5 +10,5 @@ export RUN_ANSIBLE_RECAP_CHECK="${RUN_ANSIBLE_RECAP_CHECK:-1}"
 export RUN_ANSIBLE_REQUIRE_RECAP="${RUN_ANSIBLE_REQUIRE_RECAP:-1}"
 
 # renovate: datasource=github-releases depName=jpe-ansible/homelab-contracts
-HOMELAB_CONTRACTS_REF=v5.60.0
+HOMELAB_CONTRACTS_REF=v5.66.0
 exec nix run "github:jpe-ansible/homelab-contracts/${HOMELAB_CONTRACTS_REF}#run-ansible" -- "$@"

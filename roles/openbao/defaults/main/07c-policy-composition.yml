@@ -72,5 +72,6 @@ openbao_policies: >-
       + openbao_github_write_scope_policies
       + openbao_roster_agent_policies + openbao_roster_key_reader_policies
       + openbao_caller_gateway_key_policies
+      + openbao_arrangement_policies
       + [{'name': 'proxman', 'template': 'proxman-policy.hcl.j2'}])
      | rejectattr('name', 'in', openbao_policies_without_inputs) | list }}
