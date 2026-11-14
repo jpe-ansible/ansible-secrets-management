@@ -122,8 +122,10 @@ def test_org_secrets_read_policy_grants_only_declared_exact_kv_leaves():
     environment.filters["comment"] = lambda value: "\n".join(
         "# " + line for line in str(value).splitlines()
     )
+    source.pop("openbao_github_org_secrets_extra_read_paths")
     rendered = environment.from_string(template).render(
         ansible_managed="fixture",
+        openbao_github_org_secrets_extra_read_paths=[],
         **source,
     )
     paths = re.findall(r'(?m)^path "([^"]+)"', rendered)
@@ -139,6 +141,80 @@ def test_org_secrets_read_policy_grants_only_declared_exact_kv_leaves():
     assert capabilities == ['["read"]'] * 6
     assert source["openbao_github_org_pr_reconcile_exclude_field"] == "repos"
     assert source["openbao_github_org_openrouter_provisioning_field"] == "provisioning_key"
+
+
+def test_org_secrets_read_policy_adds_declared_extra_leaves():
+    source = yaml.safe_load(TERRAKUBE_DEFAULTS.read_text())
+    template = (ROLE / "templates/github-org-secrets-read-policy.hcl.j2").read_text()
+    environment = Environment()
+    environment.filters["comment"] = lambda value: "\n".join(
+        "# " + line for line in str(value).splitlines()
+    )
+    source.pop("openbao_github_org_secrets_extra_read_paths")
+    rendered = environment.from_string(template).render(
+        ansible_managed="fixture",
+        openbao_github_org_secrets_extra_read_paths=[
+            "config/example-svc/example-instance",
+            "secret/example-app/main",
+        ],
+        **source,
+    )
+    paths = re.findall(r'(?m)^path "([^"]+)"', rendered)
+    capabilities = re.findall(r'(?m)^  capabilities = (.*)$', rendered)
+    assert paths == [
+        "secrets-external/data/github-org/disclosure-denylist",
+        "secrets-external/data/github-org/gitleaks",
+        "secrets-external/data/github-org/GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY",
+        "secrets-external/data/github-org/dify-pr-keeper-webhook",
+        "secrets-external/data/github-org/pr-reconcile-exclude",
+        "secrets-external/data/ai/saas/openrouter-provisioning",
+        "config/data/example-svc/example-instance",
+        "secret/data/example-app/main",
+    ]
+    assert capabilities == ['["read"]'] * 8
+
+
+def test_org_secrets_read_policy_renders_unchanged_without_extra_leaves():
+    source = yaml.safe_load(TERRAKUBE_DEFAULTS.read_text())
+    template = (ROLE / "templates/github-org-secrets-read-policy.hcl.j2").read_text()
+    environment = Environment()
+    environment.filters["comment"] = lambda value: "\n".join(
+        "# " + line for line in str(value).splitlines()
+    )
+    render_template = environment.from_string(template)
+    variables = {
+        key: value for key, value in source.items()
+        if key != "openbao_github_org_secrets_extra_read_paths"
+    }
+    without_variable = render_template.render(ansible_managed="fixture", **variables)
+    with_empty_list = render_template.render(
+        ansible_managed="fixture",
+        openbao_github_org_secrets_extra_read_paths=[],
+        **variables,
+    )
+    assert without_variable == with_empty_list
+
+
+def test_org_secrets_extra_read_path_pattern():
+    source = yaml.safe_load(TERRAKUBE_DEFAULTS.read_text())
+    pattern = source["openbao_github_org_secrets_extra_read_path_pattern"]
+    for path in (
+        "config/example-svc/example-instance",
+        "secret/example-app/main",
+        "secrets-external/example-zone/example-svc/ro",
+    ):
+        assert re.match(pattern, path)
+    for path in (
+        "config/example/*",
+        "config/+/x",
+        "sys/policies/acl/x",
+        "config/data/example",
+        "secret/metadata/example",
+        "config/example/",
+        "config",
+        "config//example",
+    ):
+        assert not re.match(pattern, path)
 
 
 def test_selected_permission_set_capability_probe_names_one_exact_endpoint():

@@ -220,6 +220,19 @@
     - (openbao_media_external_paths | length == 0)
       or (openbao_media_external_paths_raw | length != openbao_media_external_paths | length)
 
+- name: Warn when org-secrets extra read paths contain rejected entries
+  ansible.builtin.debug:
+    msg: >-
+      OPENBAO_GITHUB_ORG_SECRETS_READ_PATHS has
+      {{ openbao_github_org_secrets_extra_read_paths_raw | length
+         - openbao_github_org_secrets_extra_read_paths | length }} rejected entries.
+      The policy grants only exact <mount>/<path> leaves on the config, secret,
+      and secrets-external mounts.
+  when:
+    - openbao_bootstrap_token is defined
+    - openbao_github_org_secrets_extra_read_paths_raw | length
+      != openbao_github_org_secrets_extra_read_paths | length
+
 - name: Warn when the CI resolver repo list is unset (its policy set drops out of the render)
   ansible.builtin.debug:
     msg: >-
