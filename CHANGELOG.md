@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.113.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.112.0...v0.113.0) (2026-11-15)
+
+
+### Features
+
+* **openbao:** read the ntfy Slack webhooks from the ext-notify leaf ([#724](https://github.com/jpe-ansible/ansible-secrets-management/issues/724)) ([0357f6a](https://github.com/jpe-ansible/ansible-secrets-management/commit/0357f6a757183341afe6b664dfdaf91019b1c0a6))
+
+
+### Bug Fixes
+
+* **openbao:** make openbao_voter_health the only voter-health owner ([#721](https://github.com/jpe-ansible/ansible-secrets-management/issues/721)) ([7e98244](https://github.com/jpe-ansible/ansible-secrets-management/commit/7e982445858c8b2706303d7bc0cbe75b94ed0229))
+
 ## [0.112.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.111.1...v0.112.0) (2026-11-15)
 
 
