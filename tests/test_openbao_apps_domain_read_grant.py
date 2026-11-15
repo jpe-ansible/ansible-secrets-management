@@ -168,6 +168,13 @@ def test_grafana_service_bucket_stays_outside_the_apps_reader():
         )
 
 
+def test_retired_dify_eval_leaf_is_not_granted_to_the_apps_reader():
+    read_apps = _read_apps(_yaml(NAMES_FILE))
+    assert "dify/eval" not in read_apps
+    grants = _policy_grants(_render_apps_policy(read_apps))
+    assert not any(path.endswith("/apps/dify/eval") for path, _ in grants)
+
+
 @pytest.mark.parametrize("leaf", EVAL_LEAVES)
 def test_eval_leaf_adds_only_its_exact_read_grant_for_the_apps_reader(leaf):
     names = _yaml(NAMES_FILE)
