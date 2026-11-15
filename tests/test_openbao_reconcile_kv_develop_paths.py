@@ -18,8 +18,8 @@ from ansible.template import trust_as_template
 # Fixed snapshot of the KV data grants before exact-leaf bounding; a test never
 # reads a moving branch. Metadata grants are outside this data-path check.
 DEVELOP_KV_DATA_GRANTS = """
-{% for mount in openbao_kv_mounts | default([]) %}
-path "{{ mount.path | default(mount) }}/*" {
+{% for mount in [openbao_kv_mount, 'secrets-external', openbao_config_mount] %}
+path "{{ mount }}/*" {
   capabilities = ["create", "read", "update", "list"]
 }
 {% endfor %}

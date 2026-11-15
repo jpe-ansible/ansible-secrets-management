@@ -30,6 +30,11 @@ openbao_select_profiles:
     name_replacement: /metadata/
     suffixes: [""]
     capability: patch
+  kv_mounts:
+    candidates: "{{ openbao_kv_mounts | map(attribute='path') | map('community.general.dict_kv', 'name') | list }}"
+    prefix: sys/mounts/
+    suffixes: [""]
+    capability: update
   reconcile_policy:
     candidates:
       - name: "{{ openbao_reconcile_policy_name }}"

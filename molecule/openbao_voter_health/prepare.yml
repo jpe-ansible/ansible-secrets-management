@@ -1,0 +1,48 @@
+---
+# Molecule preparation playbook — create the existing OpenBao host prerequisites.
+
+- name: Prepare
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Wait for container to be ready
+      ansible.builtin.wait_for_connection:
+        timeout: 180
+
+    - name: Wait for the instance to finish booting
+      ansible.builtin.include_tasks: ../resources/tasks/wait_for_boot.yml
+
+    - name: Gather facts
+      ansible.builtin.setup:
+
+    - name: Create the OpenBao group used by the service unit
+      ansible.builtin.group:
+        name: openbao
+        system: true
+        state: present
+
+    - name: Create the OpenBao service user
+      ansible.builtin.user:
+        name: openbao
+        group: openbao
+        system: true
+        create_home: false
+        state: present
+
+    - name: Create the OpenBao configuration directory
+      ansible.builtin.file:
+        path: /etc/openbao
+        state: directory
+        owner: root
+        group: openbao
+        mode: "0750"
+
+    - name: Create the retired voter-health script placeholder
+      ansible.builtin.copy:
+        dest: /usr/local/bin/openbao-voter-health.sh
+        content: "#!/bin/sh\nexit 0\n"
+        owner: root
+        group: root
+        mode: "0755"

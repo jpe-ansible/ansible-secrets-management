@@ -53,6 +53,8 @@ The collection root is the repository root: `galaxy.yml`, `roles/`, `playbooks/`
   markdownlint, and gitleaks.
 - `molecule test -s openbao` runs the openbao scenario in a privileged Debian container.
   CI runs it.
+- `molecule test -s openbao_voter_health` converges only the openbao_voter_health role in the
+  same container and checks its timer. CI runs it.
 - `pytest` runs the test modules under `tests/`.
 - `ansible-playbook -e render_tmp=<dir> tests/template_render/verify/<file>.yml` runs one
   template-render check.

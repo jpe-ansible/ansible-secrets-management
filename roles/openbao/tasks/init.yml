@@ -54,11 +54,13 @@
 # Registers openbao_mounts_raw for the readers below. Every tag those readers run
 # under is listed here, so a scoped run such as --tags github gets the listing
 # without pulling in the KV seed in init/03. Each reader is also gated on the
-# same openbao_select check as 03.
+# full-run or matching-selection condition for its phase; 03b is the one
+# selective reader, and only runs for kv_mounts.
 - name: List the enabled secrets engines
   ansible.builtin.import_tasks: init/03a-list-secrets-engines.yml
   tags:
     - openbao_kv_seed
+    - openbao_kv_mounts
     - openbao_engines
     - aws
     - azure
@@ -67,7 +69,9 @@
     - openbao_github_mounts
     - openbao_ssh_ca
     - etcd_pki
-  when: openbao_select | default({}) | length == 0
+  when: >-
+    openbao_select | default({}) | length == 0
+    or 'kv_mounts' in (openbao_select | default({}))
 
 # Plugin registration is deliberately OUTSIDE the openbao-reconcile grant: its
 # policy carries no sys/plugins/catalog path at all, because registering a
@@ -92,6 +96,30 @@
   tags:
     - openbao_kv_seed
   when: openbao_select | default({}) | length == 0
+
+- name: Fail when the secrets-engine listing failed for selected KV mounts
+  ansible.builtin.fail:
+    msg: >-
+      `bao secrets list` failed against {{ openbao_api_addr }} with rc
+      {{ openbao_mounts_raw.rc | default('unset') }}:
+      {{ openbao_mounts_raw.stderr | default('no stderr captured') }}
+  when:
+    - "'kv_mounts' in (openbao_select | default({}))"
+    - openbao_bootstrap_token is defined
+    - openbao_mounts_raw.rc | default(1) != 0
+  tags:
+    - openbao_kv_seed
+    - openbao_kv_mounts
+
+- name: Selectively enable declared KV v2 mounts
+  ansible.builtin.import_tasks: init/03b-kv-mounts.yml
+  tags:
+    - openbao_kv_seed
+    - openbao_kv_mounts
+  when:
+    - "'kv_mounts' in (openbao_select | default({}))"
+    - openbao_bootstrap_token is defined
+    - openbao_mounts_raw.rc | default(1) == 0
 
 - name: Register and configure the AWS secrets engine
   ansible.builtin.import_tasks: init/04-aws-engine.yml

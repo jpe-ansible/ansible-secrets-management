@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.112.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.111.1...v0.112.0) (2026-11-15)
+
+
+### Features
+
+* **openbao:** add the ext-notify KV mount and a kv_mounts select kind ([#720](https://github.com/jpe-ansible/ansible-secrets-management/issues/720)) ([cb75c37](https://github.com/jpe-ansible/ansible-secrets-management/commit/cb75c375469f54f603d145a85fdbfc93f36c9e5b))
+
 ## [0.111.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.111.0...v0.111.1) (2026-11-14)
 
 
