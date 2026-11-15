@@ -126,6 +126,13 @@ openbao_semaphore_github_read_permission_sets:
 openbao_semaphore_github_raw_read_permissions:
   contents: read
   metadata: read
+# The pull-request census (ansible-proxmox-apps playbooks/pr-status-post.yml)
+# mints this exact map on the same endpoint: the search API answers 422 for
+# private repositories without pull_requests read.
+openbao_semaphore_github_census_read_permissions:
+  contents: read
+  metadata: read
+  pull_requests: read
 openbao_semaphore_approle_name: semaphore
 openbao_observability_policy_name: observability
 openbao_observability_approle_name: observability
