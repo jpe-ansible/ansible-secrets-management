@@ -342,4 +342,10 @@ path "{{ mount }}/metadata/{{ openbao_platform_env_path }}" {
 }
 
 {% endfor %}
+# The run wrapper reads the SSH host CA pattern and fingerprint here to add the
+# @cert-authority line to each run's known_hosts. Public CA data, exact leaf, read only.
+path "{{ openbao_config_mount }}/data/ssh/converge" {
+  capabilities = ["read"]
+}
+
 {% include 'ansible-converge-publish-policy.hcl.j2' %}
