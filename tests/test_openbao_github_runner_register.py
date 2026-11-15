@@ -72,6 +72,7 @@ def _admin_sets(variables):
             "openbao_github_base_permission_sets"
         ],
         "openbao_github_org_secrets_permission_sets": [],
+        "openbao_github_org_variables_permission_sets": [],
         "openbao_github_docs_publisher_permission_sets": [],
         "openbao_github_dify_pr_automation_permission_sets": [],
         "openbao_github_ci_resolver_permission_sets": [],
