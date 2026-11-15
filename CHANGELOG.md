@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.117.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.117.0...v0.117.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **openbao:** allow the pull-request census read map on the semaphore raw GitHub mint ([#750](https://github.com/jpe-ansible/ansible-secrets-management/issues/750)) ([2871b26](https://github.com/jpe-ansible/ansible-secrets-management/commit/2871b26696b8b015cd3eba9c19c854b59a3e1b33))
+
 ## [0.117.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.116.0...v0.117.0) (2026-11-15)
 
 
