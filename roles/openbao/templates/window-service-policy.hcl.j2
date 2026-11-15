@@ -1,15 +1,33 @@
 {{ ansible_managed | comment }}
+{% if item.service.grants | default([]) %}
+# {{ item.service.name }} window: explicit path grants; native credential lifetime {{ item.service.lifetime }}.
+{% else %}
 # {{ item.service.name }} window: native credential lifetime {{ item.service.lifetime }}.
+{% endif %}
+{% if item.service.credential_paths %}
 # deny_all_parameters (default true) pins a request to carry no parameters at
 # all — the mint paths that read a fully-pinned permission set. A service that
 # writes KV-v2 documents must set it false: the write request IS parameters,
 # and the overlay would refuse it.
+{% endif %}
 {% for credential_path in item.service.credential_paths %}
 path "{{ credential_path }}" {
   capabilities = {{ item.service.scope | tojson }}
 {% if item.service.deny_all_parameters | default(true) %}
   denied_parameters = {
     "*" = []
+  }
+{% endif %}
+}
+{% endfor %}
+{% for grant in item.service.grants | default([]) %}
+path "{{ grant.path }}" {
+  capabilities = {{ grant.capabilities | tojson }}
+{% if grant.allowed_parameters is defined %}
+  allowed_parameters = {
+{% for parameter, values in grant.allowed_parameters.items() %}
+    {{ parameter | tojson }} = {{ values | tojson }}
+{% endfor %}
   }
 {% endif %}
 }

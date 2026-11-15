@@ -1,0 +1,39 @@
+---
+# Per-workstation key readers are declared by the run environment, never by
+# committed host inventory. Parsed here, not by set_fact, so the rotation
+# playbook (which loads these defaults without running init) sees the readers;
+# init/00-validate-workstation-ssh-key-hosts.yml refuses malformed input early.
+openbao_workstation_ssh_key_hosts_json: >-
+  {{ lookup('env', 'OPENBAO_WORKSTATION_SSH_KEY_HOSTS') | trim | default('[]', true) }}
+openbao_workstation_ssh_key_hosts: "{{ openbao_workstation_ssh_key_hosts_json | from_json }}"
+openbao_workstation_ssh_key_host_entries: >-
+  {%- set _entries = [] -%}
+  {%- for host in openbao_workstation_ssh_key_hosts | default([], true) -%}
+  {%- set _name = host.name | default('') | string | trim -%}
+  {%- set _cidr = host.cidr | default('') | string | trim -%}
+  {%- if _name | length > 0 and _cidr | length > 0 -%}
+  {%- set _ = _entries.append({'name': _name, 'cidr': _cidr}) -%}
+  {%- endif -%}
+  {%- endfor -%}
+  {{ _entries }}
+openbao_workstation_ssh_key_reader_approles: >-
+  {%- set _entries = [] -%}
+  {%- for host in openbao_workstation_ssh_key_host_entries -%}
+  {%- set _name = 'ssh-key-' ~ host.name -%}
+  {%- set _ = _entries.append({
+      'name': _name, 'policy': _name,
+      'secret_id_bound_cidrs': host.cidr,
+      'secret_id_num_uses': 100,
+      'token_ttl': '15m', 'token_max_ttl': '15m'}) -%}
+  {%- endfor -%}
+  {{ _entries }}
+openbao_workstation_ssh_key_reader_policies: >-
+  {%- set _entries = [] -%}
+  {%- for host in openbao_workstation_ssh_key_host_entries -%}
+  {%- set _name = 'ssh-key-' ~ host.name -%}
+  {%- set _ = _entries.append({
+      'name': _name,
+      'template': 'ssh-workstation-key-policy.hcl.j2',
+      'host': host.name}) -%}
+  {%- endfor -%}
+  {{ _entries }}

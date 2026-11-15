@@ -294,7 +294,8 @@ openbao_secrets_domain_approle_names: >-
       openbao_ansible_converge_writer_approle_name]
      + ([openbao_dify_secret_id_issuer_approle_name]
         if openbao_dify_secret_id_issuer_targets | length > 0 else [])
-     + (openbao_hermes_private_agent_approles + openbao_pepper_approles)
+     + (openbao_hermes_private_agent_approles + openbao_pepper_approles
+        + openbao_workstation_ssh_key_reader_approles)
        | map(attribute='name') | list }}
 # Roles using lookup proof despite the runner's source class allowing login.
 openbao_approle_rotation_lookup_proof_names: []

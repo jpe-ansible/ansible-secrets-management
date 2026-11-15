@@ -43,6 +43,7 @@ openbao_rotate_doppler_sync_domains: >-
       openbao_slack_approvals_approle_name,
       openbao_claude_code_router_key_approle_name,
       openbao_bao_elevate_client_approle_name]
+     + (openbao_workstation_ssh_key_reader_approles | map(attribute='name') | list)
      + ([openbao_roster_gateway_key_reader_name]
         if openbao_roster_gateway_key_reader_name in openbao_roster_key_reader_approle_names
         else []) }}
