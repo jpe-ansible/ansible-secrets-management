@@ -13,6 +13,44 @@
     openbao_github_app_mount_configured: false
     openbao_github_app_mount_sets: []
 
+- name: "Assert public sandbox owners are supplied as a JSON list on mount {{ gm.mount }}"
+  ansible.builtin.assert:
+    that:
+      - openbao_github_agents_public_owners is sequence
+      - openbao_github_agents_public_owners is not string
+      - openbao_github_agents_public_owners is not mapping
+    fail_msg: >-
+      OPENBAO_GITHUB_AGENTS_PUBLIC_OWNERS must be a JSON list of non-empty
+      GitHub owner logins.
+    quiet: true
+
+- name: "Assert public sandbox owner entries are valid and unique on mount {{ gm.mount }}"
+  ansible.builtin.assert:
+    that:
+      - >-
+        openbao_github_agents_public_owners
+        | select('string') | list | length
+        == openbao_github_agents_public_owners | length
+      - >-
+        openbao_github_agents_public_owners | select('string')
+        | select('match', '^\s*$') | list == []
+      - >-
+        openbao_github_agents_public_owners | select('string')
+        | reject('match', '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$')
+        | list == []
+      - >-
+        openbao_github_agents_public_owners | select('string')
+        | map('lower') | unique | list | length
+        == openbao_github_agents_public_owners | length
+      - >-
+        openbao_github_agents_public_owners | select('string')
+        | map('lower') | select('equalto', 'dryvist') | list == []
+    fail_msg: >-
+      OPENBAO_GITHUB_AGENTS_PUBLIC_OWNERS entries must be valid non-empty
+      GitHub owner logins, unique without regard to case, and must not include
+      dryvist.
+    quiet: true
+
 - name: "Report the planned enable and configuration on mount {{ gm.mount }}"
   ansible.builtin.debug:
     msg: >-
@@ -269,7 +307,7 @@
 - name: "Read the public repositories for sets that are public-only on mount {{ gm.mount }}"
   ansible.builtin.uri:
     url: >-
-      https://api.github.com/orgs/{{ item.public_repos_of }}/repos?type=public&per_page=100
+      https://api.github.com/users/{{ item.public_repos_of }}/repos?type=owner&per_page=100
     headers:
       Accept: application/vnd.github+json
       Authorization: >-

@@ -27,13 +27,26 @@ def test_public_repository_reads_are_authenticated_and_tokens_are_revoked():
     }
     assert mint["no_log"] is True
     assert read["ansible.builtin.uri"]["headers"]["Authorization"].startswith("Bearer ")
+    assert read["ansible.builtin.uri"]["url"] == (
+        "https://api.github.com/users/{{ item.public_repos_of }}/repos?type=owner&per_page=100"
+    )
     assert "openbao_github_app_mount_public_tokens.results" in (
         read["ansible.builtin.uri"]["headers"]["Authorization"]
     )
     assert "data.token" in read["ansible.builtin.uri"]["headers"]["Authorization"]
-    assert read["loop"] == "{{ gm.permission_sets | selectattr('public_repos_of', 'defined') | list }}"
+    assert read["loop"] == (
+        "{{ gm.permission_sets | selectattr('public_repos_of', 'defined') | list }}"
+    )
     assert read["register"] == "openbao_github_app_mount_public_repos"
     assert read["no_log"] is True
+    checks_path = ROOT / "roles/openbao/tasks/init/05b-github-app-set-checks.yml"
+    checks = yaml.safe_load(checks_path.read_text(encoding="utf-8"))
+    resolve = next(task for task in checks if task.get("name", "").startswith(
+        "Resolve the set repository lists"
+    ))
+    expression = resolve["ansible.builtin.set_fact"]["openbao_github_app_mount_sets"]
+    assert "selectattr('private', 'equalto', false)" in expression
+    assert "repository_page_count" in expression
     assert revoke["ansible.builtin.uri"]["url"] == "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
     assert revoke["ansible.builtin.uri"]["body"]["lease_id"] == "{{ item.json.lease_id }}"
     assert "openbao_github_app_mount_ready | bool" in revoke["when"]

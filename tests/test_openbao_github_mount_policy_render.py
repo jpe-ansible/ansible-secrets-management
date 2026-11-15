@@ -71,6 +71,12 @@ def _fixture_mounts():
                     "permissions": {"contents": "read"},
                 },
                 {
+                    "name": "public-read-example-org",
+                    "org_name": "example-org",
+                    "public_repos_of": "example-org",
+                    "permissions": {"contents": "read"},
+                },
+                {
                     "name": "private-read",
                     "installation_id": "303",
                     "private_repos_of": "private-org",
@@ -116,6 +122,7 @@ def test_policy_renders_only_declared_mounts_and_constrained_paths():
         "github-sets/config",
         "github-public/token",
         "github-public/permissionset/public-read",
+        "github-public/permissionset/public-read-example-org",
         "github-public/permissionset/private-read",
         "github-sets/permissionset/static-set",
         "github-public/permissionset",
@@ -141,6 +148,7 @@ def test_policy_renders_only_declared_mounts_and_constrained_paths():
         "github-sets/config": ["create", "read", "update"],
         "github-public/token": ["create", "update"],
         "github-public/permissionset/public-read": ["create", "read", "update"],
+        "github-public/permissionset/public-read-example-org": ["create", "read", "update"],
         "github-public/permissionset/private-read": ["create", "read", "update"],
         "github-sets/permissionset/static-set": ["create", "read", "update"],
         "github-public/permissionset": ["list"],
@@ -172,7 +180,7 @@ def test_policy_renders_only_declared_mounts_and_constrained_paths():
 
     token = bodies["github-public/token"]
     assert _allowed_parameter_keys(token) == ["org_name", "installation_id", "permissions"]
-    assert '"org_name" = ["public-org"]' in token
+    assert '"org_name" = ["public-org", "example-org"]' in token
     assert '"installation_id" = [\n      "303"\n    ]' in token
     assert '"permissions" = [{ "metadata" = "read" }]' in token
     assert '"repositories"' not in token
@@ -191,6 +199,17 @@ def test_policy_renders_only_declared_mounts_and_constrained_paths():
     assert '"installation_id" = ["202"]' in public_set
     assert '"permissions" = [{\n      "contents" = "read"\n    }]' in public_set
     assert '"repositories" = []' in public_set
+
+    owner_set = bodies["github-public/permissionset/public-read-example-org"]
+    assert _allowed_parameter_keys(owner_set) == [
+        "org_name",
+        "permissions",
+        "repositories",
+    ]
+    assert '"org_name" = ["example-org"]' in owner_set
+    assert '"installation_id"' not in owner_set
+    assert '"permissions" = [{\n      "contents" = "read"\n    }]' in owner_set
+    assert '"repositories" = []' in owner_set
 
     private_set = bodies["github-public/permissionset/private-read"]
     assert _allowed_parameter_keys(private_set) == [
@@ -247,8 +266,12 @@ def test_permission_set_policy_matches_task_bodies_for_each_set_kind():
             **mounts[0]["permission_sets"][0],
             "repositories": ["fixture-a", "fixture-b"],
         },
-        "private-read": {
+        "public-read-example-org": {
             **mounts[0]["permission_sets"][1],
+            "repositories": ["fixture-a", "fixture-b"],
+        },
+        "private-read": {
+            **mounts[0]["permission_sets"][2],
             "repositories": ["fixture-a", "fixture-b"],
         },
         "static-set": mounts[2]["permission_sets"][0],
@@ -261,6 +284,11 @@ def test_permission_set_policy_matches_task_bodies_for_each_set_kind():
     expected_bodies = {
         "public-read": {
             "installation_id": "202",
+            "permissions": {"contents": "read"},
+            "repositories": ["fixture-a", "fixture-b"],
+        },
+        "public-read-example-org": {
+            "org_name": "example-org",
             "permissions": {"contents": "read"},
             "repositories": ["fixture-a", "fixture-b"],
         },

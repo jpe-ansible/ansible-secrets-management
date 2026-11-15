@@ -7,3 +7,8 @@ path "secrets-external/data/ai/saas/cursor" {
 path "{{ openbao_github_agents_mount }}/token/public-read" {
   capabilities = ["create", "update"]
 }
+{% for owner in openbao_github_agents_public_owner_set_inputs | default([]) %}
+path "{{ openbao_github_agents_mount }}/token/public-read-{{ owner | lower }}" {
+  capabilities = ["create", "update"]
+}
+{% endfor -%}

@@ -11,3 +11,8 @@ path "{{ openbao_kv_mount }}/data/apps/sandbox-agent" {
 path "{{ openbao_kv_mount }}/data/apps/sandbox-agent-router" {
   capabilities = ["read"]
 }
+{% for owner in openbao_github_agents_public_owner_set_inputs | default([]) %}
+path "{{ openbao_github_agents_mount }}/token/public-write-{{ owner | lower }}" {
+  capabilities = ["create", "update"]
+}
+{% endfor -%}

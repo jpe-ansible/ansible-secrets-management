@@ -1,4 +1,8 @@
 ---
+- name: Pin two fixture public owners for sandbox policy renders
+  ansible.builtin.set_fact:
+    openbao_github_agents_public_owners: [example-org, Example-User]
+
 - name: Assert open-llm holds only its bucket, external key, role IDs, broker, and mint grants
   vars:
     _raw_token_stanza: >-
@@ -74,6 +78,10 @@
         _open_llm_paths | select('match', '^(github|github-admin|' ~ openbao_github_hermes_mount ~ ')/')
         | list == []
       - >-
+        _open_llm_paths
+        | select('match', '^' ~ openbao_github_agents_mount ~ '/token/public-(read|write)-')
+        | list == []
+      - >-
         _open_llm_text | regex_findall('capabilities = (.*)')
         | select('search', 'list|delete|sudo') | list == []
     fail_msg: >-
@@ -117,11 +125,57 @@
     _token: >-
       {{ openbao_github_agents_mount ~ '/token/public-'
          ~ ('read' if item.item.endswith('-read') else 'write') }}
+    _owner_tokens: >-
+      {{ openbao_github_agents_public_owners | map('lower')
+         | map('regex_replace', '^', _token ~ '-') | list }}
   ansible.builtin.assert:
     that:
-      - _policy | regex_findall('(?m)^path "([^"]+)"') == [_credential, _token]
-      - _policy | regex_findall('capabilities = (.*)') == ['["read"]', '["create", "update"]']
+      - _policy | regex_findall('(?m)^path "([^"]+)"') == [_credential, _token] + _owner_tokens
+      - >-
+        _policy | regex_findall('capabilities = (.*)')
+        == ['["read"]'] + ['["create", "update"]']
+           * (1 + openbao_github_agents_public_owners | length)
   loop: "{{ _sandbox_tool_policies.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Render generic sandbox agent policies
+  ansible.builtin.template:
+    src: "{{ _template_dir }}/{{ item }}-policy.hcl.j2"
+    dest: "{{ _fixture_dir }}/{{ item }}-policy.hcl"
+    mode: "0644"
+  loop:
+    - sandbox-agent-read
+    - sandbox-agent-write
+
+- name: Read generic sandbox agent policies
+  ansible.builtin.slurp:
+    src: "{{ _fixture_dir }}/{{ item }}-policy.hcl"
+  register: _sandbox_agent_policies
+  loop:
+    - sandbox-agent-read
+    - sandbox-agent-write
+
+- name: Assert generic sandbox agent policies grant only each public token set
+  vars:
+    _policy: "{{ item.content | b64decode }}"
+    _tier: "{{ 'read' if item.item.endswith('-read') else 'write' }}"
+    _token_paths: >-
+      {{ _policy | regex_findall('(?m)^path "([^"]+)"')
+         | select('match', '^' ~ openbao_github_agents_mount ~ '/token/') | list }}
+    _expected_paths: >-
+      {{ [openbao_github_agents_mount ~ '/token/public-' ~ _tier]
+         + (openbao_github_agents_public_owners | map('lower')
+            | map('regex_replace', '^', openbao_github_agents_mount
+                ~ '/token/public-' ~ _tier ~ '-') | list) }}
+  ansible.builtin.assert:
+    that:
+      - _token_paths == _expected_paths
+      - >-
+        _policy | regex_findall('capabilities = (.*)')
+        | select('equalto', '["create", "update"]') | list
+        == ['["create", "update"]'] * (_expected_paths | length)
+  loop: "{{ _sandbox_agent_policies.results }}"
   loop_control:
     label: "{{ item.item }}"
 

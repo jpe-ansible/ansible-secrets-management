@@ -35,6 +35,30 @@ openbao_github_read_permission_sets:
 openbao_github_agents_mount: github-agents
 openbao_github_agents_installation_id: >-
   {{ openbao_platform_env['OPENBAO_GITHUB_AGENTS_DRYVIST_INSTALLATION_ID'] | default('', true) }}
+# Extra sandbox owners arrive as a JSON list from the environment document.
+# dryvist keeps its installation-id pair; these extra owners use org-scoped
+# permission sets and public repositories only.
+openbao_github_agents_public_owners: >-
+  {{ openbao_platform_env['OPENBAO_GITHUB_AGENTS_PUBLIC_OWNERS'] | default('[]', true) | from_json }}
+# Keep malformed input from failing during default evaluation. Candidate sets
+# and policy paths are emitted only when the full owner list is valid; the mount
+# task still rejects the original input before any GitHub App write.
+openbao_github_agents_public_owner_set_inputs: >-
+  {{ openbao_github_agents_public_owners
+     if openbao_github_agents_public_owners is sequence
+        and openbao_github_agents_public_owners is not string
+        and openbao_github_agents_public_owners is not mapping
+        and openbao_github_agents_public_owners | select('string') | list | length
+            == openbao_github_agents_public_owners | length
+        and openbao_github_agents_public_owners | select('string')
+            | select('match', '^[A-Za-z0-9](?:[A-Za-z0-9-]{0,37}[A-Za-z0-9])?$')
+            | list | length == openbao_github_agents_public_owners | length
+        and openbao_github_agents_public_owners | select('string')
+            | map('lower') | unique | list | length
+            == openbao_github_agents_public_owners | length
+        and openbao_github_agents_public_owners | select('string')
+            | map('lower') | select('equalto', 'dryvist') | list == []
+     else [] }}
 openbao_github_agents_read_permissions:
   contents: read
   metadata: read
@@ -99,11 +123,45 @@ openbao_github_agents_permission_set_definitions:
 openbao_github_agents_set_permissions: >-
   {{ openbao_github_agents_permission_set_definitions
      | items2dict(key_name='name', value_name='permissions') }}
+openbao_github_agents_public_owner_read_sets: >-
+  {{ (openbao_github_agents_public_owner_set_inputs
+      | select('string') | list
+      | map('community.general.dict_kv', 'org_name')
+      | zip(
+          openbao_github_agents_public_owner_set_inputs
+            | select('string') | list
+            | map('community.general.dict_kv', 'public_repos_of'),
+          openbao_github_agents_public_owner_set_inputs
+            | select('string') | list
+            | map('lower') | map('regex_replace', '^', 'public-read-')
+            | map('community.general.dict_kv', 'name'))
+      | map('combine')
+      | map('combine', {'tier': 'read',
+                       'permissions': openbao_github_agents_read_permissions})
+      | list) }}
+openbao_github_agents_public_owner_write_sets: >-
+  {{ (openbao_github_agents_public_owner_set_inputs
+      | select('string') | list
+      | map('community.general.dict_kv', 'org_name')
+      | zip(
+          openbao_github_agents_public_owner_set_inputs
+            | select('string') | list
+            | map('community.general.dict_kv', 'public_repos_of'),
+          openbao_github_agents_public_owner_set_inputs
+            | select('string') | list
+            | map('lower') | map('regex_replace', '^', 'public-write-')
+            | map('community.general.dict_kv', 'name'))
+      | map('combine')
+      | map('combine', {'tier': 'write',
+                       'permissions': openbao_github_agents_write_permissions})
+      | list) }}
 openbao_github_agents_permission_sets: >-
-  {{ (openbao_github_agents_permission_set_definitions
-      | map('combine', {'installation_id': openbao_github_agents_installation_id,
-                       'public_repos_of': 'dryvist'}) | list)
-     if openbao_github_agents_installation_id | length > 0 else [] }}
+  {{ ((openbao_github_agents_permission_set_definitions
+       | map('combine', {'installation_id': openbao_github_agents_installation_id,
+                        'public_repos_of': 'dryvist'}) | list)
+      if openbao_github_agents_installation_id | length > 0 else [])
+     + openbao_github_agents_public_owner_read_sets
+     + openbao_github_agents_public_owner_write_sets }}
 
 openbao_github_hermes_mount: github-hermes
 # Two identities split by repository visibility: neither can mint a token that

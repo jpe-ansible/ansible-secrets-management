@@ -47,10 +47,26 @@
 - name: "Assert the sandbox sets are public-only and narrowly permissioned on mount {{ gm.mount }}"
   ansible.builtin.assert:
     that:
-      - item.permissions == openbao_github_agents_set_permissions[item.name]
-      - item.public_repos_of == 'dryvist'
+      - >-
+        item.permissions == openbao_github_agents_set_permissions[
+          'public-read' if item.name.startswith('public-read-') else
+          ('public-write' if item.name.startswith('public-write-') else item.name)]
+      - >-
+        ((item.name.startswith('public-read-') or item.name.startswith('public-write-'))
+         and item.org_name is defined
+         and item.installation_id is not defined
+         and item.org_name in openbao_github_agents_public_owners
+         and item.public_repos_of == item.org_name
+         and item.name == (('public-read-' if item.name.startswith('public-read-')
+                            else 'public-write-') ~ (item.org_name | lower)))
+        or
+        (not item.name.startswith('public-read-')
+         and not item.name.startswith('public-write-')
+         and item.installation_id is defined
+         and item.org_name is not defined
+         and item.public_repos_of == 'dryvist')
       - item.private_repos_of is not defined
-      - (item.repositories | default([]) | length) == 0
+      - item.repositories is not defined
     fail_msg: >-
       {{ gm.mount }}/permissionset/{{ item.name }} must use its declared
       public-only permission map and repository scope.
@@ -151,9 +167,12 @@
     openbao_github_app_mount_sets: >-
       {{ openbao_github_app_mount_sets | default([])
          + [item | combine(
-             {'repositories': (openbao_github_app_mount_public_repos.results
+             {'repositories': ((openbao_github_app_mount_public_repos.results
                | selectattr('item.name', 'equalto', item.name) | first).json
-               | map(attribute='name') | sort | list}
+               | selectattr('private', 'equalto', false)
+               | map(attribute='name') | sort | list),
+              'repository_page_count': ((openbao_github_app_mount_public_repos.results
+               | selectattr('item.name', 'equalto', item.name) | first).json | length)}
              if item.public_repos_of is defined else
              {'repositories': (openbao_github_app_mount_private_repos.results
                | selectattr('item.item.name', 'equalto', item.name) | first).json.repositories

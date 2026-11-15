@@ -43,6 +43,7 @@
 - name: Pin the agents installation back to the configured case
   ansible.builtin.set_fact:
     openbao_github_agents_installation_id: "4242"
+    openbao_github_agents_public_owners: []
 
 - name: Assert the agents permission sets are public-only and narrowly scoped
   ansible.builtin.assert:
@@ -75,6 +76,55 @@
       - openbao_github_agents_permission_sets | selectattr('private_repos_of', 'defined') | list == []
       - openbao_github_agents_permission_sets | selectattr('repositories', 'defined') | list == []
     fail_msg: The agents mount must declare only its exact public permission sets.
+
+- name: Assert an empty owner list keeps the agents mount set list unchanged
+  vars:
+    _agents_mount: >-
+      {{ openbao_github_app_mounts
+         | selectattr('mount', 'equalto', openbao_github_agents_mount) | first }}
+  ansible.builtin.assert:
+    that:
+      - openbao_github_agents_public_owner_read_sets == []
+      - openbao_github_agents_public_owner_write_sets == []
+      - _agents_mount.permission_sets == openbao_github_agents_permission_sets
+      - >-
+        openbao_github_agents_set_permissions
+        == openbao_github_agents_permission_set_definitions
+           | items2dict(key_name='name', value_name='permissions')
+    fail_msg: An empty public owner list must leave the agents set list and map unchanged.
+
+- name: Pin two fixture public owners
+  ansible.builtin.set_fact:
+    openbao_github_agents_public_owners: [example-org, Example-User]
+
+- name: Assert each fixture owner gets only its public read and write sets
+  vars:
+    _owner_sets: >-
+      {{ openbao_github_agents_permission_sets
+         | selectattr('org_name', 'defined') | list }}
+    _agents_mount: >-
+      {{ openbao_github_app_mounts
+         | selectattr('mount', 'equalto', openbao_github_agents_mount) | first }}
+  ansible.builtin.assert:
+    that:
+      - _agents_mount.permission_sets == openbao_github_agents_permission_sets
+      - _owner_sets | map(attribute='name') | list ==
+        ['public-read-example-org', 'public-read-example-user',
+         'public-write-example-org', 'public-write-example-user']
+      - _owner_sets | map(attribute='org_name') | list ==
+        ['example-org', 'Example-User', 'example-org', 'Example-User']
+      - _owner_sets | map(attribute='public_repos_of') | list ==
+        ['example-org', 'Example-User', 'example-org', 'Example-User']
+      - _owner_sets | map(attribute='permissions') | list ==
+        [openbao_github_agents_read_permissions,
+         openbao_github_agents_read_permissions,
+         openbao_github_agents_write_permissions,
+         openbao_github_agents_write_permissions]
+      - _owner_sets | selectattr('installation_id', 'defined') | list == []
+      - _owner_sets | selectattr('private_repos_of', 'defined') | list == []
+      - _owner_sets | selectattr('repositories', 'defined') | list == []
+      - openbao_github_agents_set_permissions.keys() | list | length == 7
+    fail_msg: Each fixture owner must receive exactly the declared public read and write sets.
 
 - name: Assert no other tier reaches the work mount
   ansible.builtin.assert:
