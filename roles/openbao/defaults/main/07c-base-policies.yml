@@ -63,13 +63,24 @@ openbao_dify_secret_id_issuer_policies: >-
         'targets': openbao_dify_secret_id_issuer_targets}]
       if openbao_dify_secret_id_issuer_targets | length > 0 else []) }}
 
+# Each OpenHands org set has its own token-path policy.
+openbao_github_openhands_write_policies: >-
+  {%- set _policies = [] -%}
+  {%- for permission_set in openbao_github_openhands_write_permission_sets -%}
+  {%- set _ = _policies.append({'name': permission_set.name,
+      'org': permission_set.org_name, 'set': permission_set,
+      'template': 'openhands-write-policy.hcl.j2'}) -%}
+  {%- endfor -%}
+  {{ _policies }}
+
 openbao_base_policies: >-
   {{ openbao_terrakube_base_policies + openbao_base_policies_static
      + openbao_roster_owned_mcp_deny_policies
      + openbao_app_agent_tier_reader_policies
      + openbao_dify_secret_id_issuer_policies
      + openbao_dify_agent_policies + openbao_window_service_policies
-     + openbao_pr_reconcile_policies }}
+     + openbao_pr_reconcile_policies
+     + openbao_github_openhands_write_policies }}
 
 # Static policy catalog, loaded with the other defaults.
 openbao_base_policies_static:

@@ -115,7 +115,10 @@ def test_missing_inputs_disable_reconcile_and_warn():
     assert "not (openbao_github_pr_reconcile_enabled | bool)" in remove["when"]
     assert "(openbao_github_oidc_pr_reconcile_role_current.rc | default(1)) == 0" in remove["when"]
     read = _find_task(tasks, "Read the pr-reconcile-sweep OIDC role")
-    assert read["when"] == "openbao_bootstrap_token is defined"
+    assert read["when"] == [
+        "openbao_select | default({}) | length == 0",
+        "openbao_bootstrap_token is defined",
+    ]
 
     warning = _find_task(
         yaml.safe_load(RBAC.read_text(encoding="utf-8")),

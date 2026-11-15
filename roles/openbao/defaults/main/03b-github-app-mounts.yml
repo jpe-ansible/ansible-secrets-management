@@ -12,7 +12,7 @@
 #   github-hermes  review split by visibility; allowlisted public authoring
 #   github-work    read and App-grant write over one installation, no sets
 #   github-pepper  one repository-scoped read set
-#   github-openhands one installation-scoped write set for OpenHands
+#   github-openhands one installation-scoped pilot set and org-scoped write sets
 #   github-enterprise-read  human-gated raw-token read tier
 #   github-enterprise       human-gated raw-token admin tier
 #   github-enterprise-owner human-gated stored owner token, readable by the admin tiers only
@@ -179,7 +179,8 @@ openbao_github_personal_app_id: >-
 openbao_github_personal_app_private_key: >-
   {{ lookup('env', 'OPENBAO_GITHUB_PERSONAL_APP_PRIVATE_KEY') | default('', true) }}
 
-# This mount and set are declared only when every input is present.
+# The mount is declared when its App ID and either its pilot or org-write set
+# list are present. Its key is optional until a human configures the mount.
 openbao_github_openhands_mount: github-openhands
 openbao_github_openhands_installation_id: >-
   {{ openbao_platform_env['OPENBAO_GITHUB_OPENHANDS_DRYVIST_INSTALLATION_ID'] | default('', true) }}
@@ -187,6 +188,20 @@ openbao_github_openhands_app_id: >-
   {{ lookup('env', 'OPENBAO_GITHUB_OPENHANDS_APP_ID') | default('', true) }}
 openbao_github_openhands_app_private_key: >-
   {{ lookup('env', 'OPENBAO_GITHUB_OPENHANDS_APP_PRIVATE_KEY') | default('', true) }}
+openbao_github_openhands_write_orgs: >-
+  {%- set _orgs = [] -%}
+  {%- set _seen_orgs = [] -%}
+  {%- for _candidate in (lookup('env', 'OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS') | default('', true)).split(',') -%}
+  {%- set _org = _candidate | trim -%}
+  {%- if _org | length > 0 and (_org | lower) not in _seen_orgs -%}
+  {%- set _ = _orgs.append(_org) -%}
+  {%- set _ = _seen_orgs.append(_org | lower) -%}
+  {%- endif -%}
+  {%- endfor -%}
+  {{ _orgs }}
+openbao_github_openhands_write_workflows: >-
+  {{ (lookup('env', 'OPENBAO_GITHUB_OPENHANDS_WRITE_WORKFLOWS') | default('', true)).split(',')
+     | map('trim') | reject('equalto', '') | unique | list }}
 
 # This mount and set are declared only when every input is present.
 openbao_github_pepper_mount: github-pepper
@@ -280,8 +295,11 @@ openbao_github_app_mounts: >-
      + ([{'mount': openbao_github_openhands_mount,
           'app_id': openbao_github_openhands_app_id,
           'private_key': openbao_github_openhands_app_private_key,
-          'permission_sets': openbao_github_openhands_permission_sets}]
-        if openbao_github_openhands_permission_sets | length > 0 else [])
+          'permission_sets': openbao_github_openhands_permission_sets
+                             + openbao_github_openhands_write_permission_sets}]
+        if openbao_github_openhands_app_id | length > 0
+           and (openbao_github_openhands_permission_sets
+                + openbao_github_openhands_write_permission_sets) | length > 0 else [])
      + ([{'mount': openbao_github_pepper_mount,
           'app_id': openbao_github_pepper_app_id,
           'private_key': openbao_github_pepper_app_private_key,

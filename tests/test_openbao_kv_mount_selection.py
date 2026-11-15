@@ -220,7 +220,7 @@ def test_failed_listing_fails_a_selected_mount_run():
     nodes = yaml.safe_load(INIT.read_text(encoding="utf-8"))
     failure = next(
         item for item in nodes
-        if item.get("name") == "Fail when the secrets-engine listing failed for selected KV mounts"
+        if item.get("name") == "Fail when the secrets-engine listing failed for selected mounts"
     )
     variables = {
         "openbao_select": SELECTION,

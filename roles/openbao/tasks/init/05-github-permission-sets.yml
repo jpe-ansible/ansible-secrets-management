@@ -66,6 +66,28 @@
       openbao_select | default({}) | length == 0
       or 'openhands' in (openbao_github_permission_set_targets | map(attribute='tier', default='') | list)
 
+- name: Assert the OpenHands write permission map is exactly its five permissions
+  ansible.builtin.assert:
+    that:
+      - >-
+        openbao_github_openhands_write_permissions.keys() | list | sort
+        == ['actions', 'checks', 'contents', 'metadata', 'pull_requests']
+      - openbao_github_openhands_write_permissions.actions == 'read'
+      - openbao_github_openhands_write_permissions.checks == 'read'
+      - openbao_github_openhands_write_permissions.contents == 'write'
+      - openbao_github_openhands_write_permissions.metadata == 'read'
+      - openbao_github_openhands_write_permissions.pull_requests == 'write'
+    fail_msg: >-
+      openbao_github_openhands_write_permissions must be exactly
+      {actions: read, checks: read, contents: write, metadata: read,
+      pull_requests: write}; add a new tier instead of widening this one.
+  when:
+    - openbao_bootstrap_token is defined
+    - openbao_github_engine_enabled | bool
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'openhands-write' in (openbao_github_permission_set_targets | map(attribute='tier', default='') | list)
+
 - name: Assert the org-admin permission map is exactly organization_administration:write
   ansible.builtin.assert:
     that:

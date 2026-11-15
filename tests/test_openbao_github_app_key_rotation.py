@@ -56,6 +56,8 @@ CALLERS = {
         ],
         "variables": lambda stored, app_id, key: {
             "openbao_github_app_mount_config": stored,
+            # Set by the file's first task; false once the mount exists.
+            "openbao_github_app_mount_absent_check_mode": False,
             "gm": {"mount": MOUNT, "app_id": app_id, "private_key": key, "permission_sets": []},
         },
     },

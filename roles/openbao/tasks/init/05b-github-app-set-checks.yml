@@ -86,23 +86,36 @@
 - name: "Assert the dedicated OpenHands set on mount {{ gm.mount }}"
   ansible.builtin.assert:
     that:
-      - gm.permission_sets | length == 1
-      - _openhands_set.name | default('') == openbao_github_openhands_set_name
-      - _openhands_set.tier | default('') == 'openhands'
+      - gm.permission_sets == openbao_github_openhands_permission_sets + openbao_github_openhands_write_permission_sets
+      - _openhands_pilot_sets | length <= 1
       - >-
-        _openhands_set.installation_id | default('') | string
-        == openbao_github_openhands_installation_id | string
-      - _openhands_set.repositories is not defined
+        _openhands_pilot_sets | length == 0
+        or (_openhands_set.name == openbao_github_openhands_set_name
+            and _openhands_set.tier == 'openhands'
+            and _openhands_set.installation_id | string
+                == openbao_github_openhands_installation_id | string
+            and _openhands_set.repositories is not defined
+            and _openhands_set.permissions
+                == {'checks': 'read', 'contents': 'write',
+                    'metadata': 'read', 'pull_requests': 'write'})
       - >-
-        _openhands_set.permissions | default({})
-        == {'checks': 'read', 'contents': 'write',
+        _openhands_write_sets | length
+        == openbao_github_openhands_write_permission_sets | length
+      - >-
+        openbao_github_openhands_write_permissions
+        == {'actions': 'read', 'checks': 'read', 'contents': 'write',
             'metadata': 'read', 'pull_requests': 'write'}
     fail_msg: >-
-      {{ gm.mount }} must declare only openhands-pilot with its exact
-      installation-scoped permission map.
+      {{ gm.mount }} must declare its exact pilot set, when configured, and
+      every declared org-only write set.
     quiet: true
   vars:
-    _openhands_set: "{{ gm.permission_sets | first | default({}) }}"
+    _openhands_pilot_sets: >-
+      {{ gm.permission_sets
+         | selectattr('name', 'equalto', openbao_github_openhands_set_name) | list }}
+    _openhands_set: "{{ _openhands_pilot_sets | first | default({}) }}"
+    _openhands_write_sets: >-
+      {{ gm.permission_sets | selectattr('tier', 'equalto', 'openhands-write') | list }}
   when: gm.mount == openbao_github_openhands_mount
 
 # ponytail: one page of 100; add pagination when a list passes 100 repos.

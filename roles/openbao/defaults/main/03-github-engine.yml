@@ -220,10 +220,11 @@ openbao_github_ci_resolver_permission_sets: >-
 # so it is not scheduled for writing: a stored policy is never replaced by an
 # empty document, and the empty-policy check has nothing to refuse.
 openbao_unscheduled_empty_policy_names: >-
-  {{ [] if openbao_github_ci_resolver_repos | length > 0
-     else [openbao_github_ci_resolver_policy_name] }}
-# OpenHands uses one set on its dedicated App mount, bounded by that
-# installation's repository selection.
+  {{ ([] if openbao_github_ci_resolver_repos | length > 0
+      else [openbao_github_ci_resolver_policy_name]) }}
+# OpenHands' runtime keeps one installation-scoped pilot set. The dedicated
+# write tier below uses separate org-name-scoped sets and an exact permission
+# map.
 openbao_github_openhands_set_name: openhands-pilot
 openbao_github_openhands_permissions:
   checks: read
@@ -236,8 +237,25 @@ openbao_github_openhands_permission_sets: >-
        'installation_id': openbao_github_openhands_installation_id,
        'permissions': openbao_github_openhands_permissions}]
      if (openbao_github_openhands_installation_id | length > 0
-         and openbao_github_openhands_app_id | length > 0
-         and openbao_github_openhands_app_private_key | length > 0) else [] }}
+         and openbao_github_openhands_app_id | length > 0) else [] }}
+openbao_github_openhands_write_set_prefix: openhands-write
+openbao_github_openhands_write_permissions:
+  actions: read
+  checks: read
+  contents: write
+  metadata: read
+  pull_requests: write
+openbao_github_openhands_write_permission_sets: >-
+  {%- set _sets = [] -%}
+  {%- if openbao_github_openhands_write_orgs | length > 0
+      and openbao_github_openhands_app_id | length > 0 -%}
+  {%- for org in openbao_github_openhands_write_orgs -%}
+  {%- set _ = _sets.append({'name': openbao_github_openhands_write_set_prefix ~ '-' ~ (org | lower),
+      'tier': 'openhands-write', 'org_name': org,
+      'permissions': openbao_github_openhands_write_permissions}) -%}
+  {%- endfor -%}
+  {%- endif -%}
+  {{ _sets }}
 # The docs site's router snapshot workflow opens its pull request in the docs
 # SOURCE repository, so its set names that repository and nothing else. Same
 # rule as the publisher set: an unset repository yields no set. Tier `agents`
@@ -478,6 +496,8 @@ openbao_github_permission_sets: >-
      + (openbao_github_personal_permission_sets
         | map('combine', {'mount': openbao_github_personal_mount}) | list)
      + (openbao_github_openhands_permission_sets
+        | map('combine', {'mount': openbao_github_openhands_mount}) | list)
+     + (openbao_github_openhands_write_permission_sets
         | map('combine', {'mount': openbao_github_openhands_mount}) | list)
      + (openbao_github_pepper_permission_sets
         | map('combine', {'mount': openbao_github_pepper_mount}) | list) }}
