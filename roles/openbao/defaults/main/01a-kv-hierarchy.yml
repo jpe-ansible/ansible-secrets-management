@@ -73,7 +73,7 @@ openbao_kv_zone_mounts:
 # objects, for example [{"path": "<mount>"}]. Both flags are forced false, so
 # the environment cannot give a restricted mount a broad grant.
 openbao_kv_restricted_mounts: >-
-  {{ (lookup('env', 'OPENBAO_KV_RESTRICTED_MOUNTS') | default('[]', true) | from_json)
+  {{ (lookup('env', 'OPENBAO_KV_RESTRICTED_MOUNTS') | trim | default('[]', true) | from_json)
      | map('combine', {'global_read': false, 'age_audit': false}) | list }}
 openbao_kv_mounts: "{{ openbao_kv_zone_mounts + openbao_kv_restricted_mounts }}"
 # Derived: the subset that declares retention. Defined once because init.yml

@@ -82,9 +82,10 @@ def test_broad_grants_skip_flagged_and_restricted_mounts(
     _set_restricted(monkeypatch)
     paths = [mount["path"] for mount in _mounts(values)]
 
-    read_all = dict(_stanzas(_render(TEMPLATES / "ai-global-read-policy.hcl.j2", values)))
-    read_mounts = {path for path in paths if f"{path}/data/*" in read_all}
-    assert read_mounts == set(paths) - {"ext-ai", "ext-critical", "admin", RESTRICTED}
+    for template in ("ai-global-read-policy.hcl.j2", "operator-human-policy.hcl.j2"):
+        read_all = dict(_stanzas(_render(TEMPLATES / template, values)))
+        read_mounts = {path for path in paths if f"{path}/data/*" in read_all}
+        assert read_mounts == set(paths) - {"ext-ai", "ext-critical", "admin", RESTRICTED}, template
 
     age_policy = dict(_stanzas(_render(TEMPLATES / "secret-age-audit-policy.hcl.j2", values)))
     age_mounts = {path for path in paths if f"{path}/metadata/*" in age_policy}
@@ -120,3 +121,19 @@ def test_mount_assert_refuses_a_restricted_path_that_is_not_one_lowercase_segmen
     assert accepts("int", "ext-saas", RESTRICTED)
     for bad in ("Restricted", "restricted/zone", "-restricted", "restricted zone", ""):
         assert not accepts("int", bad), bad
+
+    distinct = next(check for check in checks if "unique" in check)
+    # A restricted mount that repeats a zone mount's path is refused too.
+    assert condition(distinct, {"openbao_kv_mounts": [{"path": "int"}, {"path": RESTRICTED}]})
+    assert not condition(distinct, {"openbao_kv_mounts": [{"path": "int"}, {"path": "int"}]})
+
+
+def test_a_blank_restricted_mounts_variable_declares_no_restricted_mount(
+    rendered_defaults, monkeypatch,  # noqa: F811 - pytest fixture
+):
+    values, _, _ = rendered_defaults
+    monkeypatch.delenv("OPENBAO_KV_RESTRICTED_MOUNTS", raising=False)
+    unset = _mounts(values)
+    for blank in ("", "   ", "\n"):
+        monkeypatch.setenv("OPENBAO_KV_RESTRICTED_MOUNTS", blank)
+        assert _mounts(values) == unset, repr(blank)

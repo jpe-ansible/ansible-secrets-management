@@ -323,7 +323,9 @@ def test_secret_age_audit_grants_metadata_reads_for_every_age_audited_kv_mount(r
     ]
 
 
-def test_ai_admin_adds_one_full_stanza_per_declared_kv_mount(rendered_defaults):
+def test_ai_admin_adds_one_full_stanza_per_declared_kv_mount(rendered_defaults, monkeypatch):
+    # Restricted mounts from the caller's environment would extend the list.
+    monkeypatch.delenv("OPENBAO_KV_RESTRICTED_MOUNTS", raising=False)
     values, _, _ = rendered_defaults
     mounts = [mount["path"] for mount in _render_value(values, values["openbao_kv_mounts"])]
     baseline_values = dict(values, openbao_kv_mounts=[])
