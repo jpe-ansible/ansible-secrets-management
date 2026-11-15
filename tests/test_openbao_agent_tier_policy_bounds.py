@@ -54,7 +54,7 @@ def test_generated_credentials_are_declared_only_on_agent_tier_leaves():
 def test_agent_tier_mount_is_provisioned_outside_shared_wildcard_mounts():
     values = _defaults()
     assert values["openbao_agent_tier_mount"] not in {
-        mount["path"] for mount in values["openbao_kv_mounts"]
+        mount["path"] for mount in values["openbao_kv_zone_mounts"]
     }
     task = (ROOT / "roles/openbao/tasks/init/03-kv-mounts-and-seed-secrets.yml").read_text(
         encoding="utf-8"

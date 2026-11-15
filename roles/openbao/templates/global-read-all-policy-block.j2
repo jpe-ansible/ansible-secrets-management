@@ -1,8 +1,9 @@
-# Read access on KV data and read/list access on metadata for every KV v2 mount.
+# Read access on KV data and read/list access on metadata for every KV v2 mount
+# that does not set global_read: false.
 {% set global_read_kv_mounts = (openbao_kv_mounts | default([])) + [
   openbao_agent_tier_mount
 ] %}
-{% for mount in global_read_kv_mounts %}
+{% for mount in global_read_kv_mounts if mount.global_read | default(true) %}
 path "{{ mount.path | default(mount) }}/data/*" {
   capabilities = ["read"]
 }
