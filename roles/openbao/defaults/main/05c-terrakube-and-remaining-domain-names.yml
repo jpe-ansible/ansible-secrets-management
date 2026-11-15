@@ -262,7 +262,8 @@ openbao_host_secret_zero_approle_names:
   - "{{ openbao_hatchet_eval_status_approle_name }}"
   - iac-platform-deploy
 # Every scheduled-rotation AppRole, by name; approle-secret-id-rotate-policy.hcl.j2
-# scopes its secret-id mint/destroy grants to this one list.
+# scopes its secret-id mint/destroy grants to this one list. The guest agent
+# AppRoles (07g) join only while their secret-id CIDR declares them.
 openbao_secrets_domain_approle_names: >-
   {{ [openbao_observability_approle_name,
       openbao_local_cloud_approle_name,
@@ -293,7 +294,9 @@ openbao_secrets_domain_approle_names: >-
       openbao_authelia_signing_writer_approle_name,
       openbao_ansible_converge_writer_approle_name]
      + ([openbao_dify_secret_id_issuer_approle_name]
-        if openbao_dify_secret_id_issuer_targets | length > 0 else []) }}
+        if openbao_dify_secret_id_issuer_targets | length > 0 else [])
+     + (openbao_hermes_private_agent_approles + openbao_pepper_approles)
+       | map(attribute='name') | list }}
 # Roles using lookup proof despite the runner's source class allowing login.
 openbao_approle_rotation_lookup_proof_names: []
 # Provider-level API credentials live on exact leaves under a separately
