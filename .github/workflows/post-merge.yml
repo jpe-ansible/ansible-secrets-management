@@ -19,5 +19,5 @@ jobs:
     with:
       profile: ansible
     secrets:
-      GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      AUTOMATION_APP_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
       slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}

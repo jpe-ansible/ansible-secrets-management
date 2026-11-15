@@ -79,7 +79,7 @@ jobs:
         .github/**,roles/**,playbooks/**,tests/**,molecule/**,requirements.yml,\
         **/*secret*,**/*credential*,**/*token*,**/vault/**,*.sops.*,.sops.yaml"
     secrets:
-      GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+      AUTOMATION_APP_PRIVATE_KEY: ${{ secrets.GH_ACTION_RELEASE_PLEASE_PRIVATE_KEY }}
 
   molecule:
     name: Molecule
