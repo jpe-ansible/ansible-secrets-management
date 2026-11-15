@@ -55,6 +55,11 @@
   register: _due_ts
   changed_when: false
 
+- name: Compute the due-soon timestamp (between warn_days and max_days)
+  ansible.builtin.command: date -u -d "-42 days" +%Y-%m-%dT%H:%M:%SZ
+  register: _warn_ts
+  changed_when: false
+
 - name: Compute a fresh timestamp (well within target_days)
   ansible.builtin.command: date -u -d "-5 days" +%Y-%m-%dT%H:%M:%SZ
   register: _fresh_ts
@@ -83,17 +88,17 @@
       # convention) — write the body there, not to stdout, or it pollutes
       # the script's own JSON report on stdout.
       url="${!#}"
-      outfile="" title="" prev=""
+      outfile="" title="" body="" prev=""
       for a in "$@"; do
         [ "${prev}" = "-o" ] && outfile="${a}"
         [ "${prev}" = "-H" ] && [[ "${a}" == Title:* ]] && title="${a#Title: }"
+        [ "${prev}" = "-d" ] && body="${a}"
         prev="${a}"
       done
-      body=""
       case "${url}" in
         */v1/sys/leader) body='{"is_self":true}' ;;
         https://ntfy.example.test/*)
-          [ -n "${CALL_LOG:-}" ] && printf 'ntfy title=%s\n' "${title}" >>"${CALL_LOG}"
+          [ -n "${CALL_LOG:-}" ] && printf 'ntfy title=%s body=%s\n' "${title}" "${body}" >>"${CALL_LOG}"
           ;;
       esac
       if [ -n "${outfile}" ]; then
@@ -117,14 +122,14 @@
 
 # Dispatches on the full argv so each case matches one specific call the
 # script actually makes — the two-mount KV walk (secret/ has one
-# directory holding four leaves; secrets-external/ is genuinely empty —
+# directory holding five leaves; secrets-external/ is genuinely empty —
 # `[]`, rc 0, NOT a failure), one metadata read per leaf, and the AppRole
 # secret-id accessor lookup. secret/empty/ and empty-role's secret-id list
 # answer the way OpenBao 2.6 does for an empty list under -format=json:
 # `{}` on stdout, nothing on stderr, rc 2 — absent, never a denial. SIMULATE_ROOT_DENIAL=1 (env, Case B1 only)
 # flips secret/'s root list to a DENIAL (non-zero rc, no ABSENT_MARKER
 # text) instead of its normal listing. SIMULATE_GARBAGE_TS=1 (env, Case
-# R2 only) adds a fifth leaf whose rotated_password value is not a
+# R2 only) adds a sixth leaf whose rotated_password value is not a
 # parseable timestamp.
 - name: Install the stub bao
   ansible.builtin.copy:
@@ -144,9 +149,9 @@
           echo '{}'; exit 2 ;;
         "kv list -format=json secret/apps/")
           if [ "${SIMULATE_GARBAGE_TS:-0}" = "1" ]; then
-            echo '["overdue-app","due-app","exempt-app","ok-app","garbage-app"]'
+            echo '["overdue-app","due-app","warn-app","exempt-app","ok-app","garbage-app"]'
           else
-            echo '["overdue-app","due-app","exempt-app","ok-app"]'
+            echo '["overdue-app","due-app","warn-app","exempt-app","ok-app"]'
           fi ;;
         "kv list -format=json secrets-external/")
           echo '[]' ;;
@@ -159,6 +164,10 @@
                     custom_metadata:{rotated_password:$t}}}' ;;
         "kv metadata get -format=json secret/apps/due-app")
           jq -n --arg t "{{ _due_ts.stdout }}" \
+            '{data:{updated_time:$t,current_version:1,
+                    custom_metadata:{rotated_password:$t}}}' ;;
+        "kv metadata get -format=json secret/apps/warn-app")
+          jq -n --arg t "{{ _warn_ts.stdout }}" \
             '{data:{updated_time:$t,current_version:1,
                     custom_metadata:{rotated_password:$t}}}' ;;
         "kv metadata get -format=json secret/apps/exempt-app")

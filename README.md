@@ -22,6 +22,24 @@ ansible-galaxy install -r requirements.yml --force
 Consume a role by its fully qualified name, for example `dryvist.secrets_management.openbao`.
 Each role's README and defaults files list the inputs that the role reads.
 
+## KV value rotation
+
+The rotator reads private JSON rows from `OPENBAO_KV_ROTATION_TARGETS`. A row has `name`,
+`mount`, `path`, and `field`; `generate` is `{kind: random, length}` or
+`{kind: vendor_roll, url, method, headers, body?, value_from, admin_credential}`; `push` is
+`{kind: none}`, `{kind: semaphore, project_id, template_id, extra_args?}`, or
+`{kind: terrakube, organization_id, workspace_id}`. `probe` supplies `url`, `method`,
+`headers`, optional `body`, and `expect_status`; `invalidate` is `none` or an HTTP request
+with `url`, `method`, `headers`, optional `body`, and `expect_status`. `old_dead_status`
+lists HTTP statuses that prove the old value is dead. Credential references use
+`{mount, path, field}` objects. Secret placeholders in request URLs require row key
+`secret_in_url: true`; substitutions are URL-encoded. When HTTP invalidation is used with
+`push: {kind: none}`, set `push.consumer_reads_openbao: true` to confirm that consumers read
+the leaf from OpenBao at use time. Keep row data and values out of this public collection.
+By default, rows rotate when their leaf is at least `openbao_rotation_target_days` old. Use
+`-e rotate_kv_targets=svc-a` to force named rows, or `-e rotate_kv_targets=all` to force every
+row in one run.
+
 ## Consumer inputs
 
 The roles read these names from the consuming playbook, inventory, or environment:
