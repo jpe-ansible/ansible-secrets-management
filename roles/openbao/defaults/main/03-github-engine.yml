@@ -281,7 +281,7 @@ openbao_github_write_routes:
 openbao_github_write_permission_sets: >-
   {%- set _sets = [] -%}
   {%- for route in openbao_github_write_routes -%}
-  {%- if route.orgs | length > 0 and route.app_id | length > 0 -%}
+  {%- if route.orgs | length > 0 and route.app_id | string | length > 0 -%}
   {%- for org in route.orgs -%}
   {%- set _ = _sets.append({'name': route.prefix ~ '-' ~ (org | lower),
       'tier': route.prefix, 'org_name': org,

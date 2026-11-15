@@ -291,15 +291,17 @@ def test_org_secrets_selection_checks_its_map_and_full_runs_check_every_map():
     write_route_assertion = task(
         "Assert each GitHub write route uses its exact permission map", PERMISSION_SETS
     )
+    # Selection candidates are the admin-mount sets only, so a permission-set
+    # selection never targets a write-route set; the App-mount assert covers that path.
     for prefix in ("openhands-write", "claude-write"):
         variables = {
-            "openbao_select": {KIND: [prefix]},
-            "openbao_github_permission_set_targets": [{"tier": prefix}],
+            "openbao_select": SELECTION,
+            "openbao_github_permission_set_targets": [{"name": SELECTED_NAME, "tier": "org-secrets"}],
             "openbao_bootstrap_token": True,
             "openbao_github_engine_enabled": True,
             "item": {"prefix": prefix},
         }
-        assert all(
+        assert not all(
             condition(gate, variables)
             for gate in write_route_assertion["when"]
         )

@@ -120,8 +120,12 @@ def test_openhands_org_write_set_and_policy_use_org_name(
     assert '"installation_id"' not in stanzas[set_path]
 
 
+ROUTE_PREFIXES = ["openhands-write", "claude-write"]
+
+
+@pytest.mark.parametrize("prefix", ROUTE_PREFIXES)
 @pytest.mark.parametrize("org", ["example-org*", "-example-org"])
-def test_openhands_org_validator_rejects_invalid_names(openhands_defaults, org):
+def test_openhands_org_validator_rejects_invalid_names(openhands_defaults, org, prefix):
     tasks = yaml.safe_load(MOUNT_TASKS.read_text(encoding="utf-8"))
     validation = next(
         task for task in tasks
@@ -134,12 +138,10 @@ def test_openhands_org_validator_rejects_invalid_names(openhands_defaults, org):
         and "reject" in check
     )
     route = {
-        "prefix": "openhands-write",
+        "prefix": prefix,
         "orgs": [org],
         "workflows": [],
-        "permissions": openhands_defaults[
-            "openbao_github_openhands_write_permissions"
-        ],
+        "permissions": openhands_defaults["openbao_github_write_permission_profiles"][prefix],
         "app_id": "12345",
     }
     result = _render_value(
@@ -151,6 +153,7 @@ def test_openhands_org_validator_rejects_invalid_names(openhands_defaults, org):
     assert result is False or result == "False"
 
 
+@pytest.mark.parametrize("prefix", ROUTE_PREFIXES)
 @pytest.mark.parametrize(
     "workflow",
     [
@@ -160,7 +163,7 @@ def test_openhands_org_validator_rejects_invalid_names(openhands_defaults, org):
     ],
 )
 def test_openhands_workflow_validator_rejects_globs_refs_and_wrong_prefix(
-    openhands_defaults, workflow,
+    openhands_defaults, workflow, prefix,
 ):
     tasks = yaml.safe_load(MOUNT_TASKS.read_text(encoding="utf-8"))
     validation = next(
@@ -174,12 +177,10 @@ def test_openhands_workflow_validator_rejects_globs_refs_and_wrong_prefix(
         and "reject" in check
     )
     route = {
-        "prefix": "openhands-write",
+        "prefix": prefix,
         "orgs": [],
         "workflows": [workflow],
-        "permissions": openhands_defaults[
-            "openbao_github_openhands_write_permissions"
-        ],
+        "permissions": openhands_defaults["openbao_github_write_permission_profiles"][prefix],
         "app_id": "12345",
     }
     result = _render_value(
@@ -189,6 +190,41 @@ def test_openhands_workflow_validator_rejects_globs_refs_and_wrong_prefix(
     )
 
     assert result is False or result == "False"
+
+
+@pytest.mark.parametrize(
+    "prefix,widening",
+    [
+        ("openhands-write", {"administration": "write"}),
+        ("claude-write", {"contents": "write"}),
+    ],
+)
+def test_mount_route_assert_pins_each_route_to_its_literal_map(
+    openhands_defaults, prefix, widening,
+):
+    tasks = yaml.safe_load(MOUNT_TASKS.read_text(encoding="utf-8"))
+    validation = next(
+        task for task in tasks
+        if task["name"].startswith("Assert GitHub write route inputs")
+    )
+    approved = validation["vars"]["_approved_write_permission_profiles"]
+    assert approved == openhands_defaults["openbao_github_write_permission_profiles"]
+    checks = validation["ansible.builtin.assert"]["that"]
+    assert checks[0] == "openbao_github_write_route.prefix in _approved_write_permission_profiles"
+    map_check = next(
+        check for check in checks if "_approved_write_permission_profiles[" in check
+    )
+    for permissions, expected in (
+        ({**approved[prefix], **widening}, False),
+        (approved[prefix], True),
+    ):
+        result = _render_value(
+            openhands_defaults,
+            "{{ " + map_check + " }}",
+            openbao_github_write_route={"prefix": prefix, "permissions": permissions},
+            _approved_write_permission_profiles=approved,
+        )
+        assert result in (expected, str(expected))
 
 
 def test_per_app_mount_keeps_installation_id_output_and_org_only_branch_distinct(

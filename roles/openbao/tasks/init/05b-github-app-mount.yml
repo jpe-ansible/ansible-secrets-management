@@ -142,6 +142,10 @@
 - name: "Assert GitHub write route inputs on mount {{ gm.mount }}"
   ansible.builtin.assert:
     that:
+      - openbao_github_write_route.prefix in _approved_write_permission_profiles
+      - >-
+        openbao_github_write_route.permissions
+        == _approved_write_permission_profiles[openbao_github_write_route.prefix]
       - openbao_github_write_route.orgs is sequence
       - openbao_github_write_route.orgs is not string
       - openbao_github_write_route.orgs is not mapping
@@ -183,9 +187,23 @@
     fail_msg: >-
       The {{ openbao_github_write_route.prefix }} write route must declare
       valid, unique organizations and repo-qualified .github/workflows YAML paths;
-      its sets must match the declared orgs and permission map.
+      its sets must match the declared orgs and its approved permission map.
     quiet: true
   vars:
+    # Same literal maps as 05-github-permission-sets.yml: a selected App-mount
+    # run reconciles route sets without that file, so the ceiling is pinned here too.
+    _approved_write_permission_profiles:
+      openhands-write:
+        actions: read
+        checks: read
+        contents: write
+        metadata: read
+        pull_requests: write
+      claude-write:
+        checks: write
+        contents: read
+        metadata: read
+        pull_requests: write
     _write_route_sets: >-
       {{ openbao_github_write_permission_sets
          | selectattr('tier', 'equalto', openbao_github_write_route.prefix)
