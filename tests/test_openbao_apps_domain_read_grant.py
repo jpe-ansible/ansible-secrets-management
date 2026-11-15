@@ -32,7 +32,7 @@ PATH_BLOCK = re.compile(
     r'(?m)^path "([^"]+)"\s*\{\s*capabilities\s*=\s*\[([^]]*)\]'
 )
 WRITE_CAPABILITIES = {"create", "update", "patch", "delete", "sudo"}
-EVAL_LEAVES = ("hatchet/eval", "dify/eval")
+EVAL_LEAVES = ("hatchet/eval",)
 
 
 def _yaml(path: Path) -> dict:
