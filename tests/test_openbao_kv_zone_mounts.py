@@ -18,6 +18,7 @@ from test_openbao_select import ROLE, condition
 
 HIERARCHY_DEFAULTS = ROLE / "defaults/main/01a-kv-hierarchy.yml"
 MOUNT_TASKS = ROLE / "tasks/init/03b-kv-mounts.yml"
+TIER_DEFAULTS = ROLE / "defaults/main/05k-agent-tier-secret-paths.yml"
 RESTRICTED = "example-restricted"
 FULL = ["create", "read", "update", "delete", "list", "patch"]
 
@@ -126,6 +127,22 @@ def test_mount_assert_refuses_a_restricted_path_that_is_not_one_lowercase_segmen
     # A restricted mount that repeats a zone mount's path is refused too.
     assert condition(distinct, {"openbao_kv_mounts": [{"path": "int"}, {"path": RESTRICTED}]})
     assert not condition(distinct, {"openbao_kv_mounts": [{"path": "int"}, {"path": "int"}]})
+
+    # So is a restricted mount named like the agent-tier token store.
+    tier = next(
+        check for check in checks
+        if check.startswith("openbao_agent_tier_mount not in (openbao_kv_mounts")
+    )
+    tier_mount = yaml.safe_load(TIER_DEFAULTS.read_text(encoding="utf-8"))["openbao_agent_tier_mount"]
+
+    def keeps_tier_out(*paths):
+        return condition(tier, {
+            "openbao_agent_tier_mount": tier_mount,
+            "openbao_kv_mounts": [{"path": path} for path in paths],
+        })
+
+    assert keeps_tier_out("int", RESTRICTED)
+    assert not keeps_tier_out("int", tier_mount)
 
 
 def test_a_blank_restricted_mounts_variable_declares_no_restricted_mount(
