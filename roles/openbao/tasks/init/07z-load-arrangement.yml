@@ -1,0 +1,194 @@
+---
+- name: Initialize the arrangement as empty for this run
+  ansible.builtin.set_fact:
+    openbao_arrangement: {}
+    _openbao_arrangement_transport_failed: false
+    _openbao_arrangement_parse_failed: false
+    _openbao_arrangement_document_present: false
+    _openbao_arrangement_document_is_mapping: false
+  changed_when: false
+  no_log: true
+  when: openbao_bootstrap_token is defined
+
+- name: Read the arrangement document from OpenBao
+  block:
+    - name: Read the arrangement KV leaf
+      ansible.builtin.uri:
+        url: >-
+          {{ openbao_cli_addr }}/v1/{{ openbao_arrangement_kv_mount }}/data/{{ openbao_arrangement_kv_path }}
+        method: GET
+        headers:
+          X-Vault-Token: "{{ openbao_bootstrap_token }}"
+        status_code: [200, 403, 404]
+      delegate_to: "{{ openbao_cli_host }}"
+      become: "{{ openbao_cli_become }}"
+      vars:
+        ansible_become: "{{ openbao_cli_become }}"
+      register: openbao_arrangement_read
+      changed_when: false
+      check_mode: false
+      no_log: true
+      failed_when: >-
+        openbao_arrangement_read.status is not defined
+        or (openbao_arrangement_read.status | int) < 0
+      when: openbao_bootstrap_token is defined
+  rescue:
+    - name: Record an arrangement read transport failure
+      ansible.builtin.set_fact:
+        _openbao_arrangement_transport_failed: true
+      changed_when: false
+      no_log: true
+      when: openbao_bootstrap_token is defined
+
+- name: Capture the arrangement response envelope
+  ansible.builtin.set_fact:
+    _openbao_arrangement_response_json: "{{ openbao_arrangement_read.json | default({}) }}"
+  changed_when: false
+  no_log: true
+  when:
+    - openbao_bootstrap_token is defined
+    - not (_openbao_arrangement_transport_failed | bool)
+    - (openbao_arrangement_read.status | default(0) | int) == 200
+
+- name: Capture the arrangement response data
+  ansible.builtin.set_fact:
+    _openbao_arrangement_response_data: >-
+      {{ _openbao_arrangement_response_json.get('data', {})
+         if _openbao_arrangement_response_json is mapping else {} }}
+  changed_when: false
+  no_log: true
+  when:
+    - openbao_bootstrap_token is defined
+    - not (_openbao_arrangement_transport_failed | bool)
+    - (openbao_arrangement_read.status | default(0) | int) == 200
+
+- name: Capture the arrangement KV data
+  ansible.builtin.set_fact:
+    _openbao_arrangement_kv_data: >-
+      {{ _openbao_arrangement_response_data.get('data', {})
+         if _openbao_arrangement_response_data is mapping else {} }}
+  changed_when: false
+  no_log: true
+  when:
+    - openbao_bootstrap_token is defined
+    - not (_openbao_arrangement_transport_failed | bool)
+    - (openbao_arrangement_read.status | default(0) | int) == 200
+
+- name: Capture the arrangement document field
+  ansible.builtin.set_fact:
+    _openbao_arrangement_document_present: >-
+      {{ _openbao_arrangement_kv_data is mapping
+         and 'document' in _openbao_arrangement_kv_data }}
+    _openbao_arrangement_document: >-
+      {{ _openbao_arrangement_kv_data.get('document')
+         if _openbao_arrangement_kv_data is mapping else none }}
+    _openbao_arrangement_source: >-
+      {{ _openbao_arrangement_kv_data.get('source', 'unknown')
+         if _openbao_arrangement_kv_data is mapping else 'unknown' }}
+  changed_when: false
+  no_log: true
+  when:
+    - openbao_bootstrap_token is defined
+    - not (_openbao_arrangement_transport_failed | bool)
+    - (openbao_arrangement_read.status | default(0) | int) == 200
+
+- name: Parse the arrangement JSON document
+  when:
+    - openbao_bootstrap_token is defined
+    - not (_openbao_arrangement_transport_failed | bool)
+    - (openbao_arrangement_read.status | default(0) | int) == 200
+  block:
+    - name: Decode the arrangement document
+      ansible.builtin.set_fact:
+        _openbao_arrangement_parsed: "{{ _openbao_arrangement_document | from_json }}"
+      changed_when: false
+      no_log: true
+      when: _openbao_arrangement_document_present | bool
+  rescue:
+    - name: Record an arrangement document parse failure
+      ansible.builtin.set_fact:
+        _openbao_arrangement_parse_failed: true
+      changed_when: false
+      no_log: true
+      when: openbao_bootstrap_token is defined
+
+- name: Check that the parsed arrangement is a mapping
+  ansible.builtin.set_fact:
+    _openbao_arrangement_document_is_mapping: "{{ _openbao_arrangement_parsed is mapping }}"
+  changed_when: false
+  no_log: true
+  when:
+    - openbao_bootstrap_token is defined
+    - not (_openbao_arrangement_transport_failed | bool)
+    - (openbao_arrangement_read.status | default(0) | int) == 200
+    - _openbao_arrangement_document_present | bool
+    - not (_openbao_arrangement_parse_failed | bool)
+
+- name: Accept the parsed arrangement mapping
+  ansible.builtin.set_fact:
+    openbao_arrangement: "{{ _openbao_arrangement_parsed }}"
+  changed_when: false
+  no_log: true
+  when:
+    - openbao_bootstrap_token is defined
+    - not (_openbao_arrangement_transport_failed | bool)
+    - (openbao_arrangement_read.status | default(0) | int) == 200
+    - _openbao_arrangement_document_present | bool
+    - not (_openbao_arrangement_parse_failed | bool)
+    - _openbao_arrangement_document_is_mapping | bool
+
+- name: Keep the arrangement empty when the response is unusable
+  ansible.builtin.set_fact:
+    openbao_arrangement: {}
+  changed_when: false
+  no_log: true
+  when:
+    - openbao_bootstrap_token is defined
+    - >-
+      (_openbao_arrangement_transport_failed | bool)
+      or (openbao_arrangement_read.status | default(0) | int) != 200
+      or not (_openbao_arrangement_document_present | bool)
+      or (_openbao_arrangement_parse_failed | bool)
+      or not (_openbao_arrangement_document_is_mapping | bool)
+
+- name: Warn that arrangement policies are skipped for this run
+  ansible.builtin.debug:
+    msg: >-
+      WARNING: {{ 'transport failure (HTTP status unavailable)'
+      if _openbao_arrangement_transport_failed | bool else
+      'status ' ~ (openbao_arrangement_read.status | default('unknown') | string)
+      ~ (', missing field document'
+         if (openbao_arrangement_read.status | default(0) | int) == 200
+            and not (_openbao_arrangement_document_present | bool)
+         else ', document is not a mapping'
+         if (openbao_arrangement_read.status | default(0) | int) == 200
+         else '') }} at KV {{ openbao_arrangement_kv_mount }}/{{ openbao_arrangement_kv_path }};
+      arrangement policies are skipped this run.
+  no_log: false
+  when:
+    - openbao_bootstrap_token is defined
+    - >-
+      (_openbao_arrangement_transport_failed | bool)
+      or (openbao_arrangement_read.status | default(0) | int) != 200
+      or not (_openbao_arrangement_document_present | bool)
+      or (_openbao_arrangement_parse_failed | bool)
+      or not (_openbao_arrangement_document_is_mapping | bool)
+
+- name: Report the loaded arrangement summary
+  ansible.builtin.debug:
+    msg: >-
+      Loaded the arrangement with
+      {{ openbao_arrangement.identities | length
+         if openbao_arrangement.identities is defined
+            and (openbao_arrangement.identities is mapping
+                 or (openbao_arrangement.identities is sequence
+                     and openbao_arrangement.identities is not string))
+         else 0 }} identities from source {{ _openbao_arrangement_source }}.
+  no_log: false
+  when:
+    - openbao_bootstrap_token is defined
+    - not (_openbao_arrangement_transport_failed | bool)
+    - (openbao_arrangement_read.status | default(0) | int) == 200
+    - _openbao_arrangement_document_present | bool
+    - not (_openbao_arrangement_parse_failed | bool)
+    - _openbao_arrangement_document_is_mapping | bool

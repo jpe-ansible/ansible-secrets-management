@@ -1,6 +1,8 @@
 ---
 # The converge supplies this document from OpenBao KV config/openbao/arrangement.
 openbao_arrangement: {}
+openbao_arrangement_kv_mount: config
+openbao_arrangement_kv_path: openbao/arrangement
 
 # One policy per arrangement identity. The prefix keeps it from replacing a hand-written
 # policy that carries the identity's own name.

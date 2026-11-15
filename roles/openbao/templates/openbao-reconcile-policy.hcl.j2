@@ -149,6 +149,12 @@ path "auth/approle/role" {
   capabilities = ["list"]
 }
 
+# The arrangement document is consumed before policies render. Reconcile can
+# read this exact KV v2 leaf, but cannot list metadata or other config entries.
+path "{{ openbao_arrangement_kv_mount }}/data/{{ openbao_arrangement_kv_path }}" {
+  capabilities = ["read"]
+}
+
 # Retired Terrakube JWT roles, by retired prefix only.
 path "auth/{{ openbao_terrakube_jwt_auth_path }}/role/{{ openbao_retired_terrakube_prefix }}*" {
   capabilities = ["read", "delete"]
