@@ -1,0 +1,5 @@
+{{ ansible_managed | comment }}
+# This policy grants token minting for one org-specific GitHub write set.
+path "{{ item.mount }}/token/{{ item.set.name }}" {
+  capabilities = ["create", "read", "update"]
+}

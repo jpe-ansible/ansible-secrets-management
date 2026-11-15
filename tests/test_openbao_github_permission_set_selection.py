@@ -104,15 +104,54 @@ def test_org_secrets_names_and_workspace_reads_match_each_requested_owner():
         item for item in workspace_defaults["openbao_terrakube_workspaces"]
         if item["name"] == "{{ openbao_terrakube_org_secrets_workspace_name }}"
     )
+    variable_sets = render(defaults["openbao_github_org_variables_permission_sets"], {
+        "openbao_github_org_secrets_installations": fixture_installations,
+        "openbao_github_org_variables_permissions": defaults[
+            "openbao_github_org_variables_permissions"
+        ],
+    })
     api_reads = render(workspace["api_read"], {
         "openbao_github_org_secrets_permission_sets": sets,
+        "openbao_github_org_variables_permission_sets": variable_sets,
         "openbao_github_mount": "github-configured",
     })
-    assert api_reads == [f"github-configured/token/{name}" for name in expected_names]
+    assert api_reads == [f"github-configured/token/{name}" for name in expected_names] + [
+        f"github-configured/token/{item['name']}" for item in variable_sets
+    ]
     for name in (
         "jacobpevans-org-secrets", "jacobpevans-ai-org-secrets", "jpe-nix-org-secrets",
+        "jacobpevans-ai-org-variables",
     ):
         assert f"github-configured/token/{name}" in api_reads
+
+
+def test_org_variables_sets_mirror_the_org_secrets_installations():
+    defaults = yaml.safe_load(GITHUB_DEFAULTS.read_text())
+    assert defaults["openbao_github_org_variables_permissions"] == {
+        "organization_actions_variables": "write",
+    }
+    assert "openbao_github_org_variables_permission_sets" in defaults[
+        "openbao_github_admin_permission_sets"
+    ]
+    sets = render(defaults["openbao_github_org_variables_permission_sets"], {
+        "openbao_github_org_secrets_installations": [
+            {"name": "jacobpevans-ai", "installation_id": "101"},
+            {"name": "unset", "installation_id": ""},
+            {"name": "jpe-nix", "installation_id": 105,
+             "org_secrets_permission_set_name": "custom-org-secrets"},
+        ],
+        "openbao_github_org_variables_permissions": defaults[
+            "openbao_github_org_variables_permissions"
+        ],
+    })
+    assert sets == [
+        {"name": "jacobpevans-ai-org-variables", "tier": "org-variables",
+         "installation_id": "101",
+         "permissions": {"organization_actions_variables": "write"}},
+        {"name": "jpe-nix-org-variables", "tier": "org-variables",
+         "installation_id": 105,
+         "permissions": {"organization_actions_variables": "write"}},
+    ]
 
 
 def test_org_secrets_read_policy_grants_only_declared_exact_kv_leaves():
@@ -270,9 +309,17 @@ def test_org_secrets_selection_checks_its_map_and_full_runs_check_every_map():
         "openhands": "Assert the OpenHands permission map is exactly its four permissions",
         "org-admin": "Assert the org-admin permission map is exactly organization_administration:write",
         "org-secrets": "Assert the org-secrets permission map is exactly organization_secrets:write",
+        "org-variables": (
+            "Assert the org-variables permission map is exactly organization_actions_variables:write"
+        ),
     }
     cases = [
         (SELECTION, [{"name": SELECTED_NAME, "tier": "org-secrets"}], {"org-secrets"}),
+        (
+            {KIND: ["jacobpevans-ai-org-variables"]},
+            [{"name": "jacobpevans-ai-org-variables", "tier": "org-variables"}],
+            {"org-variables"},
+        ),
         ({}, [], set(assertions)),
     ]
     for selection, targets, expected in cases:
@@ -287,6 +334,34 @@ def test_org_secrets_selection_checks_its_map_and_full_runs_check_every_map():
             if all(condition(gate, variables) for gate in task(name, PERMISSION_SETS)["when"])
         }
         assert active == expected
+
+    write_route_assertion = task(
+        "Assert each GitHub write route uses its exact permission map", PERMISSION_SETS
+    )
+    # Selection candidates are the admin-mount sets only, so a permission-set
+    # selection never targets a write-route set; the App-mount assert covers that path.
+    for prefix in ("openhands-write", "claude-write"):
+        variables = {
+            "openbao_select": SELECTION,
+            "openbao_github_permission_set_targets": [{"name": SELECTED_NAME, "tier": "org-secrets"}],
+            "openbao_bootstrap_token": True,
+            "openbao_github_engine_enabled": True,
+            "item": {"prefix": prefix},
+        }
+        assert not all(
+            condition(gate, variables)
+            for gate in write_route_assertion["when"]
+        )
+    full_run = {
+        "openbao_select": {},
+        "openbao_github_permission_set_targets": [],
+        "openbao_bootstrap_token": True,
+        "openbao_github_engine_enabled": True,
+        "item": {"prefix": "openhands-write"},
+    }
+    assert all(
+        condition(gate, full_run) for gate in write_route_assertion["when"]
+    )
 
 
 def test_shared_permission_set_reconcile_is_available_through_the_rbac_tag():

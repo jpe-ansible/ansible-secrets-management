@@ -66,6 +66,41 @@
       openbao_select | default({}) | length == 0
       or 'openhands' in (openbao_github_permission_set_targets | map(attribute='tier', default='') | list)
 
+- name: Assert each GitHub write route uses its exact permission map
+  ansible.builtin.assert:
+    that:
+      - item.prefix in _approved_write_permission_profiles
+      - item.permissions == _approved_write_permission_profiles[item.prefix]
+    fail_msg: >-
+      The {{ item.prefix }} GitHub write route must use its exact approved
+      permission map; add a separately reviewed route map rather than widening
+      an existing route.
+    quiet: true
+  vars:
+    _approved_write_permission_profiles:
+      openhands-write:
+        actions: read
+        checks: read
+        contents: write
+        metadata: read
+        pull_requests: write
+      claude-write:
+        checks: write
+        contents: read
+        metadata: read
+        pull_requests: write
+  loop: "{{ openbao_github_write_routes }}"
+  loop_control:
+    label: "{{ item.prefix }}"
+  when:
+    - openbao_bootstrap_token is defined
+    - openbao_github_engine_enabled | bool
+    - >-
+      openbao_select | default({}) | length == 0
+      or item.prefix
+         in (openbao_github_permission_set_targets
+             | map(attribute='tier', default='') | list)
+
 - name: Assert the org-admin permission map is exactly organization_administration:write
   ansible.builtin.assert:
     that:
@@ -96,6 +131,21 @@
     - >-
       openbao_select | default({}) | length == 0
       or 'org-secrets' in (openbao_github_permission_set_targets | map(attribute='tier', default='') | list)
+
+- name: Assert the org-variables permission map is exactly organization_actions_variables:write
+  ansible.builtin.assert:
+    that:
+      - openbao_github_org_variables_permissions.keys() | list == ['organization_actions_variables']
+      - openbao_github_org_variables_permissions.organization_actions_variables == 'write'
+    fail_msg: >-
+      openbao_github_org_variables_permissions must be exactly
+      {organization_actions_variables: write}; add a new tier instead of broadening it.
+  when:
+    - openbao_bootstrap_token is defined
+    - openbao_github_engine_enabled | bool
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'org-variables' in (openbao_github_permission_set_targets | map(attribute='tier', default='') | list)
 
 # init/02 resolves this run's token, including the per-call reconcile token,
 # into openbao_bootstrap_token. Only a 404 establishes that a set is missing.

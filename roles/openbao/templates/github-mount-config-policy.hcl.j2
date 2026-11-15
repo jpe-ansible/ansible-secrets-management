@@ -64,7 +64,11 @@ path "{{ gm.mount }}/permissionset/read" {
 path "{{ gm.mount }}/permissionset/{{ permission_set.name }}" {
   capabilities = ["create", "read", "update"]
   allowed_parameters = {
+{% if permission_set.org_name is defined %}
+    "org_name" = [{{ permission_set.org_name | tojson }}]
+{% else %}
     "installation_id" = [{{ permission_set.installation_id | int | string | tojson }}]
+{% endif %}
     "permissions" = [{
 {% for permission, access in permission_set.permissions | dictsort %}
       {{ permission | tojson }} = {{ access | tojson }}

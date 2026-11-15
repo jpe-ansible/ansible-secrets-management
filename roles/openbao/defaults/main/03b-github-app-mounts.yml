@@ -12,7 +12,7 @@
 #   github-hermes  review split by visibility; allowlisted public authoring
 #   github-work    read and App-grant write over one installation, no sets
 #   github-pepper  one repository-scoped read set
-#   github-openhands one installation-scoped write set for OpenHands
+#   github-openhands one installation-scoped pilot set and org-scoped write sets
 #   github-enterprise-read  human-gated raw-token read tier
 #   github-enterprise       human-gated raw-token admin tier
 #   github-enterprise-owner human-gated stored owner token, readable by the admin tiers only
@@ -179,7 +179,9 @@ openbao_github_personal_app_id: >-
 openbao_github_personal_app_private_key: >-
   {{ lookup('env', 'OPENBAO_GITHUB_PERSONAL_APP_PRIVATE_KEY') | default('', true) }}
 
-# This mount and set are declared only when every input is present.
+# The OpenHands route can include its installation-scoped pilot set. Each
+# route mount exists only with its App ID and at least one generated set; its
+# key is optional until a human configures the mount.
 openbao_github_openhands_mount: github-openhands
 openbao_github_openhands_installation_id: >-
   {{ openbao_platform_env['OPENBAO_GITHUB_OPENHANDS_DRYVIST_INSTALLATION_ID'] | default('', true) }}
@@ -187,6 +189,47 @@ openbao_github_openhands_app_id: >-
   {{ lookup('env', 'OPENBAO_GITHUB_OPENHANDS_APP_ID') | default('', true) }}
 openbao_github_openhands_app_private_key: >-
   {{ lookup('env', 'OPENBAO_GITHUB_OPENHANDS_APP_PRIVATE_KEY') | default('', true) }}
+openbao_github_claude_mount: github-claude
+openbao_github_claude_app_id: >-
+  {{ lookup('env', 'OPENBAO_GITHUB_CLAUDE_APP_ID') | default('', true) }}
+openbao_github_claude_app_private_key: >-
+  {{ lookup('env', 'OPENBAO_GITHUB_CLAUDE_APP_PRIVATE_KEY') | default('', true) }}
+# The approved permission profile keys define the suffixes used by the shared
+# org/workflow input parser below (for example, `openhands-write` maps to
+# OPENHANDS_WRITE).
+openbao_github_write_orgs_by_prefix: >-
+  {%- set _orgs_by_prefix = {} -%}
+  {%- for _prefix in openbao_github_write_permission_profiles.keys() -%}
+  {%- set _orgs = [] -%}
+  {%- set _seen_orgs = [] -%}
+  {%- set _env_name = 'OPENBAO_GITHUB_' ~ (_prefix | replace('-', '_') | upper) ~ '_ORGS' -%}
+  {%- for _candidate in (lookup('env', _env_name) | default('', true)).split(',') -%}
+  {%- set _org = _candidate | trim -%}
+  {%- if _org | length > 0 and (_org | lower) not in _seen_orgs -%}
+  {%- set _ = _orgs.append(_org) -%}
+  {%- set _ = _seen_orgs.append(_org | lower) -%}
+  {%- endif -%}
+  {%- endfor -%}
+  {%- set _ = _orgs_by_prefix.update({_prefix: _orgs}) -%}
+  {%- endfor -%}
+  {{ _orgs_by_prefix }}
+openbao_github_write_workflows_by_prefix: >-
+  {%- set _workflows_by_prefix = {} -%}
+  {%- for _prefix in openbao_github_write_permission_profiles.keys() -%}
+  {%- set _env_name = 'OPENBAO_GITHUB_' ~ (_prefix | replace('-', '_') | upper) ~ '_WORKFLOWS' -%}
+  {%- set _workflows = (lookup('env', _env_name) | default('', true)).split(',')
+      | map('trim') | reject('equalto', '') | unique | list -%}
+  {%- set _ = _workflows_by_prefix.update({_prefix: _workflows}) -%}
+  {%- endfor -%}
+  {{ _workflows_by_prefix }}
+openbao_github_openhands_write_orgs: >-
+  {{ openbao_github_write_orgs_by_prefix[openbao_github_openhands_write_set_prefix] }}
+openbao_github_openhands_write_workflows: >-
+  {{ openbao_github_write_workflows_by_prefix[openbao_github_openhands_write_set_prefix] }}
+openbao_github_claude_write_orgs: >-
+  {{ openbao_github_write_orgs_by_prefix[openbao_github_claude_write_set_prefix] }}
+openbao_github_claude_write_workflows: >-
+  {{ openbao_github_write_workflows_by_prefix[openbao_github_claude_write_set_prefix] }}
 
 # This mount and set are declared only when every input is present.
 openbao_github_pepper_mount: github-pepper
@@ -280,8 +323,17 @@ openbao_github_app_mounts: >-
      + ([{'mount': openbao_github_openhands_mount,
           'app_id': openbao_github_openhands_app_id,
           'private_key': openbao_github_openhands_app_private_key,
-          'permission_sets': openbao_github_openhands_permission_sets}]
-        if openbao_github_openhands_permission_sets | length > 0 else [])
+          'permission_sets': openbao_github_openhands_permission_sets
+                             + openbao_github_openhands_write_permission_sets}]
+        if openbao_github_openhands_app_id | length > 0
+           and (openbao_github_openhands_permission_sets
+                + openbao_github_openhands_write_permission_sets) | length > 0 else [])
+     + ([{'mount': openbao_github_claude_mount,
+          'app_id': openbao_github_claude_app_id,
+          'private_key': openbao_github_claude_app_private_key,
+          'permission_sets': openbao_github_claude_write_permission_sets}]
+        if openbao_github_claude_app_id | length > 0
+           and openbao_github_claude_write_permission_sets | length > 0 else [])
      + ([{'mount': openbao_github_pepper_mount,
           'app_id': openbao_github_pepper_app_id,
           'private_key': openbao_github_pepper_app_private_key,
@@ -297,10 +349,17 @@ openbao_github_app_install_allowlist: >-
   {{ (openbao_platform_env['OPENBAO_GITHUB_APP_INSTALL_ALLOWLIST'] | default('', true)).split(',')
      | map('trim') | select | list }}
 
+# Per-mount install allowlists: a JSON object in the env document, mount name
+# -> list of accounts. An App whose mount is listed is checked against its own
+# list; every other App against openbao_github_app_install_allowlist.
+openbao_github_app_install_allowlists: >-
+  {{ openbao_platform_env['OPENBAO_GITHUB_APP_INSTALL_ALLOWLISTS'] | default('{}', true) | from_json }}
+
 # Every App whose key is present in this run: the admin App plus each mount's.
 openbao_github_app_exposure_targets: >-
-  {{ ([{'app_id': openbao_github_app_id, 'private_key': openbao_github_app_private_key}]
+  {{ ([{'mount': openbao_github_mount, 'app_id': openbao_github_app_id,
+        'private_key': openbao_github_app_private_key}]
       + (openbao_github_app_mounts | map('dict2items')
-         | map('selectattr', 'key', 'in', ['app_id', 'private_key'])
+         | map('selectattr', 'key', 'in', ['mount', 'app_id', 'private_key'])
          | map('items2dict') | list))
      | selectattr('app_id', 'truthy') | selectattr('private_key', 'truthy') | list }}

@@ -73,7 +73,10 @@ def test_ci_ai_review_role_uses_the_required_bounds_and_enterprise_claim():
     assert skip is not None
     assert "openbao_ci_ai_review_enterprise_id | length > 0" in read["when"]
     assert "openbao_ci_ai_review_enterprise_id | length > 0" in write["when"]
-    assert skip["when"] == "openbao_ci_ai_review_enterprise_id | length == 0"
+    assert skip["when"] == [
+        "openbao_select | default({}) | length == 0",
+        "openbao_ci_ai_review_enterprise_id | length == 0",
+    ]
     assert "OPENBAO_GITHUB_ENTERPRISE_ID is empty" in skip[
         "ansible.builtin.debug"
     ]["msg"]

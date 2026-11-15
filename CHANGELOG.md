@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.114.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.114.0...v0.114.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **openbao:** read the ntfy webhooks only from ext-notify ([#730](https://github.com/jpe-ansible/ansible-secrets-management/issues/730)) ([7dd0058](https://github.com/jpe-ansible/ansible-secrets-management/commit/7dd00580dacb6b273a322b2cabbf39856cceede8))
+
 ## [0.114.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.113.0...v0.114.0) (2026-11-15)
 
 

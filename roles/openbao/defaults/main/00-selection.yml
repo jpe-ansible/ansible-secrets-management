@@ -35,6 +35,18 @@ openbao_select_profiles:
     prefix: sys/mounts/
     suffixes: [""]
     capability: update
+  github_app_mounts:
+    candidates: >-
+      {{ openbao_github_app_mounts | map(attribute='mount')
+      | map('community.general.dict_kv', 'name') | list }}
+    prefix: sys/mounts/
+    suffixes: [""]
+    capability: update
+  github_oidc_roles:
+    candidates: "{{ openbao_github_write_oidc_roles | default([]) }}"
+    prefix: "auth/{{ openbao_github_oidc_auth_path }}/role/"
+    suffixes: [""]
+    capability: update
   reconcile_policy:
     candidates:
       - name: "{{ openbao_reconcile_policy_name }}"

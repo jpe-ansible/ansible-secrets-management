@@ -72,16 +72,20 @@
 - name: "FAIL -- webhook or unapproved installation on App {{ ga.app_id }}"
   vars:
     _accounts: "{{ openbao_github_app_installs.json | map(attribute='account.login') | list }}"
-    _unapproved: "{{ _accounts | difference(openbao_github_app_install_allowlist) }}"
+    _allowlist: >-
+      {{ openbao_github_app_install_allowlists.get(ga.mount, openbao_github_app_install_allowlist) }}
+    _unapproved: "{{ _accounts | difference(_allowlist) }}"
   ansible.builtin.assert:
     that:
-      - openbao_github_app_install_allowlist | length > 0
+      - _allowlist is sequence and _allowlist is not string and _allowlist is not mapping
+      - _allowlist | length > 0
       - openbao_github_app_hook.status == 404
         or (openbao_github_app_hook.json.url | default('', true)) | length == 0
       - _unapproved | length == 0
     fail_msg: >-
-      App {{ ga.app_id }}: webhook url set={{ openbao_github_app_hook.status == 200
+      App {{ ga.app_id }} (mount {{ ga.mount }}): webhook url set={{ openbao_github_app_hook.status == 200
       and (openbao_github_app_hook.json.url | default('', true)) | length > 0 }}; installations on unapproved
       accounts={{ _unapproved }}. An App must have no webhook, and may be
-      installed only on accounts in openbao_github_app_install_allowlist.
+      installed only on accounts in its mount's entry in
+      openbao_github_app_install_allowlists, else in openbao_github_app_install_allowlist.
     quiet: true

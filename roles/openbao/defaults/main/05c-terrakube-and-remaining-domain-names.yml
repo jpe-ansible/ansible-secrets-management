@@ -43,10 +43,12 @@ openbao_terrakube_workspaces:
     kv_read_config: ["{{ openbao_hermes_webhook_kv_path }}"]
   - name: "{{ openbao_terrakube_org_secrets_workspace_name }}"
     # This dedicated workspace reads the scoped organization-secret source
-    # policy and only the configured org-secret permission-set endpoints.
+    # policy and only the configured org-secret and org-variable
+    # permission-set endpoints.
     additional_policies: ["{{ openbao_github_org_secrets_read_policy_name }}"]
     api_read: >-
-      {{ openbao_github_org_secrets_permission_sets
+      {{ (openbao_github_org_secrets_permission_sets
+          + openbao_github_org_variables_permission_sets)
          | map(attribute='name')
          | map('regex_replace', '^', openbao_github_mount ~ '/token/')
          | list }}
@@ -146,17 +148,16 @@ openbao_media_external_paths: >-
   {{ openbao_media_external_paths_raw
      | select('match', openbao_media_external_path_pattern) | list }}
 # ntfy — read-side AppRole for the ntfy alert hub's Slack fan-out
-# (openbao_secrets domain "ntfy"). Read-only on the single secrets-external
-# entry holding the Slack incoming-webhook URLs keyed by topic; that path is
-# internet-reachable Slack infrastructure, so it lives in secrets-external,
-# not secret/apps like every other ntfy_docker consumer.
+# (openbao_secrets domain "ntfy"). Read-only on the single ext-notify entry
+# holding the Slack incoming-webhook URLs keyed by topic; post-only webhooks
+# live on ext-notify, not secret/apps like every other ntfy_docker consumer.
 openbao_ntfy_policy_name: ntfy
 openbao_ntfy_approle_name: ntfy
 # disclosure-denylist — org-wide GitHub disclosure-gate deny terms, one fixed
 # string per line. GitHub-consumed (JacobPEvans/.github's reusable
 # _disclosure-gate.yml reads it as the org secret DISCLOSURE_DENYLIST, org
-# dryvist, visibility: all), so it lives in secrets-external like
-# slack-webhooks above, not secret/apps. No Ansible converge fetches this
+# dryvist, visibility: all), so it lives in secrets-external, not
+# secret/apps. No Ansible converge fetches this
 # path — it has no openbao_secrets_domains entry — so declare_disclosure_
 # denylist_metadata.yml (init.yml) only stamps custom_metadata here; the term
 # list itself is seeded out of band, never through this converge.
@@ -226,8 +227,6 @@ openbao_apps_read_published_apps:
   - hatchet/worker-token
   # The Hatchet eval worker's Langfuse and router keys (converge-published).
   - hatchet/eval
-  # The Dify evaluation instance's router key (converge-published).
-  - dify/eval
 openbao_apps_read_apps: >-
   {{ ((openbao_generated_app_secrets.keys()
        | reject('in', openbao_generated_app_secret_paths | default({})) | list)

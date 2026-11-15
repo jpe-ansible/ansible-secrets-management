@@ -54,8 +54,8 @@
 # Registers openbao_mounts_raw for the readers below. Every tag those readers run
 # under is listed here, so a scoped run such as --tags github gets the listing
 # without pulling in the KV seed in init/03. Each reader is also gated on the
-# full-run or matching-selection condition for its phase; 03b is the one
-# selective reader, and only runs for kv_mounts.
+# full-run or matching-selection condition for its phase; 03b is the selective
+# KV reader, and the per-App mount phase also uses this listing.
 - name: List the enabled secrets engines
   ansible.builtin.import_tasks: init/03a-list-secrets-engines.yml
   tags:
@@ -72,6 +72,7 @@
   when: >-
     openbao_select | default({}) | length == 0
     or 'kv_mounts' in (openbao_select | default({}))
+    or 'github_app_mounts' in (openbao_select | default({}))
 
 # Plugin registration is deliberately OUTSIDE the openbao-reconcile grant: its
 # policy carries no sys/plugins/catalog path at all, because registering a
@@ -97,19 +98,23 @@
     - openbao_kv_seed
   when: openbao_select | default({}) | length == 0
 
-- name: Fail when the secrets-engine listing failed for selected KV mounts
+- name: Fail when the secrets-engine listing failed for selected mounts
   ansible.builtin.fail:
     msg: >-
       `bao secrets list` failed against {{ openbao_api_addr }} with rc
       {{ openbao_mounts_raw.rc | default('unset') }}:
       {{ openbao_mounts_raw.stderr | default('no stderr captured') }}
   when:
-    - "'kv_mounts' in (openbao_select | default({}))"
+    - >-
+      'kv_mounts' in (openbao_select | default({}))
+      or 'github_app_mounts' in (openbao_select | default({}))
     - openbao_bootstrap_token is defined
     - openbao_mounts_raw.rc | default(1) != 0
   tags:
     - openbao_kv_seed
     - openbao_kv_mounts
+    - openbao_github_mounts
+    - github
 
 - name: Selectively enable declared KV v2 mounts
   ansible.builtin.import_tasks: init/03b-kv-mounts.yml
@@ -207,7 +212,9 @@
 # rewrites it. Dynamic includes: the tag reaches the loaded tasks only via
 # `apply:` (see the rotation-exempt include below). `--tags
 # openbao_github_mounts,openbao_rbac` scopes a run to these includes and the
-# policies, without the rest of the bootstrap phases.
+# policies, without the rest of the bootstrap phases. A `github_app_mounts`
+# selection resolves its loop from the selected object set; a full run resolves
+# that set to every declared mount.
 - name: Configure the per-App GitHub mounts
   ansible.builtin.include_tasks:
     file: init/05b-github-app-mount.yml
@@ -218,7 +225,13 @@
   tags:
     - openbao_github_mounts
     - github
-  loop: "{{ openbao_github_app_mounts }}"
+  loop: >-
+    {{ openbao_github_app_mounts
+       if openbao_select | default({}) | length == 0
+       else openbao_github_app_mounts
+            | selectattr('mount', 'in', openbao_selected_objects.github_app_mounts
+                                       | default([]) | map(attribute='name') | list)
+            | list }}
   loop_control:
     loop_var: gm
     label: "{{ gm.mount }}"
@@ -230,10 +243,14 @@
          | selectattr('key', 'in', _per_app_mount_paths)
          | selectattr('value', 'contains', 'update') | map(attribute='key') | list }}
     _per_app_mount_paths: >-
-      {{ openbao_github_app_mounts | default([]) | map(attribute='mount')
+      {{ (openbao_github_app_mounts | default([]) | map(attribute='mount') | list
+          if openbao_select | default({}) | length == 0
+          else openbao_selected_objects.github_app_mounts | default([]) | map(attribute='name') | list)
          | map('regex_replace', '^', 'sys/mounts/') | list }}
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'github_app_mounts' in (openbao_select | default({}))
     - openbao_bootstrap_token is defined
     - openbao_github_engine_enabled | bool
     - >-
@@ -260,14 +277,28 @@
   tags:
     - openbao_github_mounts
     - github
-  loop: "{{ openbao_github_app_exposure_targets }}"
+  loop: >-
+    {{ openbao_github_app_exposure_targets
+       if openbao_select | default({}) | length == 0
+       else openbao_github_app_exposure_targets
+            | selectattr('app_id', 'in',
+                openbao_github_app_mounts
+                | selectattr('mount', 'in', openbao_selected_objects.github_app_mounts
+                                           | default([]) | map(attribute='name') | list)
+                | map(attribute='app_id') | list)
+            | selectattr('private_key')
+            | list }}
   loop_control:
     loop_var: ga
     label: "{{ ga.app_id }}"
   no_log: true
   when:
-    - not (openbao_bounded_rbac_mode | default(false) | bool)
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'github_app_mounts' in (openbao_select | default({}))
+    - >-
+      not (openbao_bounded_rbac_mode | default(false) | bool)
+      or 'github_app_mounts' in (openbao_select | default({}))
 
 - name: Enable AppRole/JWT auth and reconcile Terrakube workspace JWT roles
   ansible.builtin.import_tasks: init/09-auth-methods-and-terrakube-jwt.yml
@@ -283,6 +314,14 @@
   when:
     - not (openbao_bounded_rbac_mode | default(false) | bool)
     - openbao_select | default({}) | length == 0
+
+- name: Reconcile selected GitHub Actions OIDC roles
+  ansible.builtin.import_tasks: init/09c-github-oidc.yml
+  tags:
+    - openbao_auth_methods
+  when:
+    - "'github_oidc_roles' in (openbao_select | default({}))"
+    - openbao_bootstrap_token is defined
 
 - name: Declare AppRoles and reconcile their policy and TTL bounds
   ansible.builtin.import_tasks: init/10-approles.yml

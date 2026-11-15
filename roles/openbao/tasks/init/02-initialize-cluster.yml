@@ -370,12 +370,14 @@
       - openbao_select | default({}) is mapping
       - openbao_select | default({}) | length > 0
       - >-
-        openbao_select | default({}) | difference(['policies', 'approles', 'reconcile_policy', 'kv_mounts'])
+        openbao_select | default({}) | difference([
+          'policies', 'approles', 'reconcile_policy', 'kv_mounts',
+          'github_app_mounts', 'github_oidc_roles'])
         | length == 0
     fail_msg: >-
       ai-admin-session accepts only a nonempty openbao_select containing
-      policies, approles, reconcile_policy, and/or kv_mounts. It cannot run the full
-      provisioning path.
+      policies, approles, reconcile_policy, kv_mounts, github_app_mounts,
+      and/or github_oidc_roles. It cannot run the full provisioning path.
     quiet: true
   when: openbao_ai_admin_window_mode | default(false) | bool
 
