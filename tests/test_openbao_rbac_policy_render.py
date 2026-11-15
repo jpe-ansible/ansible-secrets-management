@@ -17,6 +17,7 @@ This renders the REAL expression out of the task file, with REAL template
 files, never a reimplementation.
 """
 
+import re
 from pathlib import Path
 import unittest
 
@@ -28,6 +29,7 @@ from ansible.template import Templar, trust_as_template
 
 from openbao_reconcile_bounds_helpers import (
     TEMPLATES,
+    _allowed_parameters,
     _capabilities,
     _render,
     _render_value,
@@ -177,6 +179,53 @@ def test_github_window_service_keeps_the_parameter_deny(rendered_defaults):
     policy = _policy_named(policies, "window-github")
     for _path, body in _stanzas(render([policy])[0]["value"]):
         assert "denied_parameters" in body
+
+
+def test_tofu_github_private_window_renders_only_its_exact_grants(rendered_defaults):
+    values, _, policies = rendered_defaults
+    policy = _policy_named(policies, "window-tofu-github-private")
+    rendered = render([policy])[0]["value"]
+    stanza_pairs = list(_stanzas(rendered))
+    stanzas = dict(stanza_pairs)
+    config_mount = values["openbao_config_mount"]
+    kv_mount = values["openbao_kv_mount"]
+    github_mount = values["openbao_github_mount"]
+    transit_mount = values["openbao_transit_mount"]
+    state_key = values["openbao_tofu_state_transit_key"]
+
+    expected = {
+        f"{config_mount}/data/github/orgs": ["create", "update", "read"],
+        f"{config_mount}/metadata/github/orgs": ["read", "update"],
+        f"{config_mount}/data/terrakube/local-workspaces": [
+            "create", "update", "read"
+        ],
+        f"{config_mount}/metadata/terrakube/local-workspaces": ["read", "update"],
+        f"{kv_mount}/data/infrastructure/tofu-github/private-overrides": [
+            "create", "update", "read"
+        ],
+        f"{kv_mount}/metadata/infrastructure/tofu-github/private-overrides": [
+            "read", "update"
+        ],
+        f"{github_mount}/token": ["create", "update"],
+        f"{transit_mount}/datakey/plaintext/{state_key}": ["update"],
+        f"{transit_mount}/decrypt/{state_key}": ["update"],
+        "auth/token/lookup-self": ["read"],
+    }
+    assert _capability_map(rendered) == expected
+    assert len(stanza_pairs) == len(expected)
+    assert set(stanzas) == set(expected)
+    assert all("*" not in path and "+" not in path for path in stanzas)
+
+    token_path = f"{github_mount}/token"
+    for path, body in stanza_pairs:
+        assert not re.search(
+            r"(?m)^\s*(?:denied_parameters|required_parameters)\s*=", body
+        )
+        has_allowed_parameters = bool(
+            re.search(r"(?m)^\s*allowed_parameters\s*=", body)
+        )
+        assert has_allowed_parameters == (path == token_path)
+    assert _allowed_parameters(stanzas[token_path]) == {"org_name": []}
 
 
 def test_scheduled_secret_id_rotator_grants_each_rotated_approle(rendered_defaults):

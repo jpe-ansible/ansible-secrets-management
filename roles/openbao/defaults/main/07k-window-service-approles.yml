@@ -41,6 +41,33 @@ openbao_window_services:
     # keep it for the github mint, where a parameter-free request is what pins
     # the permission set.
     deny_all_parameters: false
+  - name: tofu-github-private
+    credential_paths: []
+    scope: []
+    lifetime: 1h
+    grants:
+      - path: "{{ openbao_config_mount }}/data/github/orgs"
+        capabilities: [create, update, read]
+      - path: "{{ openbao_config_mount }}/metadata/github/orgs"
+        capabilities: [read, update]
+      - path: "{{ openbao_config_mount }}/data/terrakube/local-workspaces"
+        capabilities: [create, update, read]
+      - path: "{{ openbao_config_mount }}/metadata/terrakube/local-workspaces"
+        capabilities: [read, update]
+      - path: "{{ openbao_kv_mount }}/data/infrastructure/tofu-github/private-overrides"
+        capabilities: [create, update, read]
+      - path: "{{ openbao_kv_mount }}/metadata/infrastructure/tofu-github/private-overrides"
+        capabilities: [read, update]
+      - path: "{{ openbao_github_mount }}/token"
+        capabilities: [create, update]
+        allowed_parameters:
+          org_name: []
+      - path: "{{ openbao_transit_mount }}/datakey/plaintext/{{ openbao_tofu_state_transit_key }}"
+        capabilities: [update]
+      - path: "{{ openbao_transit_mount }}/decrypt/{{ openbao_tofu_state_transit_key }}"
+        capabilities: [update]
+      - path: auth/token/lookup-self
+        capabilities: [read]
 
 openbao_window_service_approles: >-
   {%- set _roles = [] -%}

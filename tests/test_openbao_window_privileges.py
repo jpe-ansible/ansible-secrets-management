@@ -79,12 +79,29 @@ def test_service_role_scope_and_render(service_name, rendered_defaults):
     assert all('"*" = []' in body for body in stanzas.values())
 
 
+def test_tofu_github_private_role_scope(rendered_defaults):
+    values, approles, _ = rendered_defaults
+    name = "window-tofu-github-private"
+    role = next(role for role in approles if role["name"] == name)
+    assert role["policy"] == name
+    assert role["manage_secret_id"] is False
+    assert role["secret_id_num_uses"] == 1
+    assert role["token_type"] == "batch"
+    assert role["token_ttl"] == role["token_max_ttl"] == "15m"
+    assert values["openbao_approle_cidr_class_map"][name] == "workstation"
+    parameters = values["openbao_approle_cli_parameters"][name]
+    assert parameters["token_bound_cidrs"] == values["openbao_workstation_cidrs"]
+
+
 def test_window_policy_and_role_are_outside_routine_reconcile(rendered_defaults):
     values, _, _ = rendered_defaults
     reconcile = dict(_stanzas(_render(RECONCILE, values)))
     assert "sys/policies/acl/window-github" not in reconcile
     assert "auth/approle/role/window-github" not in reconcile
     assert "auth/approle/role/window-github/secret-id" not in reconcile
+    assert "sys/policies/acl/window-tofu-github-private" not in reconcile
+    assert "auth/approle/role/window-tofu-github-private" not in reconcile
+    assert "auth/approle/role/window-tofu-github-private/secret-id" not in reconcile
 
 
 def test_generic_template_does_not_grant_undeclared_paths(rendered_defaults):
@@ -361,7 +378,9 @@ def test_guard_pins_child_token_parameters(rendered_defaults):
     body = dict(_stanzas(_render(GUARD, values)))["auth/token/create"]
     expected = {name: [value] for name, value in _request().items()}
     expected["policies"] = _window_policy_sets(values)
-    assert _allowed_parameters(body) == expected
+    allowed = _allowed_parameters(body)
+    assert allowed == expected
+    assert ["window-tofu-github-private"] in allowed["policies"]
 
 
 @pytest.mark.parametrize("family", IDENTITY_FAMILIES)
@@ -391,13 +410,23 @@ def test_no_declared_services_denies_child_issuance(rendered_defaults):
 @pytest.fixture
 def window_server(rendered_defaults):
     values, _, policies = rendered_defaults
-    window = next(policy for policy in policies if policy["name"] == "window-github")
+    service_names = {
+        f"window-{service['name']}"
+        for service in _templar(_trust(values)).template(_trust(values["openbao_window_services"]))
+    }
+    window_policies = {
+        policy["name"]: policy for policy in policies if policy["name"] in service_names
+    }
+    window = window_policies["window-github"]
     rendered = {
         values["openbao_ai_admin_policy_name"]: _render(TEMPLATES / "ai-admin-policy.hcl.j2", values),
         values["openbao_ai_admin_guard_policy_name"]: _render(GUARD, values),
         values["openbao_ai_admin_window_policy_name"]: _render(WINDOW_GRANT, values),
         values["openbao_tofu_state_admin_policy_name"]: _render(TEMPLATES / "tofu-state-admin-policy.hcl.j2", values),
-        window["name"]: _render(TEMPLATES / window["template"], dict(values, item=window)),
+        **{
+            name: _render(TEMPLATES / policy["template"], dict(values, item=policy))
+            for name, policy in window_policies.items()
+        },
     }
     server, base = _dev_server()
     try:
@@ -543,6 +572,44 @@ def test_native_child_is_scoped_and_stops_with_parent(window_server):
     assert all(result[path] == ["deny"] for path in denied)
     assert _call(base, "root", "POST", "auth/token/revoke", {"token": parent})[0] == 204
     assert _call(base, "root", "POST", "sys/capabilities", {"token": child, "paths": allowed})[0] == 400
+
+
+def test_native_tofu_github_private_child_is_scoped(window_server):
+    base, values, _ = window_server
+    services = _templar(_trust(values)).template(_trust(values["openbao_window_services"]))
+    service = next(item for item in services if item["name"] == "tofu-github-private")
+    allowed = {grant["path"]: grant["capabilities"] for grant in service["grants"]}
+    assert allowed
+    parent = _parent(base, values)
+    config_mount = values["openbao_config_mount"]
+    assert _call(base, "root", "POST", f"sys/mounts/{config_mount}", {
+        "type": "kv", "options": {"version": "2"},
+    })[0] == 204
+    assert _call(base, "root", "POST", f"{config_mount}/data/github/orgs", {
+        "data": {"value": "fixture"},
+    })[0] == 200
+    github_mount = values["openbao_github_mount"]
+    assert _call(base, "root", "POST", f"sys/mounts/{github_mount}", {"type": "kv"})[0] == 204
+    request = _request() | {"policies": ["window-tofu-github-private"]}
+    status, result = _call(base, parent, "POST", "auth/token/create", request)
+    assert status == 200, result if status != 200 else ""
+    assert result["auth"]["policies"] == ["window-tofu-github-private"]
+    child = result["auth"]["client_token"]
+    denied = "github-admin/token/undeclared"
+    paths = list(allowed) + [denied]
+    status, result = _call(base, "root", "POST", "sys/capabilities", {"token": child, "paths": paths})
+    assert status == 200
+    # OpenBao reports capabilities sorted, not in declared order.
+    assert all(sorted(result[path]) == sorted(capabilities) for path, capabilities in allowed.items())
+    assert result[denied] == ["deny"]
+    status, result = _call(base, child, "GET", "auth/token/lookup-self")
+    assert status == 200, result if status != 200 else ""
+    status, result = _call(base, child, "GET", f"{config_mount}/data/github/orgs")
+    assert status == 200, result if status != 200 else ""
+    assert _call(base, child, "GET", f"{config_mount}/data/other")[0] == 403
+    assert _call(base, child, "POST", f"{github_mount}/token", {
+        "org_name": "fixture-org", "permissions": ["contents:read"],
+    })[0] == 403
 
 
 def test_native_child_stops_when_remaining_window_expires(window_server):
