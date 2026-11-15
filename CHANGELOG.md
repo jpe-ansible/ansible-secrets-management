@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.115.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.114.1...v0.115.0) (2026-11-15)
+
+
+### Features
+
+* **openbao:** add an org-variables permission tier for org Actions variables ([#732](https://github.com/jpe-ansible/ansible-secrets-management/issues/732)) ([b28ee91](https://github.com/jpe-ansible/ansible-secrets-management/commit/b28ee91422c4278076e6fe7b25254eb3f77fa8c1))
+* **openbao:** check each GitHub App against its mount's install allowlist ([#733](https://github.com/jpe-ansible/ansible-secrets-management/issues/733)) ([d84f888](https://github.com/jpe-ansible/ansible-secrets-management/commit/d84f8889757bc6b50379d1b52bfd6a1ce82f6ba6))
+* **openbao:** declare org-scoped GitHub App write routes for OpenHands and the Claude App ([#734](https://github.com/jpe-ansible/ansible-secrets-management/issues/734)) ([40e412c](https://github.com/jpe-ansible/ansible-secrets-management/commit/40e412c8eebfe6161b2e449afea084dce3654bdb))
+
 ## [0.114.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.114.0...v0.114.1) (2026-11-15)
 
 
