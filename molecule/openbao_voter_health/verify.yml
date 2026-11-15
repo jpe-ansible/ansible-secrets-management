@@ -1,0 +1,71 @@
+---
+# Molecule verification playbook — validates voter-health files and timer state.
+
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+
+  tasks:
+    - name: Stat the voter-health EnvironmentFile
+      ansible.builtin.stat:
+        path: /etc/openbao/openbao-voter-health.env
+      register: voter_health_env
+
+    - name: Assert the voter-health EnvironmentFile exists with mode 0600
+      ansible.builtin.assert:
+        that:
+          - voter_health_env.stat.exists
+          - voter_health_env.stat.mode == '0600'
+
+    - name: Stat the voter-health service unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/openbao-voter-health.service
+      register: voter_health_service
+
+    - name: Stat the voter-health timer unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/openbao-voter-health.timer
+      register: voter_health_timer
+
+    - name: Assert both voter-health units exist
+      ansible.builtin.assert:
+        that:
+          - voter_health_service.stat.exists
+          - voter_health_timer.stat.exists
+
+    # Check mode changes nothing; it reports changed only if the timer is not already started and enabled.
+    - name: Read the voter-health timer state without changing it
+      ansible.builtin.systemd_service:
+        name: openbao-voter-health.timer
+        state: started
+        enabled: true
+      check_mode: true
+      register: voter_health_timer_state
+
+    - name: Assert the voter-health timer is active and enabled
+      ansible.builtin.assert:
+        that:
+          - not voter_health_timer_state.changed
+          - voter_health_timer_state.status.ActiveState == 'active'
+          - voter_health_timer_state.status.UnitFileState == 'enabled'
+
+    - name: Stat the live voter-health script
+      ansible.builtin.stat:
+        path: /usr/local/sbin/openbao-voter-health.sh
+      register: voter_health_script
+
+    - name: Assert the live voter-health script exists
+      ansible.builtin.assert:
+        that:
+          - voter_health_script.stat.exists
+
+    - name: Stat the retired voter-health script
+      ansible.builtin.stat:
+        path: /usr/local/bin/openbao-voter-health.sh
+      register: retired_voter_health_script
+
+    - name: Assert the retired voter-health script is absent
+      ansible.builtin.assert:
+        that:
+          - not retired_voter_health_script.stat.exists

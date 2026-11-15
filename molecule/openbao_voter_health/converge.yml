@@ -1,0 +1,25 @@
+---
+# Molecule converge playbook — applies only the openbao_voter_health role.
+
+- name: Converge
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    # The container runs systemd as PID 1, so exercise the role's systemd task.
+    ansible_virtualization_type: molecule-systemd
+    splunk_hec_base_url: "https://splunk.example.test:8088"
+    tofu_data:
+      domain: example.test
+      constants:
+        service_ports:
+          openbao_api: 8200
+    openbao_voter_health_splunk_hec_token: example-hec-token
+    openbao_voter_health_role_id: example-role-id
+    openbao_voter_health_secret_id: example-secret-id
+
+  tasks:
+    - name: Include openbao_voter_health role
+      ansible.builtin.include_role:
+        name: openbao_voter_health

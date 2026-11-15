@@ -50,13 +50,6 @@
     - (item.value.role_id | default('')) | length > 0
     - (item.value.secret_id | default('')) | length > 0
 
-- name: Restart openbao voter-health timer
-  ansible.builtin.systemd:
-    name: "{{ openbao_voter_health_service_name }}.timer"
-    state: restarted
-    daemon_reload: true
-  when: ansible_virtualization_type | default('') != 'docker'
-
 - name: Restart openbao secret-age timer
   ansible.builtin.systemd:
     name: "{{ openbao_secret_age_service_name }}.timer"
