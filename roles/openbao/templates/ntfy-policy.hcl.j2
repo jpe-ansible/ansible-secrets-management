@@ -1,23 +1,34 @@
 {{ ansible_managed | comment }}
 # OpenBao policy for the ntfy AppRole (openbao_secrets domain "ntfy") — the
-# ntfy alert hub's Slack fan-out (ntfy_docker role). Read-only on the single
-# secrets-external entry holding Slack incoming-webhook URLs keyed by topic;
-# no access to secret/apps or any other domain's credentials.
+# ntfy alert hub's Slack fan-out (ntfy_docker role). The target webhook leaf is
+# on ext-notify; secrets-external leaves are transitional until the consumer is
+# proven on the new leaf. No access to secret/apps or other domain credentials.
 
-# Transitional: the platform/ path is removed once every consumer reads the slack/ path.
+# Transitional: retained until the consumer is proven on the ext-notify leaf.
 path "secrets-external/data/platform/slack-webhooks" {
   capabilities = ["read"]
 }
 
+# Transitional: retained until the consumer is proven on the ext-notify leaf.
 path "secrets-external/data/slack/webhooks/rw" {
   capabilities = ["read"]
 }
 
-# Transitional: the platform/ path is removed once every consumer reads the slack/ path.
+# The target Slack incoming-webhook leaf, keyed by topic.
+path "ext-notify/data/slack/webhooks/rw" {
+  capabilities = ["read"]
+}
+
+# Transitional: retained until the consumer is proven on the ext-notify leaf.
 path "secrets-external/metadata/platform/slack-webhooks" {
   capabilities = ["read", "list"]
 }
 
+# Transitional: retained until the consumer is proven on the ext-notify leaf.
 path "secrets-external/metadata/slack/webhooks/rw" {
+  capabilities = ["read", "list"]
+}
+
+path "ext-notify/metadata/slack/webhooks/rw" {
   capabilities = ["read", "list"]
 }

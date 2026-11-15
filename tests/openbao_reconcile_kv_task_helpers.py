@@ -14,6 +14,7 @@ from openbao_reconcile_bounds_helpers import (
 )
 
 TASKS_03 = ROOT / "roles/openbao/tasks/init/03-kv-mounts-and-seed-secrets.yml"
+TASKS_03B = ROOT / "roles/openbao/tasks/init/03b-kv-mounts.yml"
 TASKS_08A = ROOT / "roles/openbao/tasks/init/08a-roster-live-collisions.yml"
 PROMOTE_TASKS = ROOT / "roles/openbao/tasks/promote_app_secret.yml"
 GENERATED_SEED_TASKS = ROOT / "roles/openbao/tasks/seed_generated_app_secret.yml"
