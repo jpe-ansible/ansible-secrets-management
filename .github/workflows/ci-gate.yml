@@ -47,13 +47,16 @@ jobs:
     with:
       # Molecule runs in the shared workflow below; this shared workflow runs lint only.
       molecule: false
-      # The only scenario is openbao. Its filter lists the roles its converge
-      # play includes, the scenario directory, and the workflow/discovery files
-      # that select and execute the scenario.
+      # Each filter lists the roles its converge play includes, the scenario
+      # directory, and the workflow/discovery files that select and execute it.
       molecule_scenario_filters: &molecule_scenario_filters |
         openbao:
           - 'roles/openbao/**'
           - 'molecule/openbao/**'
+          - '.github/workflows/ci-gate.yml'
+        openbao_voter_health:
+          - 'roles/openbao_voter_health/**'
+          - 'molecule/openbao_voter_health/**'
           - '.github/workflows/ci-gate.yml'
 
   changes:

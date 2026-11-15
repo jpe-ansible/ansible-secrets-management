@@ -180,19 +180,7 @@
   when:
     - openbao_snapshot_enabled | bool
 
-# --- Phase 12: voter health telemetry (all nodes; read-only, script leader-gates) -
-# Deployed on every openbao node so any voter can take over the sweep after a
-# leadership change. No AppRole creds are required (unauthenticated sys/health
-# + sys/leader only), so unlike the snapshot timer this has no credential gate.
-- name: Deploy the voter-health telemetry timer
-  ansible.builtin.import_tasks: ../voter_health.yml
-  tags:
-    - openbao_voter_health
-  when:
-    - openbao_voter_health_enabled | bool
-    - ansible_virtualization_type | default('') != 'docker'
-
-# --- Phase 13: credential rotation timers (all nodes; deadman-covered) -----
+# --- Phase 12: credential rotation timers (all nodes; deadman-covered) -----
 # Table-driven (openbao_rotators, defaults/main/09) — one entry per rotated
 # credential (Slack app-config token, Splunk MCP token, ...). rotate.yml
 # itself skips any entry that is disabled or whose AppRole creds are not yet
@@ -213,7 +201,7 @@
   tags:
     - openbao_rotate
 
-# --- Phase 14: secret-age auditor (all nodes; script leader-gates) ----------
+# --- Phase 13: secret-age auditor (all nodes; script leader-gates) ----------
 # Deployed on every openbao node, same shape as the snapshot timer: gated on
 # the secret-age-audit AppRole creds being present so a pre-provisioning
 # converge (creds not yet minted) stays green instead of rendering an

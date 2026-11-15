@@ -20,15 +20,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-# Two roles ship a sampler of this name. The one whose systemd unit wins is
-# roles/openbao_voter_health; roles/openbao installs an orphan copy to a
-# different path that nothing executes. Both are asserted so the contract
-# cannot be satisfied in the dead copy alone — which is exactly the mistake
-# this file exists to make impossible.
+# The openbao_voter_health role is the sole owner of the deployed sampler.
 _ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = [
     _ROOT / "roles/openbao_voter_health/templates/openbao-voter-health.sh.j2",
-    _ROOT / "roles/openbao/templates/openbao-voter-health.sh.j2",
 ]
 
 # Verbatim from the consuming saved search. Keep these in step.
@@ -42,7 +37,7 @@ def _templates() -> list[tuple[str, str]]:
 
 
 def test_summary_emits_a_voters_token_the_alert_can_match() -> None:
-    """Every shipped copy must emit `voters=` bound to a counted value."""
+    """The deployed sampler must emit `voters=` bound to a counted value."""
     for name, body in _templates():
         # The header comment documents the same string, so match the emitting
         # log call rather than any line mentioning it.
@@ -97,7 +92,6 @@ def test_unreachable_voters_are_still_counted_separately() -> None:
 def test_env_file_is_never_rendered_without_a_token() -> None:
     """A converge without SPLUNK_HEC_TOKEN must fail, not blank the live token."""
     tasks = {
-        _ROOT / "roles/openbao/tasks/voter_health.yml": "openbao_voter_health_hec_token",
         _ROOT / "roles/openbao_voter_health/tasks/main.yml": "openbao_voter_health_splunk_hec_token",
     }
     for path, var in tasks.items():

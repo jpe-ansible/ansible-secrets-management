@@ -67,3 +67,17 @@
   when:
     - openbao_voter_health_enabled | bool
     - ansible_virtualization_type | default('') != 'docker'
+
+- name: Assert the retired voter-health script path differs from the live path
+  ansible.builtin.assert:
+    that:
+      - openbao_voter_health_retired_script_path != openbao_voter_health_script_path
+    fail_msg: The retired voter-health path must differ from the live script path.
+    quiet: true
+  when: openbao_voter_health_enabled | bool
+
+- name: Remove the retired OpenBao voter-health sampling script
+  ansible.builtin.file:
+    path: "{{ openbao_voter_health_retired_script_path }}"
+    state: absent
+  when: openbao_voter_health_enabled | bool

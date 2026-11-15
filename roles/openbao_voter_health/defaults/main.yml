@@ -18,6 +18,8 @@ openbao_voter_health_enabled: true
 openbao_voter_health_service_name: openbao-voter-health
 openbao_voter_health_script_path: /usr/local/sbin/openbao-voter-health.sh
 openbao_voter_health_env_file: /etc/openbao/openbao-voter-health.env
+# The openbao role deployed this path before voter-health ownership moved here.
+openbao_voter_health_retired_script_path: /usr/local/bin/openbao-voter-health.sh
 
 # systemd OnUnitActiveSec cadence between sweeps.
 openbao_voter_health_interval: "5min"
