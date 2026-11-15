@@ -213,3 +213,11 @@ def test_agent_tier_mount_has_exact_publisher_and_router_grants_only() -> None:
             "openbao-reconcile-policy.hcl.j2",
         }:
             assert "openbao_agent_tier_mount" not in template.read_text(encoding="utf-8"), template.name
+
+    # Policies that loop over the declared KV mounts use whole-path expressions,
+    # which the static check above skips; the agent-tier mount must stay out of that list.
+    kv_mounts = {
+        re.sub(r"{{\s*(\w+)\s*}}", literal, entry["path"])
+        for entry in role_defaults["openbao_kv_mounts"]
+    }
+    assert "*" not in kv_mounts and mount not in kv_mounts, kv_mounts

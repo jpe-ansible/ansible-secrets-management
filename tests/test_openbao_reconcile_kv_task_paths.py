@@ -16,6 +16,7 @@ from openbao_reconcile_kv_task_helpers import (
     LEGACY_AGENT_TASKS,
     ROTATION_TASKS,
     TASKS_03,
+    TASKS_03B,
     TASKS_08A,
     _add_kv_command,
     _add_kv_uri,
@@ -33,12 +34,12 @@ def test_reconcile_kv_task_paths_have_exact_grants(rendered_defaults):
     tasks = _task_file(TASKS_03)
     grants = {}
 
-    # The tuned-config read and write use the same mount loop in init/03.
+    # The tuned-config read and write use the same mount loop in init/03b.
     config_read = _named_task(
-        TASKS_03, "Read the current version-retention config of each tuned KV mount"
+        TASKS_03B, "Read the current version-retention config of each tuned KV mount"
     )
     config_write = _named_task(
-        TASKS_03, "Set KV v2 version retention on the tuned mounts (write-if-changed)"
+        TASKS_03B, "Set KV v2 version retention on the tuned mounts (write-if-changed)"
     )
     for mount in _loop_values(context, config_read["loop"]):
         _add_kv_command(grants, config_read, dict(context, item=mount))

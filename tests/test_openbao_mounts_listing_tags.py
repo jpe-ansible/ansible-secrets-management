@@ -16,10 +16,12 @@ TASKS = ROOT / "roles/openbao/tasks"
 INIT = TASKS / "init.yml"
 LISTING = "init/03a-list-secrets-engines.yml"
 SEED = "init/03-kv-mounts-and-seed-secrets.yml"
+KV_MOUNTS = "init/03b-kv-mounts.yml"
 GITHUB_ENGINE = "init/05-github-engine.yml"
 GITHUB_MOUNT = "init/05b-github-app-mount.yml"
 KNOWN_READERS = {
     SEED,
+    KV_MOUNTS,
     "init/04-aws-engine.yml",
     "init/04b-azure-engine.yml",
     "init/04c-transit-engine.yml",

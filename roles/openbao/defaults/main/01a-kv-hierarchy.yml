@@ -34,7 +34,7 @@ openbao_config_mount: config
 openbao_config_mount_max_versions: 30
 # Every shared KV v2 mount this role provisions (add-if-missing, then tuned to
 # the declared retention). `max_versions` is optional — omit it to leave a mount
-# on the KV v2 default, which is what the two credential mounts do today.
+# on the KV v2 default, which is what the credential mounts do today.
 # `github-enterprise-owner` is enabled separately and stays out of this list:
 # ai-admin and openbao-reconcile derive broad KV access from these entries.
 openbao_kv_mounts:
@@ -44,6 +44,8 @@ openbao_kv_mounts:
   - path: secrets-external
   - path: "{{ openbao_config_mount }}"
     max_versions: "{{ openbao_config_mount_max_versions }}"
+  # Low-impact outbound credentials: post-only webhooks and notification endpoints.
+  - path: ext-notify
 # Derived: the subset that declares retention. Defined once because init.yml
 # zips it against its own read results — the two loops must be the same list in
 # the same order, which two separate inline filters would not guarantee.
