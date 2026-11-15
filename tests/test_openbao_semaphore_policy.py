@@ -46,3 +46,33 @@ def test_run_environment_document_is_declared_by_the_converge_policy_only():
 
     assert "platform/ansible/env" not in policy
     assert 'path "topology-config/data/*"' not in policy
+
+
+def test_raw_github_mint_allows_the_read_map_and_the_census_map_only():
+    templar = Templar(loader=DataLoader())
+    templar.available_variables = {
+        "ansible_managed": "Ansible managed",
+        "openbao_kv_mount": "secret",
+        "openbao_config_mount": "config",
+        "openbao_github_everyday_mount": "github",
+        "openbao_semaphore_github_raw_read_permissions": {"contents": "read", "metadata": "read"},
+        "openbao_semaphore_github_census_read_permissions": {
+            "contents": "read",
+            "metadata": "read",
+            "pull_requests": "read",
+        },
+        "openbao_semaphore_github_read_permission_sets": [],
+        "openbao_github_dispatch_permission_sets": [],
+    }
+    policy = templar.template(trust_as_template(POLICY.read_text(encoding="utf-8")))
+
+    assert (
+        '    "permissions" = [{ "contents" = "read", "metadata" = "read" }, '
+        '{ "contents" = "read", "metadata" = "read", "pull_requests" = "read" }]'
+    ) in policy
+
+
+def test_raw_github_mint_without_census_map_keeps_the_single_read_map():
+    policy = _render("secret")
+
+    assert '    "permissions" = [{ "contents" = "read" }]' in policy
