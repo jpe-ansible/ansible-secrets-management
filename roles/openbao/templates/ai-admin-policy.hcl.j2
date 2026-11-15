@@ -109,8 +109,8 @@ path "sys/audit-hash/*" {
 }
 
 # --- Secret data: every KV mount this role provisions -------------------------
-# Driven from openbao_kv_mounts (secret, secrets-external, config) so a new
-# mount reaches break-glass from the one declaration, not a second hand-kept
+# Driven from openbao_kv_mounts (every zone mount plus the restricted mounts)
+# so a new mount reaches break-glass from the one declaration, not a second hand-kept
 # list here that would be discovered missing during an incident.
 {% for mount in openbao_kv_mounts | default([]) %}
 path "{{ mount.path | default(mount) }}/*" {

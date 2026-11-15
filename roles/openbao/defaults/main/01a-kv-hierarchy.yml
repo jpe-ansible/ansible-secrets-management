@@ -37,15 +37,45 @@ openbao_config_mount_max_versions: 30
 # on the KV v2 default, which is what the credential mounts do today.
 # `github-enterprise-owner` is enabled separately and stays out of this list:
 # ai-admin and openbao-reconcile derive broad KV access from these entries.
-openbao_kv_mounts:
+#
+# Two optional flags limit the broad grants derived from this list. Both
+# default to true:
+#   global_read  the read-all policies (ai-global-read, operator-human) read it
+#   age_audit    the secret-age audit lists its metadata
+# ai-admin reaches every mount, flags or not.
+openbao_kv_zone_mounts:
   - path: "{{ openbao_kv_mount }}"
   # External-SaaS credentials; a literal here for the same reason the policy
   # templates use a literal (see tasks/init.yml).
   - path: secrets-external
+  # Variables, not secrets: out of scope for a secret-rotation audit.
   - path: "{{ openbao_config_mount }}"
     max_versions: "{{ openbao_config_mount_max_versions }}"
+    age_audit: false
   # Low-impact outbound credentials: post-only webhooks and notification endpoints.
   - path: ext-notify
+  # Credential zones of the path grammar <zone>/<service>/<instance>/<scope>.
+  - path: int
+  - path: ext-saas
+  - path: ext-ai
+    global_read: false
+  - path: ext-critical
+    global_read: false
+  # Administrator material: admin/<zone>/<service>/<instance>/<scope>.
+  - path: admin
+    global_read: false
+    age_audit: false
+  # Leases and coordination state, not credentials.
+  - path: state
+    age_audit: false
+# Restricted-zone mounts, named only in the run environment so the public role
+# never carries them: OPENBAO_KV_RESTRICTED_MOUNTS is a JSON list of mount
+# objects, for example [{"path": "<mount>"}]. Both flags are forced false, so
+# the environment cannot give a restricted mount a broad grant.
+openbao_kv_restricted_mounts: >-
+  {{ (lookup('env', 'OPENBAO_KV_RESTRICTED_MOUNTS') | trim | default('[]', true) | from_json)
+     | map('combine', {'global_read': false, 'age_audit': false}) | list }}
+openbao_kv_mounts: "{{ openbao_kv_zone_mounts + openbao_kv_restricted_mounts }}"
 # Derived: the subset that declares retention. Defined once because init.yml
 # zips it against its own read results — the two loops must be the same list in
 # the same order, which two separate inline filters would not guarantee.
