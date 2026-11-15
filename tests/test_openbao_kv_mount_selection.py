@@ -259,7 +259,7 @@ def test_other_mount_listing_readers_remain_skipped_for_kv_mount_selection():
     assert "openbao_object_targets" in approle_names
 
 
-def test_ntfy_policy_reads_the_new_webhook_leaf_and_keeps_transitional_leaves():
+def test_ntfy_policy_reads_only_the_ext_notify_webhook_leaf():
     rendered = _render(NTFY_POLICY, {"ansible_managed": "fixture"})
     stanzas = dict(_stanzas(rendered))
     assert stanzas["ext-notify/data/slack/webhooks/rw"].strip() == (
@@ -269,25 +269,18 @@ def test_ntfy_policy_reads_the_new_webhook_leaf_and_keeps_transitional_leaves():
         "read", "list",
     ]
     assert set(stanzas) == {
-        "secrets-external/data/platform/slack-webhooks",
-        "secrets-external/data/slack/webhooks/rw",
         "ext-notify/data/slack/webhooks/rw",
-        "secrets-external/metadata/platform/slack-webhooks",
-        "secrets-external/metadata/slack/webhooks/rw",
         "ext-notify/metadata/slack/webhooks/rw",
     }
-    assert "ext-notify" in rendered and "transitional" in rendered
-    assert all(set(_capabilities(body)) <= {"read", "list"} for body in stanzas.values())
+    assert "secrets-external" not in rendered
 
 
-def test_ntfy_domain_reads_the_ext_notify_leaf_last_with_a_policy_grant():
+def test_ntfy_domain_reads_only_the_ext_notify_leaf_with_a_policy_grant():
     domains = yaml.safe_load(DOMAINS_FILE.read_text(encoding="utf-8"))["openbao_secrets_domains"]
     paths = next(domain["paths"] for domain in domains if domain["name"] == "ntfy")
     stanzas = dict(_stanzas(_render(NTFY_POLICY, {"ansible_managed": "fixture"})))
-    # Paths merge in order and later paths win, so the ext-notify leaf must come last.
-    assert paths[-1] == {"mount": "ext-notify", "path": "slack/webhooks/rw", "optional": True}
-    for entry in paths:
-        assert "read" in _capabilities(stanzas[f"{entry['mount']}/data/{entry['path']}"])
+    assert paths == [{"mount": "ext-notify", "path": "slack/webhooks/rw", "optional": True}]
+    assert "read" in _capabilities(stanzas["ext-notify/data/slack/webhooks/rw"])
 
 
 def test_secret_age_audit_grants_metadata_reads_for_every_age_audited_kv_mount(rendered_defaults):
