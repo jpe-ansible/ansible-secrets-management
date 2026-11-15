@@ -551,3 +551,47 @@ def test_secret_age_warn_threshold_and_optional_dashboard_render():
     with_mention = _render_secret_age("", "svc-a")
     assert 'SLACK_MEMBER_ID="svc-a"' in with_mention
     assert 'body="<@${SLACK_MEMBER_ID}> ${body}"' in with_mention
+
+
+POLICY_ASSERTIONS = ROOT / "roles/openbao/tasks/init/08-policy-declaration-assertions.yml"
+RBAC_TASKS = ROOT / "roles/openbao/tasks/init/08-rbac-policies.yml"
+
+
+def _policy_render_guard_passes(targets: object) -> bool:
+    guard = _find_task(
+        yaml.safe_load(POLICY_ASSERTIONS.read_text(encoding="utf-8")),
+        "Assert every KV rotation target renders only exact policy paths",
+    )
+    context = {name: trust_as_template(value) for name, value in guard["vars"].items()}
+    context["openbao_kv_rotation_targets"] = targets
+    return all(
+        _render_expression("{{ " + condition + " }}", context)
+        for condition in guard["ansible.builtin.assert"]["that"]
+    )
+
+
+def test_role_refuses_unsafe_kv_target_paths_before_any_policy_render():
+    vendor = _row("svc-b-key", "svc-b/main")
+    vendor["generate"] = {
+        "kind": "vendor_roll",
+        "admin_credential": {"mount": "example", "path": "svc-b/admin", "field": "key"},
+    }
+    assert _policy_render_guard_passes([])
+    assert _policy_render_guard_passes([_row("svc-a-key", "svc-a/main"), vendor])
+
+    for mount, path in (("example", "*"), ("example", ".."), ("example", "svc-a/../x"),
+                        ("example", "svc-a/*"), ("*", "svc-a/main"), ("example", "+/main"),
+                        ("example", "")):
+        bad = {**_row("svc-a-key", "svc-a/main"), "mount": mount, "path": path}
+        assert not _policy_render_guard_passes([bad]), (mount, path)
+
+    for admin in ({"mount": "example", "path": "*"}, {"mount": "..", "path": "svc-b/admin"}, {}):
+        bad = {**vendor, "generate": {**vendor["generate"], "admin_credential": admin}}
+        assert not _policy_render_guard_passes([bad]), admin
+
+    assert not _policy_render_guard_passes("not-a-list")
+    assert not _policy_render_guard_passes({"mount": "example"})
+
+    # The guard file is imported first, ahead of every render and write task.
+    first = yaml.safe_load(RBAC_TASKS.read_text(encoding="utf-8"))[0]
+    assert first["ansible.builtin.import_tasks"] == "08-policy-declaration-assertions.yml"
