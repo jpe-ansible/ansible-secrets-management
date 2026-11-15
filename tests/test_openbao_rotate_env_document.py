@@ -318,7 +318,7 @@ def test_scheduled_seed_failure_retains_human_gate_guidance():
     final_failure = next(
         task
         for task in playbook[0]["tasks"]
-        if task["name"].startswith("Fail the run when any identity did not rotate")
+        if task["name"].startswith("Fail the run when any identity or KV target did not rotate")
     )
     message = final_failure["ansible.builtin.fail"]["msg"]
     templar = Templar(loader=DataLoader())

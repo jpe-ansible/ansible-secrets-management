@@ -28,6 +28,7 @@
     openbao_api_port: 8200
     openbao_secret_age_schedule: "*-*-* 06:05:00 UTC"
     openbao_secret_age_target_days: 30
+    openbao_secret_age_warn_days: 40
     openbao_secret_age_max_days: 47
     openbao_secret_age_interval: "24h"
     openbao_secret_age_report_path: "{{ fixture_dir }}/secret-age.json"

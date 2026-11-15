@@ -11,6 +11,7 @@
 #      tagged source "updated_time"
 #   5. an AppRole secret-id accessor older than max_days classifies as
 #      "overdue"
+#   6. a stamp between warn_days and max_days classifies as "due_soon"
 #
 # The false-green (B1/R2) and alert-storm (B2) guard cases live in the
 # sibling verify_age_logic_guards.yml — split out to stay under this repo's
@@ -32,6 +33,7 @@
     openbao_api_port: 8200
     openbao_secret_age_schedule: "*-*-* 06:05:00 UTC"
     openbao_secret_age_target_days: 30
+    openbao_secret_age_warn_days: 40
     openbao_secret_age_max_days: 47
     openbao_secret_age_report_path: "{{ fixture_dir }}/secret-age.json"
     openbao_secret_age_ntfy_url: "https://ntfy.example.test/secrets-security"
@@ -70,6 +72,7 @@
       ansible.builtin.assert:
         that:
           - _run.rc == 0
+          - _report.warn_days == 40
         fail_msg: >-
           The script must exit 0 in the fixture. rc={{ _run.rc }}
           stdout={{ _run.stdout }} stderr={{ _run.stderr }}
@@ -94,6 +97,17 @@
             | selectattr('status', 'equalto', 'due') | list | length == 1
         fail_msg: >-
           apps/due-app#password (35d, target=30/max=47) must classify as due.
+          items={{ _report['items'] }}
+
+    - name: Assert a stamp past warn_days classifies as due soon
+      ansible.builtin.assert:
+        that:
+          - >-
+            _report['items'] | selectattr('path', 'equalto', 'apps/warn-app')
+            | selectattr('field', 'equalto', 'password')
+            | selectattr('status', 'equalto', 'due_soon') | list | length == 1
+        fail_msg: >-
+          apps/warn-app#password (42d, warn=40/max=47) must classify as due_soon.
           items={{ _report['items'] }}
 
     - name: Assert an exempt-tagged path is skipped entirely
@@ -135,6 +149,7 @@
           openbao-secret-age.sh.j2 classification assertions passed:
           - overdue stamp (60d) -> status overdue
           - due stamp (35d, target=30/max=47) -> status due
+          - warning stamp (42d, warn=40/max=47) -> status due_soon
           - custom_metadata.rotation=exempt path -> skipped entirely
           - no rotated_<FIELD> stamp -> path-level fallback, source updated_time
           - AppRole secret-id accessor past max_days -> status overdue

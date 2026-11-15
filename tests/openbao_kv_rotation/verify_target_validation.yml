@@ -1,0 +1,10 @@
+---
+- name: Verify run-environment KV target schema assertions
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars_files:
+    - ../../roles/openbao/defaults/main/09c-kv-rotation-targets.yml
+  tasks:
+    - name: Run the rotator's KV target validation tasks
+      ansible.builtin.include_tasks: ../../playbooks/tasks/openbao_validate_kv_rotation_targets.yml

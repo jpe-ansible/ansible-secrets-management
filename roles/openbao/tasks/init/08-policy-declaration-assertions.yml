@@ -44,3 +44,49 @@
   run_once: true
   delegate_to: localhost
   become: false
+
+# The rotation policy template builds read, create and update paths from each
+# KV rotation target's mount and path. A glob or a ".." segment there would
+# widen the rotator's grant, so the converge stops here, before any policy is
+# rendered or written.
+- name: Assert every KV rotation target renders only exact policy paths
+  ansible.builtin.assert:
+    that:
+      - openbao_kv_rotation_targets is sequence
+      - openbao_kv_rotation_targets is not string
+      - openbao_kv_rotation_targets is not mapping
+      - >-
+        _kv_rotation_policy_segments | map('string')
+        | reject('match', '^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$') | list | length == 0
+      - >-
+        _kv_rotation_policy_segments | map('string') | map('split', '/') | flatten
+        | select('equalto', '..') | list | length == 0
+    fail_msg: >-
+      A KV rotation target has a mount or path (its own or its admin
+      credential's) that is not slash-separated safe segments. No policy was
+      written.
+    success_msg: "KV rotation targets render only exact policy paths."
+  vars:
+    _kv_rotation_policy_rows: >-
+      {{ openbao_kv_rotation_targets
+         if (openbao_kv_rotation_targets is sequence
+             and openbao_kv_rotation_targets is not string
+             and openbao_kv_rotation_targets is not mapping)
+         else [] }}
+    _kv_rotation_policy_segments: >-
+      {%- set out = [] -%}
+      {%- for row in _kv_rotation_policy_rows -%}
+      {%- set admin = ((row.generate | default({})).admin_credential | default({}))
+           if (row is mapping and (row.generate | default({})) is mapping) else {} -%}
+      {%- set _ = out.extend([(row.mount | default('')) if row is mapping else '',
+                              (row.path | default('')) if row is mapping else '']) -%}
+      {%- if row is mapping and (row.generate | default({})) is mapping
+            and (row.generate | default({})).get('kind', '') == 'vendor_roll' -%}
+      {%- set _ = out.extend([admin.get('mount', '') if admin is mapping else '',
+                              admin.get('path', '') if admin is mapping else '']) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ out }}
+  run_once: true
+  delegate_to: localhost
+  become: false

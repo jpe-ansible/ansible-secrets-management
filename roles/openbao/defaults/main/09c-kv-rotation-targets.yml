@@ -1,0 +1,42 @@
+---
+# KV value rotation targets come from the private run environment, never this
+# public collection. A row names one field at one KV v2 leaf:
+#   name, mount, path, field (mount/path use slash-separated safe segments)
+#   generate: {kind: random, length: 40} or
+#     {kind: vendor_roll, url, method, headers, body?, value_from,
+#      admin_credential: {mount, path, field}}
+#   push: {kind: none, consumer_reads_openbao?},
+#     {kind: semaphore, project_id, template_id, extra_args?}, or
+#     {kind: terrakube, organization_id, workspace_id}
+#   probe: {url, method, headers?, body?, expect_status}
+#   invalidate: {kind: none} or
+#     {kind: http, url, method, headers?, body?, expect_status}
+#   old_dead_status: HTTP status list proving the prior value is dead.
+#   secret_in_url: true is required when any secret placeholder is in a URL.
+#     Set push.consumer_reads_openbao: true when invalidate.kind=http and
+#     push.kind=none, to declare that consumers read this leaf at use time.
+# The literal __ADMIN_CREDENTIAL__ in a vendor request URL/headers/body is
+# replaced with the admin credential read from OpenBao. Probe __VALUE__ is
+# replaced with the value being checked; invalidation __OLD__ and __NEW__ are
+# replaced with the previous and replacement values. URL substitutions are
+# URL-encoded; headers and bodies retain the raw values.
+openbao_kv_rotation_targets_json: >-
+  {{ lookup('env', 'OPENBAO_KV_ROTATION_TARGETS') | trim | default('[]', true) }}
+openbao_kv_rotation_targets: "{{ openbao_kv_rotation_targets_json | from_json }}"
+
+# Token locations are supplied by the private run environment. Empty mappings
+# are valid until a target needs the corresponding push integration.
+openbao_kv_rotation_semaphore_token_json: >-
+  {{ lookup('env', 'OPENBAO_KV_ROTATION_SEMAPHORE_TOKEN') | trim | default('{}', true) }}
+openbao_kv_rotation_semaphore_token: >-
+  {{ openbao_kv_rotation_semaphore_token_json | from_json }}
+openbao_kv_rotation_terrakube_token_json: >-
+  {{ lookup('env', 'OPENBAO_KV_ROTATION_TERRAKUBE_TOKEN') | trim | default('{}', true) }}
+openbao_kv_rotation_terrakube_token: >-
+  {{ openbao_kv_rotation_terrakube_token_json | from_json }}
+
+openbao_kv_rotation_push_timeout_sec: 1500
+openbao_kv_rotation_ntfy_url: >-
+  {{ lookup('env', 'NTFY_SECRETS_URL')
+     | default(('https://ntfy.' ~ (ingress_domain | default('', true)) ~ '/secrets-security')
+       if (ingress_domain | default('', true) | length > 0) else '', true) }}
