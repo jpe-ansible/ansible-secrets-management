@@ -48,6 +48,8 @@ def test_reconcile_kv_grants_match_named_consumers_and_keep_flow_lock_separate(
         "secret/data/apps/promoted": ["create", "read", "update"],
         "secrets-external/data/external": ["create", "read", "update"],
         "config/data/review": ["create", "read", "update"],
+        f"{values['openbao_arrangement_kv_mount']}/data/"
+        f"{values['openbao_arrangement_kv_path']}": ["read"],
         "secret/data/apps/generated": ["create", "read", "update"],
         "secret/data/ai/clickhouse": ["create", "read", "update"],
         "secret/data/apps/agent-one": ["create", "read", "update"],
