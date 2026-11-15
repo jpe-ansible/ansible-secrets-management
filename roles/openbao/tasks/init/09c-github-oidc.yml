@@ -23,6 +23,7 @@
   no_log: true
   changed_when: true
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     - (openbao_github_oidc_auth_path ~ '/') not in (openbao_auth_raw.stdout | from_json).keys()
 
@@ -41,7 +42,9 @@
   changed_when: false
   check_mode: false
   failed_when: false
-  when: openbao_bootstrap_token is defined
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_bootstrap_token is defined
 
 # bound_issuer alongside the discovery URL: discovery says where the keys come
 # from, bound_issuer says whose `iss` claim is acceptable. Setting only the
@@ -63,6 +66,7 @@
   no_log: true
   changed_when: true
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     - >-
       (openbao_github_oidc_config_current.rc | default(1)) != 0
@@ -90,7 +94,9 @@
   changed_when: false
   check_mode: false
   failed_when: false
-  when: openbao_bootstrap_token is defined
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_bootstrap_token is defined
 
 # Three independent bounds, all required. The audience stops a token minted for
 # another consumer of the same issuer; the repository claim stops any other
@@ -134,6 +140,7 @@
   no_log: true
   changed_when: true
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     # No source repository configured means no role: a bound_claims entry set
     # to an empty string is a bound nothing can satisfy, and declaring one
@@ -182,7 +189,9 @@
   changed_when: false
   check_mode: false
   failed_when: false
-  when: openbao_bootstrap_token is defined
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_bootstrap_token is defined
 
 - name: Reconcile the uicheck OIDC role
   vars:
@@ -217,6 +226,7 @@
   no_log: true
   changed_when: true
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     - >-
       (openbao_github_oidc_uicheck_role_current.rc | default(1)) != 0
@@ -242,7 +252,9 @@
 - name: Skip the ci-ai-review OIDC role without an enterprise ID
   ansible.builtin.debug:
     msg: "Skipping ci-ai-review OIDC role: OPENBAO_GITHUB_ENTERPRISE_ID is empty."
-  when: openbao_ci_ai_review_enterprise_id | length == 0
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_ci_ai_review_enterprise_id | length == 0
 
 - name: Read the ci-ai-review OIDC role
   ansible.builtin.command:
@@ -262,6 +274,7 @@
   check_mode: false
   failed_when: false
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     - openbao_ci_ai_review_enterprise_id | length > 0
 
@@ -299,6 +312,7 @@
   no_log: true
   changed_when: true
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     - openbao_ci_ai_review_enterprise_id | length > 0
     - >-
@@ -340,7 +354,9 @@
   changed_when: false
   check_mode: false
   failed_when: false
-  when: openbao_bootstrap_token is defined
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_bootstrap_token is defined
 
 - name: Reconcile the ci-evals OIDC role
   vars:
@@ -376,6 +392,7 @@
   no_log: true
   changed_when: true
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     - >-
       (openbao_github_oidc_ci_evals_role_current.rc | default(1)) != 0
@@ -415,7 +432,9 @@
   changed_when: false
   check_mode: false
   failed_when: false
-  when: openbao_bootstrap_token is defined
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_bootstrap_token is defined
 
 - name: Reconcile the pr-reconcile-sweep OIDC role
   vars:
@@ -456,6 +475,7 @@
   no_log: true
   changed_when: true
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     - openbao_github_pr_reconcile_enabled | bool
     - >-
@@ -495,6 +515,111 @@
   no_log: true
   changed_when: true
   when:
+    - openbao_select | default({}) | length == 0
     - openbao_bootstrap_token is defined
     - not (openbao_github_pr_reconcile_enabled | bool)
     - (openbao_github_oidc_pr_reconcile_role_current.rc | default(1)) == 0
+
+# A dropped org's OIDC role must be deleted by hand because this identity
+# cannot list roles. GitHub write workflows use a reusable workflow identity.
+# Each role is bound to one org and to its route's configured workflows/ref suffix.
+- name: Read each GitHub write OIDC role
+  ansible.builtin.command:
+    cmd: >-
+      bao read -format=json
+      auth/{{ openbao_github_oidc_auth_path }}/role/{{ item.name }}
+  environment:
+    BAO_ADDR: "{{ openbao_cli_addr }}"
+    BAO_TOKEN: "{{ openbao_bootstrap_token }}"
+  delegate_to: "{{ openbao_cli_host }}"
+  become: "{{ openbao_cli_become }}"
+  vars:
+    ansible_become: "{{ openbao_cli_become }}"
+    openbao_github_oidc_role_targets: >-
+      {{ (openbao_selected_objects | default({})).get('github_oidc_roles', []) }}
+  register: openbao_github_oidc_write_roles_current
+  no_log: true
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  when:
+    - openbao_bootstrap_token is defined
+    - >-
+      openbao_select | default({}) | length == 0
+      or item.name
+         in (openbao_github_oidc_role_targets | map(attribute='name') | list)
+  loop: "{{ openbao_github_write_oidc_roles }}"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Reconcile each GitHub write OIDC role
+  vars:
+    ansible_become: "{{ openbao_cli_become }}"
+    openbao_github_oidc_role_targets: >-
+      {{ (openbao_selected_objects | default({})).get('github_oidc_roles', []) }}
+    _github_write_route: >-
+      {{ openbao_github_write_routes
+         | selectattr('prefix', 'equalto', item.set.tier) | first }}
+    _github_write_role_claims:
+      job_workflow_ref: >-
+        {{ _github_write_route.workflows
+           | map('regex_replace', '$', openbao_github_write_workflow_ref_suffix) | list }}
+      repository_owner: "{{ [item.org] }}"
+    _github_write_role_live: >-
+      {{ (openbao_github_oidc_write_roles_current.results[
+             openbao_github_write_role_index].stdout | default('{}') | from_json).data
+         | default({}, true) }}
+    _github_write_token_ttl_s: >-
+      {{ _github_write_route.token_ttl | community.general.to_seconds | int }}
+    _github_write_token_max_ttl_s: >-
+      {{ _github_write_route.token_max_ttl | community.general.to_seconds | int }}
+  ansible.builtin.command:
+    cmd: >-
+      bao write
+      auth/{{ openbao_github_oidc_auth_path }}/role/{{ item.name }} -
+    stdin: >-
+      {{ {'role_type': 'jwt',
+            'user_claim': 'job_workflow_ref',
+            'bound_audiences': [openbao_github_write_audience],
+            'bound_claims': _github_write_role_claims,
+            'bound_claims_type': 'glob',
+            'token_policies': [item.name],
+            'token_no_default_policy': true,
+            'token_type': 'batch',
+            'token_ttl': _github_write_route.token_ttl,
+            'token_max_ttl': _github_write_route.token_max_ttl} | to_json }}
+  environment:
+    BAO_ADDR: "{{ openbao_cli_addr }}"
+    BAO_TOKEN: "{{ openbao_bootstrap_token }}"
+  delegate_to: "{{ openbao_cli_host }}"
+  become: "{{ openbao_cli_become }}"
+  no_log: true
+  changed_when: true
+  when:
+    - openbao_bootstrap_token is defined
+    - >-
+      openbao_select | default({}) | length == 0
+      or item.name
+         in (openbao_github_oidc_role_targets | map(attribute='name') | list)
+    - >-
+      (openbao_github_oidc_write_roles_current.results[
+         openbao_github_write_role_index].rc | default(1)) != 0
+      or (_github_write_role_live.role_type | default('')) != 'jwt'
+      or (_github_write_role_live.bound_audiences | default([]))
+         != [openbao_github_write_audience]
+      or (_github_write_role_live.bound_claims | default({}, true))
+         != _github_write_role_claims
+      or (_github_write_role_live.bound_claims_type | default('')) != 'glob'
+      or (_github_write_role_live.user_claim | default('')) != 'job_workflow_ref'
+      or (_github_write_role_live.token_policies | default([]) | sort)
+         != [item.name]
+      or not (_github_write_role_live.token_no_default_policy | default(false) | bool)
+      or (_github_write_role_live.token_type | default('')) != 'batch'
+      or (_github_write_role_live.token_ttl | default(0) | int)
+         != (_github_write_token_ttl_s | int)
+      or (_github_write_role_live.token_max_ttl | default(0) | int)
+         != (_github_write_token_max_ttl_s | int)
+  loop: "{{ openbao_github_write_oidc_roles }}"
+  loop_control:
+    index_var: openbao_github_write_role_index
+    label: "{{ item.name }}"

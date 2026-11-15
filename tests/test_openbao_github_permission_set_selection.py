@@ -335,6 +335,34 @@ def test_org_secrets_selection_checks_its_map_and_full_runs_check_every_map():
         }
         assert active == expected
 
+    write_route_assertion = task(
+        "Assert each GitHub write route uses its exact permission map", PERMISSION_SETS
+    )
+    # Selection candidates are the admin-mount sets only, so a permission-set
+    # selection never targets a write-route set; the App-mount assert covers that path.
+    for prefix in ("openhands-write", "claude-write"):
+        variables = {
+            "openbao_select": SELECTION,
+            "openbao_github_permission_set_targets": [{"name": SELECTED_NAME, "tier": "org-secrets"}],
+            "openbao_bootstrap_token": True,
+            "openbao_github_engine_enabled": True,
+            "item": {"prefix": prefix},
+        }
+        assert not all(
+            condition(gate, variables)
+            for gate in write_route_assertion["when"]
+        )
+    full_run = {
+        "openbao_select": {},
+        "openbao_github_permission_set_targets": [],
+        "openbao_bootstrap_token": True,
+        "openbao_github_engine_enabled": True,
+        "item": {"prefix": "openhands-write"},
+    }
+    assert all(
+        condition(gate, full_run) for gate in write_route_assertion["when"]
+    )
+
 
 def test_shared_permission_set_reconcile_is_available_through_the_rbac_tag():
     selected = task("Reconcile selected GitHub permission sets", ROLE / "tasks/init.yml")

@@ -5,6 +5,23 @@
 # configuration, and again for a configured mount only while it is listed in
 # openbao_github_app_key_rotate_mounts. Plugin registration is shared with the
 # admin mount (05-github-engine.yml runs first).
+- name: "Determine whether check mode would enable mount {{ gm.mount }}"
+  ansible.builtin.set_fact:
+    openbao_github_app_mount_absent_check_mode: >-
+      {{ ansible_check_mode | bool
+         and (gm.mount ~ '/') not in (openbao_mounts_raw.stdout | from_json).keys() }}
+    openbao_github_app_mount_configured: false
+    openbao_github_app_mount_sets: []
+
+- name: "Report the planned enable and configuration on mount {{ gm.mount }}"
+  ansible.builtin.debug:
+    msg: >-
+      Check mode: would enable {{ gm.mount }}{{ ' and write its App config'
+      if gm.app_id | length > 0 and gm.private_key | length > 0 else '' }}.
+  changed_when: true
+  no_log: false
+  when: openbao_github_app_mount_absent_check_mode | bool
+
 - name: "Enable GitHub App mount {{ gm.mount }}"
   ansible.builtin.command:
     cmd: >-
@@ -20,7 +37,9 @@
     ansible_become: "{{ openbao_cli_become }}"
   no_log: true
   changed_when: true
-  when: (gm.mount ~ '/') not in (openbao_mounts_raw.stdout | from_json).keys()
+  when:
+    - not openbao_github_app_mount_absent_check_mode | bool
+    - (gm.mount ~ '/') not in (openbao_mounts_raw.stdout | from_json).keys()
 
 - name: "Read the configuration on mount {{ gm.mount }}"
   ansible.builtin.command:
@@ -37,6 +56,7 @@
   changed_when: false
   check_mode: false
   failed_when: false
+  when: not openbao_github_app_mount_absent_check_mode | bool
 
 - name: "Assert the configuration read succeeded on mount {{ gm.mount }}"
   ansible.builtin.assert:
@@ -44,6 +64,7 @@
       - openbao_github_app_mount_config.rc == 0
     fail_msg: >-
       The GitHub App config read failed on {{ gm.mount }}; nothing was written.
+  when: not openbao_github_app_mount_absent_check_mode | bool
 
 - name: "Determine whether the App is configured on mount {{ gm.mount }}"
   ansible.builtin.set_fact:
@@ -51,6 +72,7 @@
       {{ (openbao_github_app_mount_config.rc | default(1)) == 0
          and ((openbao_github_app_mount_config.stdout | default('{}', true)
                | from_json).data.app_id | default(0, true) | int) != 0 }}
+  when: not openbao_github_app_mount_absent_check_mode | bool
 
 - name: "Refuse an unexpected App ID drift on mount {{ gm.mount }}"
   ansible.builtin.assert:
@@ -62,6 +84,7 @@
       The App ID configured on {{ gm.mount }} differs from the declared one.
       Rotate deliberately; a routine converge will not replace it.
   when:
+    - not openbao_github_app_mount_absent_check_mode | bool
     - openbao_github_app_mount_configured | bool
     - >-
       gm.app_id | length > 0
@@ -77,6 +100,7 @@
       the list.
   no_log: true
   when:
+    - not openbao_github_app_mount_absent_check_mode | bool
     - openbao_github_app_mount_configured | bool
     - gm.mount in openbao_github_app_key_rotate_mounts
 
@@ -88,11 +112,110 @@
     openbao_github_app_config_private_key: "{{ gm.private_key }}"
   no_log: true
   when:
+    - not openbao_github_app_mount_absent_check_mode | bool
     - gm.app_id | length > 0
     - gm.private_key | length > 0
     - >-
       not (openbao_github_app_mount_configured | bool)
       or gm.mount in openbao_github_app_key_rotate_mounts
+
+- name: "Warn that the unconfigured OpenHands mount is skipped: {{ gm.mount }}"
+  ansible.builtin.debug:
+    msg: >-
+      {{ gm.mount }} remains unconfigured. Supply
+      OPENBAO_GITHUB_OPENHANDS_APP_PRIVATE_KEY to write its App config;
+      minting and set reconciliation are skipped.
+  no_log: false
+  when:
+    - gm.mount == openbao_github_openhands_mount
+    - not openbao_github_app_mount_absent_check_mode | bool
+    - not (openbao_github_app_mount_configured | bool)
+    - gm.app_id | length == 0 or gm.private_key | length == 0
+
+- name: "Determine whether the App on mount is configured for reconciliation: {{ gm.mount }}"
+  ansible.builtin.set_fact:
+    openbao_github_app_mount_ready: >-
+      {{ not (openbao_github_app_mount_absent_check_mode | bool)
+         and (openbao_github_app_mount_configured | bool
+              or (gm.app_id | length > 0 and gm.private_key | length > 0)) }}
+
+- name: "Assert GitHub write route inputs on mount {{ gm.mount }}"
+  ansible.builtin.assert:
+    that:
+      - openbao_github_write_route.prefix in _approved_write_permission_profiles
+      - >-
+        openbao_github_write_route.permissions
+        == _approved_write_permission_profiles[openbao_github_write_route.prefix]
+      - openbao_github_write_route.orgs is sequence
+      - openbao_github_write_route.orgs is not string
+      - openbao_github_write_route.orgs is not mapping
+      - >-
+        openbao_github_write_route.orgs
+        | reject('match', '^[A-Za-z0-9][A-Za-z0-9-]*$')
+        | list | length == 0
+      - >-
+        openbao_github_write_route.orgs | map('lower') | unique | list
+        == openbao_github_write_route.orgs | map('lower') | list
+      - >-
+        _write_route_sets | map(attribute='org_name') | list
+        == openbao_github_write_route.orgs
+      - >-
+        _write_route_sets | map(attribute='name') | list
+        == (openbao_github_write_route.orgs | map('lower')
+            | map('regex_replace', '^', openbao_github_write_route.prefix ~ '-')
+            | list)
+      - >-
+        _write_route_sets
+        | rejectattr('permissions', 'equalto', openbao_github_write_route.permissions)
+        | list | length == 0
+      - >-
+        _write_route_sets
+        | selectattr('installation_id', 'defined') | list | length == 0
+      - >-
+        _write_route_sets
+        | selectattr('repositories', 'defined') | list | length == 0
+      - openbao_github_write_route.workflows is sequence
+      - openbao_github_write_route.workflows is not string
+      - openbao_github_write_route.workflows is not mapping
+      - >-
+        openbao_github_write_route.workflows
+        | reject('match', '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml$')
+        | list | length == 0
+      - >-
+        openbao_github_write_route.workflows | unique | list
+        == openbao_github_write_route.workflows
+    fail_msg: >-
+      The {{ openbao_github_write_route.prefix }} write route must declare
+      valid, unique organizations and repo-qualified .github/workflows YAML paths;
+      its sets must match the declared orgs and its approved permission map.
+    quiet: true
+  vars:
+    # Same literal maps as 05-github-permission-sets.yml: a selected App-mount
+    # run reconciles route sets without that file, so the ceiling is pinned here too.
+    _approved_write_permission_profiles:
+      openhands-write:
+        actions: read
+        checks: read
+        contents: write
+        metadata: read
+        pull_requests: write
+      claude-write:
+        checks: write
+        contents: read
+        metadata: read
+        pull_requests: write
+    _write_route_sets: >-
+      {{ openbao_github_write_permission_sets
+         | selectattr('tier', 'equalto', openbao_github_write_route.prefix)
+         | list }}
+  loop: >-
+    {{ openbao_github_write_routes
+       | selectattr('mount', 'equalto', gm.mount) | list }}
+  loop_control:
+    loop_var: openbao_github_write_route
+    label: "{{ openbao_github_write_route.prefix }}"
+  when:
+    - not openbao_github_app_mount_absent_check_mode | bool
 
 - name: "Assert every set declares an administration-free ceiling on mount {{ gm.mount }}"
   ansible.builtin.assert:
@@ -101,14 +224,25 @@
       - item.permissions | length > 0
       - "'administration' not in item.permissions"
       - "'organization_administration' not in item.permissions"
-      - item.installation_id | int > 0
+      - >-
+        (item.installation_id is defined
+         and item.installation_id | string is match('^[0-9]+$')
+         and item.installation_id | int > 0
+         and item.org_name is not defined)
+        or
+        (item.org_name is defined
+         and item.org_name is string
+         and item.org_name | trim | length > 0
+         and item.installation_id is not defined)
     fail_msg: >-
       {{ gm.mount }}/permissionset/{{ item.name }} must carry an explicit,
-      non-empty permission map without administration, and an installation ID.
+      non-empty permission map without administration, and exactly one valid
+      positive installation ID or non-empty organization name.
     quiet: true
   loop: "{{ gm.permission_sets }}"
   loop_control:
     label: "{{ item.name }}"
+  when: openbao_github_app_mount_ready | bool
 
 - name: "Mint a metadata-only token for sets that are public-only on mount {{ gm.mount }}"
   ansible.builtin.uri:
@@ -130,6 +264,7 @@
     label: "{{ item.name }}"
   register: openbao_github_app_mount_public_tokens
   no_log: true
+  when: openbao_github_app_mount_ready | bool
 
 - name: "Read the public repositories for sets that are public-only on mount {{ gm.mount }}"
   ansible.builtin.uri:
@@ -146,6 +281,7 @@
     label: "{{ item.name }}"
   register: openbao_github_app_mount_public_repos
   no_log: true
+  when: openbao_github_app_mount_ready | bool
 
 - name: "Revoke the metadata-only tokens for public repositories on mount {{ gm.mount }}"
   ansible.builtin.uri:
@@ -163,11 +299,13 @@
   become: "{{ openbao_cli_become }}"
   vars:
     ansible_become: "{{ openbao_cli_become }}"
-  loop: "{{ openbao_github_app_mount_public_tokens.results }}"
+  loop: "{{ openbao_github_app_mount_public_tokens.results | default([]) }}"
   loop_control:
     label: "{{ item.item.name }}"
   no_log: true
-  when: item.json.lease_id | default('', true) | length > 0
+  when:
+    - openbao_github_app_mount_ready | bool
+    - item.json.lease_id | default('', true) | length > 0
 
 # `private_repos_of`: the set's repository list is the named organization's
 # private repositories the mount's own App installation can see, read with a
@@ -192,6 +330,7 @@
     label: "{{ item.name }}"
   register: openbao_github_app_mount_private_tokens
   no_log: true
+  when: openbao_github_app_mount_ready | bool
 
 - name: "Read the installation repositories for sets that are private-only on mount {{ gm.mount }}"
   ansible.builtin.uri:
@@ -200,11 +339,12 @@
       Accept: application/vnd.github+json
       Authorization: "Bearer {{ item.json.data.token }}"
     return_content: true
-  loop: "{{ openbao_github_app_mount_private_tokens.results }}"
+  loop: "{{ openbao_github_app_mount_private_tokens.results | default([]) }}"
   loop_control:
     label: "{{ item.item.name }}"
   register: openbao_github_app_mount_private_repos
   no_log: true
+  when: openbao_github_app_mount_ready | bool
 
 - name: "Revoke the metadata-only tokens on mount {{ gm.mount }}"
   ansible.builtin.uri:
@@ -222,14 +362,17 @@
   become: "{{ openbao_cli_become }}"
   vars:
     ansible_become: "{{ openbao_cli_become }}"
-  loop: "{{ openbao_github_app_mount_private_tokens.results }}"
+  loop: "{{ openbao_github_app_mount_private_tokens.results | default([]) }}"
   loop_control:
     label: "{{ item.item.name }}"
   no_log: true
-  when: item.json.lease_id | default('', true) | length > 0
+  when:
+    - openbao_github_app_mount_ready | bool
+    - item.json.lease_id | default('', true) | length > 0
 
 - name: "Check the set maps and resolve the repository lists on mount {{ gm.mount }}"
   ansible.builtin.include_tasks: 05b-github-app-set-checks.yml
+  when: openbao_github_app_mount_ready | bool
 
 # derive_read: the mount gets a `read` set holding the standard read list cut to
 # the permissions its installation actually grants, which GitHub's token
@@ -250,7 +393,9 @@
     ansible_become: "{{ openbao_cli_become }}"
   register: openbao_github_app_mount_grant
   no_log: true
-  when: gm.derive_read | default(false)
+  when:
+    - openbao_github_app_mount_ready | bool
+    - gm.derive_read | default(false)
 
 - name: "Revoke the grant-reading token on mount {{ gm.mount }}"
   ansible.builtin.uri:
@@ -270,6 +415,7 @@
     ansible_become: "{{ openbao_cli_become }}"
   no_log: true
   when:
+    - openbao_github_app_mount_ready | bool
     - gm.derive_read | default(false)
     - openbao_github_app_mount_grant.json.lease_id | default('', true) | length > 0
 
@@ -285,7 +431,9 @@
       {{ gm.mount }}/permissionset/read must hold only standard-list permissions
       at read; derived {{ openbao_github_app_mount_read_permissions }}.
     quiet: true
-  when: gm.derive_read | default(false)
+  when:
+    - openbao_github_app_mount_ready | bool
+    - gm.derive_read | default(false)
 
 - name: "Add the derived read set on mount {{ gm.mount }}"
   ansible.builtin.set_fact:
@@ -293,7 +441,9 @@
       {{ openbao_github_app_mount_sets
          + [{'name': 'read', 'installation_id': gm.installation_id,
              'permissions': openbao_github_app_mount_read_permissions}] }}
-  when: gm.derive_read | default(false)
+  when:
+    - openbao_github_app_mount_ready | bool
+    - gm.derive_read | default(false)
 
 - name: "Read the permission sets on mount {{ gm.mount }}"
   ansible.builtin.command:
@@ -313,6 +463,7 @@
   changed_when: false
   check_mode: false
   failed_when: false
+  when: openbao_github_app_mount_ready | bool
 
 - name: "Reconcile the permission sets on mount {{ gm.mount }}"
   ansible.builtin.uri:
@@ -322,8 +473,10 @@
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
     body_format: json
     body: >-
-      {{ {'installation_id': item.0.installation_id | int | string,
-          'permissions': item.0.permissions}
+      {{ ({'org_name': item.0.org_name}
+          if item.0.org_name is defined else
+          {'installation_id': item.0.installation_id | int | string})
+         | combine({'permissions': item.0.permissions})
          | combine({'repositories': item.0.repositories}
                    if item.0.repositories is defined else {}) }}
     status_code:
@@ -339,14 +492,20 @@
   loop_control:
     label: "{{ item.0.name }}"
   no_log: true
-  when: >-
-    (item.1.rc | default(1)) != 0
-    or ((item.1.stdout | from_json).data.installation_id | int)
-       != (item.0.installation_id | int)
-    or ((item.1.stdout | from_json).data.permissions | default({}, true))
-       != item.0.permissions
-    or ((item.1.stdout | from_json).data.repositories | default([], true))
-       != (item.0.repositories | default([], true))
+  when:
+    - openbao_github_app_mount_ready | bool
+    - >-
+      (item.1.rc | default(1)) != 0
+      or (item.0.org_name is defined
+          and (item.1.stdout | from_json).data.org_name | default('', true)
+              != item.0.org_name)
+      or (item.0.org_name is not defined
+          and (item.1.stdout | from_json).data.installation_id | int
+              != item.0.installation_id | int)
+      or ((item.1.stdout | from_json).data.permissions | default({}, true))
+         != item.0.permissions
+      or ((item.1.stdout | from_json).data.repositories | default([], true))
+         != (item.0.repositories | default([], true))
 
 - name: "List the permission sets on mount {{ gm.mount }}"
   ansible.builtin.command:
@@ -363,6 +522,7 @@
   changed_when: false
   check_mode: false
   failed_when: false
+  when: openbao_github_app_mount_ready | bool
 
 # A set left over from another App (this mount's previous backing App) would
 # otherwise keep minting at the new App's full ceiling.
@@ -381,7 +541,9 @@
        | difference(openbao_github_app_mount_sets | map(attribute='name') | list) }}
   no_log: true
   changed_when: true
-  when: (openbao_github_app_mount_set_list.rc | default(1)) == 0
+  when:
+    - openbao_github_app_mount_ready | bool
+    - (openbao_github_app_mount_set_list.rc | default(1)) == 0
 
 - name: "Reset the per-mount set list after {{ gm.mount }}"
   ansible.builtin.set_fact:

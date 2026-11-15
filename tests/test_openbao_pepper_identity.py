@@ -27,6 +27,8 @@ def pepper_defaults(monkeypatch):
         "OPENBAO_GITHUB_PEPPER_REPOSITORIES",
         "OPENBAO_GITHUB_OPENHANDS_APP_ID",
         "OPENBAO_GITHUB_OPENHANDS_APP_PRIVATE_KEY",
+        "OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS",
+        "OPENBAO_GITHUB_OPENHANDS_WRITE_WORKFLOWS",
     ):
         monkeypatch.delenv(name, raising=False)
     values = {}
@@ -273,6 +275,7 @@ def _configure_openhands_mount(monkeypatch, values, *, installation_id="303"):
     values["openbao_platform_env"][
         "OPENBAO_GITHUB_OPENHANDS_DRYVIST_INSTALLATION_ID"
     ] = installation_id
+    monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS", "example-org")
 
 
 def _openhands_sets_and_mounts(values):
@@ -290,18 +293,38 @@ def test_openhands_mount_and_set_are_absent_without_inputs(pepper_defaults):
     assert mounts == []
 
 
-def test_openhands_mount_is_absent_when_private_key_is_blank(
+def test_openhands_mount_and_pilot_are_declared_without_a_private_key(
     pepper_defaults, monkeypatch
 ):
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_APP_ID", "fixture-app-id")
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_APP_PRIVATE_KEY", "")
+    monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS", "example-org")
     pepper_defaults["openbao_platform_env"][
         "OPENBAO_GITHUB_OPENHANDS_DRYVIST_INSTALLATION_ID"
     ] = "303"
 
     sets, mounts = _openhands_sets_and_mounts(pepper_defaults)
-    assert sets == []
-    assert mounts == []
+    assert sets == [
+        {
+            "name": "openhands-pilot",
+            "tier": "openhands",
+            "installation_id": "303",
+            "permissions": {
+                "checks": "read",
+                "contents": "write",
+                "metadata": "read",
+                "pull_requests": "write",
+            },
+        }
+    ]
+    write_sets = _render_value(
+        pepper_defaults, "{{ openbao_github_openhands_write_permission_sets }}"
+    )
+    assert len(write_sets) == 1
+    assert len(mounts) == 1
+    assert mounts[0]["app_id"] == "fixture-app-id"
+    assert mounts[0]["private_key"] == ""
+    assert mounts[0]["permission_sets"] == sets + write_sets
 
 
 def test_openhands_mount_has_one_installation_scoped_set_with_exact_permissions(
@@ -326,7 +349,10 @@ def test_openhands_mount_has_one_installation_scoped_set_with_exact_permissions(
     assert len(mounts) == 1
     assert mounts[0]["app_id"] == "fixture-app-id"
     assert mounts[0]["private_key"] == "fixture-private-key"
-    assert mounts[0]["permission_sets"] == sets
+    write_sets = _render_value(
+        pepper_defaults, "{{ openbao_github_openhands_write_permission_sets }}"
+    )
+    assert mounts[0]["permission_sets"] == sets + write_sets
 
     registered_sets = _render_value(
         pepper_defaults, "{{ openbao_github_permission_sets }}"
