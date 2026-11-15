@@ -185,7 +185,7 @@
       {%- set changes = [] -%}
       {%- for result in openbao_ssh_role_checks.results | default([]) -%}
       {%- if (result.rc | default(1)) != 0
-         or (result.stdout | from_json).data.max_ttl != result.item.ttl -%}
+         or (result.stdout | from_json).data.max_ttl != (result.item.max_ttl | default(result.item.ttl)) -%}
       {%- set _ = changes.append(result.item) -%}
       {%- endif -%}
       {%- endfor -%}
@@ -264,7 +264,7 @@
   no_log: true
   changed_when: >-
     (item.1.rc | default(1)) != 0
-    or (item.1.stdout | from_json).data.max_ttl != item.0.ttl
+    or (item.1.stdout | from_json).data.max_ttl != (item.0.max_ttl | default(item.0.ttl))
   when:
     - not ansible_check_mode
     - openbao_bootstrap_token is defined

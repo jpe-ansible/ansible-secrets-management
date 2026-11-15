@@ -136,3 +136,23 @@ def test_unselected_full_run_still_reconciles_all_declared_ssh_roles():
         assert condition(selection_gate, {"openbao_select": {}})
         assert condition(selection_gate, {"openbao_select": SELECTION})
         assert not condition(selection_gate, {"openbao_select": {"policies": ["apps"]}})
+
+
+def test_role_change_check_uses_declared_max_ttl_for_host_roles():
+    import json
+
+    resolve_task = task("Resolve SSH roles that are missing or changed",
+                        ROLE / "tasks/init/07-ssh-ca-engine.yml")
+    expression = resolve_task["ansible.builtin.set_fact"]["openbao_ssh_role_changes"]
+    host = {"name": "host-cert", "cert_type": "host", "ttl": 3600, "max_ttl": 7776000}
+    user = {"name": "keygen", "ttl": 60}
+
+    def changes(item, live_max_ttl):
+        stdout = json.dumps({"data": {"max_ttl": live_max_ttl}})
+        checks = {"results": [{"item": item, "rc": 0, "stdout": stdout}]}
+        return render(expression, {"openbao_ssh_role_checks": checks})
+
+    assert changes(host, 7776000) == []
+    assert changes(host, 3600) == [host]
+    assert changes(user, 60) == []
+    assert changes(user, 120) == [user]
