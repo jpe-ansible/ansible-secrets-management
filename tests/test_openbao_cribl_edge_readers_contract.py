@@ -291,6 +291,8 @@ class CriblEdgeReaderContract(unittest.TestCase):
             openbao_roster_key_reader_approle_names=[],
             openbao_dify_secret_id_issuer_targets=[],
             openbao_hermes_private_agent_secret_id_cidr="",
+            openbao_hermes_private_agent_approles=[],
+            openbao_pepper_approles=[],
         )
         rotated_roles = _render(rotation_names_expression, rotation_values)
 

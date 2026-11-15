@@ -92,6 +92,8 @@ def test_pepper_approle_uses_only_its_guest_and_scheduled_rotation(pepper_defaul
     ttls = _render_value(pepper_defaults, "{{ openbao_approle_secret_id_ttl_overrides }}")
     assert parameters["pepper"]["secret_id_ttl"] == ttls["hermes-private-agent"]
     assert ttls["pepper"] == pepper_defaults["openbao_rotated_domain_secret_id_ttl"]
+    rotated = _render_value(pepper_defaults, "{{ openbao_secrets_domain_approle_names }}")
+    assert rotated.count("pepper") == 1
     classes = _render_value(pepper_defaults, "{{ openbao_approle_class_map }}")
     assert classes["pepper"] == "trusted-agent-read"
     leaves = _render_value(pepper_defaults, "{{ openbao_roster_agent_ai_leaf_names }}")
@@ -103,6 +105,9 @@ def test_pepper_approle_stays_dormant_without_its_cidr(pepper_defaults, monkeypa
     pepper_defaults["openbao_platform_env"] = {}
     roles = _render_value(pepper_defaults, "{{ openbao_approles }}")
     assert "pepper" not in [role["name"] for role in roles]
+    rotated = _render_value(pepper_defaults, "{{ openbao_secrets_domain_approle_names }}")
+    assert "pepper" not in rotated
+    assert "hermes-private-agent" not in rotated
 
 
 def test_shared_guest_defaults_preserve_the_private_hermes_bounds(pepper_defaults):
@@ -114,6 +119,8 @@ def test_shared_guest_defaults_preserve_the_private_hermes_bounds(pepper_default
         assert hermes[field] == pepper[field]
     assert hermes["secret_id_bound_cidrs"] == "private-fixture-cidr"
     assert pepper["secret_id_bound_cidrs"] == "pepper-fixture-cidr"
+    rotated = _render_value(pepper_defaults, "{{ openbao_secrets_domain_approle_names }}")
+    assert {"hermes-private-agent", "pepper"} <= set(rotated)
 
 
 def test_pepper_cidr_can_arrive_from_the_environment(pepper_defaults, monkeypatch):
