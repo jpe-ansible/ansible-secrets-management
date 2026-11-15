@@ -315,6 +315,11 @@ def test_org_secrets_selection_checks_its_map_and_full_runs_check_every_map():
     }
     cases = [
         (SELECTION, [{"name": SELECTED_NAME, "tier": "org-secrets"}], {"org-secrets"}),
+        (
+            {KIND: ["jacobpevans-ai-org-variables"]},
+            [{"name": "jacobpevans-ai-org-variables", "tier": "org-variables"}],
+            {"org-variables"},
+        ),
         ({}, [], set(assertions)),
     ]
     for selection, targets, expected in cases:
