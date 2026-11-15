@@ -297,10 +297,17 @@ openbao_github_app_install_allowlist: >-
   {{ (openbao_platform_env['OPENBAO_GITHUB_APP_INSTALL_ALLOWLIST'] | default('', true)).split(',')
      | map('trim') | select | list }}
 
+# Per-mount install allowlists: a JSON object in the env document, mount name
+# -> list of accounts. An App whose mount is listed is checked against its own
+# list; every other App against openbao_github_app_install_allowlist.
+openbao_github_app_install_allowlists: >-
+  {{ openbao_platform_env['OPENBAO_GITHUB_APP_INSTALL_ALLOWLISTS'] | default('{}', true) | from_json }}
+
 # Every App whose key is present in this run: the admin App plus each mount's.
 openbao_github_app_exposure_targets: >-
-  {{ ([{'app_id': openbao_github_app_id, 'private_key': openbao_github_app_private_key}]
+  {{ ([{'mount': openbao_github_mount, 'app_id': openbao_github_app_id,
+        'private_key': openbao_github_app_private_key}]
       + (openbao_github_app_mounts | map('dict2items')
-         | map('selectattr', 'key', 'in', ['app_id', 'private_key'])
+         | map('selectattr', 'key', 'in', ['mount', 'app_id', 'private_key'])
          | map('items2dict') | list))
      | selectattr('app_id', 'truthy') | selectattr('private_key', 'truthy') | list }}
