@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.117.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.116.0...v0.117.0) (2026-11-15)
+
+
+### Features
+
+* **openbao:** generate per-workstation SSH key pairs and scope one reader per workstation ([#746](https://github.com/jpe-ansible/ansible-secrets-management/issues/746)) ([f012fb9](https://github.com/jpe-ansible/ansible-secrets-management/commit/f012fb9494a59a86ee993ea30625634aa6fde83a))
+
 ## [0.116.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.115.0...v0.116.0) (2026-11-15)
 
 
