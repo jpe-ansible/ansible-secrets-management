@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.116.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.115.0...v0.116.0) (2026-11-15)
+
+
+### Features
+
+* **openbao:** add the tofu-github-private window service ([#744](https://github.com/jpe-ansible/ansible-secrets-management/issues/744)) ([1157178](https://github.com/jpe-ansible/ansible-secrets-management/commit/1157178ba4ddde83bf27e8a622c133753adf8708))
+* **openbao:** load the arrangement document from OpenBao KV before rendering RBAC ([#740](https://github.com/jpe-ansible/ansible-secrets-management/issues/740)) ([78e6a31](https://github.com/jpe-ansible/ansible-secrets-management/commit/78e6a3129c9cda75f4b8c0c532fb9751cf61ee4c))
+
+
+### Bug Fixes
+
+* **openbao:** let ansible-converge read the SSH host CA leaf ([#742](https://github.com/jpe-ansible/ansible-secrets-management/issues/742)) ([df6e098](https://github.com/jpe-ansible/ansible-secrets-management/commit/df6e09868b7f063d086bfe103064df29727a2f31))
+
 ## [0.115.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.114.1...v0.115.0) (2026-11-15)
 
 
