@@ -5,12 +5,15 @@ import yaml
 
 from openbao_reconcile_bounds_helpers import (
     DEFAULTS,
+    ROOT,
     TEMPLATES,
     _capabilities,
     _render,
     _render_value,
     _stanzas,
 )
+
+PROOF_MODE = ROOT / "playbooks/tasks/openbao_rotate_proof_mode.yml"
 
 
 @pytest.fixture
@@ -94,6 +97,11 @@ def test_pepper_approle_uses_only_its_guest_and_scheduled_rotation(pepper_defaul
     assert ttls["pepper"] == pepper_defaults["openbao_rotated_domain_secret_id_ttl"]
     rotated = _render_value(pepper_defaults, "{{ openbao_secrets_domain_approle_names }}")
     assert rotated.count("pepper") == 1
+    assert "hermes-private-agent" not in rotated
+    # The rotation proves the new pair by lookup: the runner is outside the guest bind.
+    proof_task = yaml.safe_load(PROOF_MODE.read_text(encoding="utf-8"))[0]
+    proof = proof_task["ansible.builtin.set_fact"]["rotate_proof_by_lookup"]
+    assert _render_value(pepper_defaults, proof, rotate_domain_name="pepper") is True
     classes = _render_value(pepper_defaults, "{{ openbao_approle_class_map }}")
     assert classes["pepper"] == "trusted-agent-read"
     leaves = _render_value(pepper_defaults, "{{ openbao_roster_agent_ai_leaf_names }}")
