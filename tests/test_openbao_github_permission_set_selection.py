@@ -495,7 +495,7 @@ def test_github_only_selection_leaves_every_other_object_writer_empty():
             "openbao_approle_checks": {"results": [{"item": {"name": "unselected"}, "rc": 1}]},
         }) == []
 
-    ssh_write = task("Reconcile the SSH signing roles", ROLE / "tasks/init/07-ssh-ca-engine.yml")
+    ssh_write = task("Reconcile the SSH roles", ROLE / "tasks/init/07-ssh-ca-engine.yml")
     assert render(ssh_write["loop"], {
         "openbao_selected_objects": selected,
         "openbao_ssh_role_checks": {"results": []},

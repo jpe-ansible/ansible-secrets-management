@@ -129,6 +129,9 @@ openbao_approle_class_map: >-
   {%- for role in openbao_roster_agent_approles + openbao_roster_key_reader_approles -%}
   {%- set _ = _classes.update({role.name: 'service-runtime'}) -%}
   {%- endfor -%}
+  {%- for role in openbao_workstation_ssh_key_reader_approles -%}
+  {%- set _ = _classes.update({role.name: 'service-runtime'}) -%}
+  {%- endfor -%}
   {%- for reader in openbao_app_agent_tier_readers -%}
   {%- set _ = _classes.update({'app-agent-' ~ reader.tier: reader.trust_class}) -%}
   {%- endfor -%}

@@ -29,6 +29,12 @@ openbao_ssh_ca_key_type: ed25519
 # exec-channel only — NO extensions (a host that genuinely needs a tty for
 # become opts in via its own role data, not a blanket grant here).
 openbao_ssh_roles:
+  # Used only to generate key pairs through `issue`; the colon means this
+  # principal matches no account and the 60-second certificate is discarded.
+  - name: keygen
+    principal: "x:keygen"
+    ttl: 60
+    extensions: {}
   - name: automation-ai
     principal: ai-agent
     ttl: 7200

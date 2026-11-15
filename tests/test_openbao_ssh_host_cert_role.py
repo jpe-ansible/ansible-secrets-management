@@ -22,7 +22,7 @@ from ansible.template import Templar, trust_as_template
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK_REL = "roles/openbao/tasks/init/07-ssh-ca-engine.yml"
-TASK_NAME = "Reconcile the SSH signing roles"
+TASK_NAME = "Reconcile the SSH roles"
 DEFAULTS = ROOT / "roles/openbao/defaults/main"
 
 
@@ -193,7 +193,10 @@ def test_exec_only_roles_share_one_body_and_diag_is_short_lived_and_ptyless():
         assert by_name[name]["extensions"] == {}, name
     diag = by_name["automation-ai-diag"]
     assert diag["ttl"] == 900
-    assert diag["ttl"] == min(r["ttl"] for r in LIVE_SSH_ROLES if "principal" in r)
+    # keygen only issues a discarded certificate and grants no login.
+    assert diag["ttl"] == min(
+        r["ttl"] for r in LIVE_SSH_ROLES if "principal" in r and r["name"] != "keygen"
+    )
     assert diag["principal"] not in {"ansible", "semaphore", "ai-agent", "root", "*"}
 
 

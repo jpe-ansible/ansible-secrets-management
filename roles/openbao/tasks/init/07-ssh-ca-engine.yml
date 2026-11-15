@@ -10,8 +10,8 @@
 # failed_when: false, and a DENIED read returns rc != 0 exactly like an absent
 # CA — which then triggers the privileged key generation that cannot succeed.
 #
-# The SSH signing ROLES below stay ungated: they are in the reconcile policy by
-# design, and skipping them would silently stop reconciling them.
+# SSH role reconciliation uses the selected object set below. The CA and mount
+# bootstrap stays confined to an unselected, non-bounded converge.
 - name: Enable the SSH secrets engine
   ansible.builtin.command:
     cmd: "bao secrets enable -path={{ openbao_ssh_mount }} ssh"
@@ -141,17 +141,20 @@
     - openbao_bootstrap_token is defined
     - openbao_ssh_engine_enabled | bool
     - openbao_ssh_source_address_cidrs | length == 0
+    - openbao_select | default({}) | length == 0
 
-# Runs on the controller (openbao_cli_host, resolved in init/02): one module
-# execution per declared SSH signing role. Same CLI, same rc/stderr, so the
-# add-if-missing gate below reads unchanged.
-- name: Select SSH signing role objects
+# Runs on the controller (openbao_cli_host, resolved in init/02), selecting
+# only the declared role objects requested for this run.
+- name: Select SSH role objects
   ansible.builtin.import_tasks: select-objects.yml
   vars:
     openbao_select_kind: ssh_roles
     openbao_select_candidates: "{{ openbao_ssh_roles }}"
+  when: >-
+    openbao_select | default({}) | length == 0
+    or 'ssh_roles' in (openbao_select | default({}))
 
-- name: Check which SSH signing roles already exist
+- name: Check which SSH roles already exist
   ansible.builtin.command:
     cmd: "bao read -format=json {{ openbao_ssh_mount }}/roles/{{ item.name }}"
   environment:
@@ -172,13 +175,50 @@
   when:
     - openbao_bootstrap_token is defined
     - openbao_ssh_engine_enabled | bool
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'ssh_roles' in (openbao_select | default({}))
+
+- name: Resolve SSH roles that are missing or changed
+  ansible.builtin.set_fact:
+    openbao_ssh_role_changes: >-
+      {%- set changes = [] -%}
+      {%- for result in openbao_ssh_role_checks.results | default([]) -%}
+      {%- if (result.rc | default(1)) != 0
+         or (result.stdout | from_json).data.max_ttl != result.item.ttl -%}
+      {%- set _ = changes.append(result.item) -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ changes }}
+  no_log: true
+  when:
+    - openbao_bootstrap_token is defined
+    - openbao_ssh_engine_enabled | bool
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'ssh_roles' in (openbao_select | default({}))
+
+- name: Report SSH roles that would be written in check mode
+  ansible.builtin.debug:
+    msg: >-
+      {{ ('Would write SSH roles: ' ~
+          (openbao_ssh_role_changes | map(attribute='name') | join(', ')))
+         if openbao_ssh_role_changes | length > 0
+         else 'No SSH role writes are needed.' }}
+  when:
+    - ansible_check_mode
+    - openbao_bootstrap_token is defined
+    - openbao_ssh_engine_enabled | bool
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'ssh_roles' in (openbao_select | default({}))
 
 # Explicit principals only — never allowed_users="*" (documented upstream
 # wildcard bug, and a wildcard would defeat the per-principal-class design).
 # ttl == max_ttl: a sign request may shorten a cert's life, never extend it.
 # Runs on openbao_cli_host, like the existence check above; `bao write <path> -`
 # sends the JSON body from stdin.
-- name: Reconcile the SSH signing roles
+- name: Reconcile the SSH roles
   ansible.builtin.command:
     cmd: "bao write {{ openbao_ssh_mount }}/roles/{{ item.0.name }} -"
     stdin: "{{ ssh_role_body | to_json }}"
@@ -226,8 +266,12 @@
     (item.1.rc | default(1)) != 0
     or (item.1.stdout | from_json).data.max_ttl != item.0.ttl
   when:
+    - not ansible_check_mode
     - openbao_bootstrap_token is defined
     - openbao_ssh_engine_enabled | bool
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'ssh_roles' in (openbao_select | default({}))
 
 # --- Fail-closed guard: no AI capability leaf for the control plane / kernel --
 # The base read-/write- leaves are rendered blindly from openbao_ai_domains +
