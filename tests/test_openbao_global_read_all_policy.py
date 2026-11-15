@@ -42,14 +42,29 @@ def _defaults():
     return values
 
 
-def _mounts():
+def _mount_entries():
+    """The declared KV mounts with rendered paths and their flags.
+
+    openbao_kv_mounts adds restricted mounts from the run environment, which
+    is unset here, so the zone list is the whole list.
+    """
     values = _defaults()
     renderer = Environment(undefined=StrictUndefined)
-    mounts = []
-    for mount in values["openbao_kv_mounts"]:
-        path = mount.get("path", mount)
-        mounts.append(renderer.from_string(str(path)).render(**values))
-    return mounts
+    return [
+        dict(mount, path=renderer.from_string(str(mount["path"])).render(**values))
+        for mount in values["openbao_kv_zone_mounts"]
+    ]
+
+
+def _mounts():
+    return [mount["path"] for mount in _mount_entries()]
+
+
+def _no_global_read_mounts():
+    return {
+        mount["path"] for mount in _mount_entries()
+        if mount.get("global_read", True) is False
+    }
 
 
 def _task_dicts(value):
@@ -82,7 +97,10 @@ def _role_created_kv_mounts():
             if loop:
                 loop_match = re.fullmatch(r"\s*{{\s*(\w+)\s*}}\s*", loop)
                 assert loop_match, (task_file, loop)
-                for item in values[loop_match.group(1)]:
+                loop_items = values[loop_match.group(1)]
+                if loop_match.group(1) == "openbao_kv_mounts":
+                    loop_items = values["openbao_kv_zone_mounts"]
+                for item in loop_items:
                     path = item.get("path", item) if isinstance(item, dict) else item
                     mounts.append(
                         renderer.from_string(str(path)).render(**values)
@@ -112,7 +130,7 @@ def _environment():
 def _render(template):
     values = _defaults()
     environment = _environment()
-    values["openbao_kv_mounts"] = [{"path": path} for path in _mounts()]
+    values["openbao_kv_mounts"] = _mount_entries()
     values["openbao_actuating_credential_leaves"] = [
         environment.from_string(str(leaf)).render(**values)
         for leaf in values["openbao_actuating_credential_leaves"]
@@ -161,6 +179,7 @@ def _global_read_kv_mounts():
         mount
         for mount in _role_created_kv_mounts()
         if not any(pattern.search(f"{mount}/data/*") for pattern in EXCLUDED_PATHS)
+        and mount not in _no_global_read_mounts()
     ]
 
 
@@ -177,8 +196,11 @@ def test_both_global_read_policies_account_for_every_role_created_kv_mount():
     assert covered.isdisjoint(excluded)
     assert all(
         any(pattern.search(f"{mount}/data/*") for pattern in EXCLUDED_PATHS)
+        or mount in _no_global_read_mounts()
         for mount in excluded
     )
+    assert _no_global_read_mounts() == {"ext-ai", "ext-critical", "admin"}
+    assert {"int", "ext-saas", "ext-notify", "state"} <= covered
 
 
 def test_actuating_credential_leaves_are_denied_only_for_ai_global_read():

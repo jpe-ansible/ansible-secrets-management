@@ -45,6 +45,7 @@
       - path: secrets-external
       - path: config
         max_versions: 30
+        age_audit: false
 
   tasks:
     - name: Set up the fixture (render the script, install stub curl/bao)

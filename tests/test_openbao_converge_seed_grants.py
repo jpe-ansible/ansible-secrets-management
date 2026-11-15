@@ -216,8 +216,10 @@ def test_agent_tier_mount_has_exact_publisher_and_router_grants_only() -> None:
 
     # Policies that loop over the declared KV mounts use whole-path expressions,
     # which the static check above skips; the agent-tier mount must stay out of that list.
+    # Restricted mounts join the zone list only from the run environment; the
+    # 03b assert refuses the agent-tier mount among them at run time.
     kv_mounts = {
         re.sub(r"{{\s*(\w+)\s*}}", literal, entry["path"])
-        for entry in role_defaults["openbao_kv_mounts"]
+        for entry in role_defaults["openbao_kv_zone_mounts"]
     }
     assert "*" not in kv_mounts and mount not in kv_mounts, kv_mounts

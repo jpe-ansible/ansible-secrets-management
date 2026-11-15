@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.114.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.113.0...v0.114.0) (2026-11-15)
+
+
+### Features
+
+* **openbao:** declare the zone KV mounts with broad-grant flags ([#727](https://github.com/jpe-ansible/ansible-secrets-management/issues/727)) ([0314492](https://github.com/jpe-ansible/ansible-secrets-management/commit/0314492ab59522bf622a40b5e1a7d4945fc071e9))
+
 ## [0.113.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.112.0...v0.113.0) (2026-11-15)
 
 

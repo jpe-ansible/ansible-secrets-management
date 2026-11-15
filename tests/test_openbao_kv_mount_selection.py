@@ -21,7 +21,10 @@ from test_openbao_select import ROLE, ROOT, condition, render, resolve, task
 KIND = "kv_mounts"
 DOMAINS_FILE = ROOT / "playbooks/group_vars/all/openbao_secrets.yml"
 SELECTION = {KIND: ["ext-notify"]}
-EXPECTED_MOUNTS = ["secret", "secrets-external", "config", "ext-notify"]
+EXPECTED_MOUNTS = [
+    "secret", "secrets-external", "config", "ext-notify",
+    "int", "ext-saas", "ext-ai", "ext-critical", "admin", "state",
+]
 INIT = ROLE / "tasks/init.yml"
 INIT_TASKS = ROLE / "tasks/init"
 SELECTION_DEFAULTS = ROLE / "defaults/main/00-selection.yml"
@@ -60,7 +63,8 @@ def _mount_names():
         "openbao_config_mount": "config",
         "openbao_config_mount_max_versions": 30,
     }
-    raw_mounts = mount_defaults["openbao_kv_mounts"]
+    # openbao_kv_mounts adds restricted mounts from the run environment, unset here.
+    raw_mounts = mount_defaults["openbao_kv_zone_mounts"]
     mounts = []
     for entry in raw_mounts:
         mount = dict(entry)
@@ -91,7 +95,7 @@ def _selection_gate(task_node, selection):
 def test_kv_mount_profile_declares_candidates_and_exact_mount_capability():
     profile, raw_mounts, mounts, candidates = _mount_names()
     assert [item["name"] for item in candidates] == EXPECTED_MOUNTS
-    assert raw_mounts[-1] == {"path": "ext-notify"}
+    assert {"path": "ext-notify"} in raw_mounts
     assert "max_versions" not in next(
         mount for mount in mounts if mount["path"] == "ext-notify"
     )
@@ -108,7 +112,7 @@ def test_selection_resolves_only_declared_mounts_and_refuses_unknown_names():
     selected = resolve(SELECTION, KIND, names=EXPECTED_MOUNTS)[1]
     assert selected == [{"name": "ext-notify"}]
 
-    matches, _ = resolve({KIND: ["ext-saas"]}, KIND, names=EXPECTED_MOUNTS)
+    matches, _ = resolve({KIND: ["ext-undeclared"]}, KIND, names=EXPECTED_MOUNTS)
     assert matches[0]["names"] == []
     check = task("Require every OpenBao selector to match a declared object")[
         "ansible.builtin.assert"
@@ -117,7 +121,7 @@ def test_selection_resolves_only_declared_mounts_and_refuses_unknown_names():
     failure = render(check["fail_msg"], {
         "item": matches[0], "openbao_select_kind": KIND,
     })
-    assert "ext-saas" in failure and "matched no declared objects" in failure
+    assert "ext-undeclared" in failure and "matched no declared objects" in failure
 
 
 def test_window_mode_accepts_kv_mounts_and_still_refuses_github_permission_sets():
@@ -286,13 +290,14 @@ def test_ntfy_domain_reads_the_ext_notify_leaf_last_with_a_policy_grant():
         assert "read" in _capabilities(stanzas[f"{entry['mount']}/data/{entry['path']}"])
 
 
-def test_secret_age_audit_grants_metadata_reads_for_every_non_config_kv_mount(rendered_defaults):
+def test_secret_age_audit_grants_metadata_reads_for_every_age_audited_kv_mount(rendered_defaults):
     values, _, _ = rendered_defaults
     mounts = _render_value(values, values["openbao_kv_mounts"])
     mount_names = [
         mount["path"] for mount in mounts
-        if mount["path"] != values["openbao_config_mount"]
+        if mount.get("age_audit", True) is not False
     ]
+    assert not {"config", "admin", "state"} & set(mount_names)
     rendered = _render(SECRET_AGE_POLICY, values)
     stanzas = list(_stanzas(rendered))
     paths = [path for path, _body in stanzas]
@@ -318,20 +323,22 @@ def test_secret_age_audit_grants_metadata_reads_for_every_non_config_kv_mount(re
     ]
 
 
-def test_ai_admin_render_diff_is_only_the_ext_notify_mount_stanza(rendered_defaults):
+def test_ai_admin_adds_one_full_stanza_per_declared_kv_mount(rendered_defaults, monkeypatch):
+    # Restricted mounts from the caller's environment would extend the list.
+    monkeypatch.delenv("OPENBAO_KV_RESTRICTED_MOUNTS", raising=False)
     values, _, _ = rendered_defaults
-    baseline_values = dict(values)
-    baseline_values["openbao_kv_mounts"] = [
-        mount for mount in values["openbao_kv_mounts"]
-        if _render_value(values, mount["path"]) != "ext-notify"
-    ]
+    mounts = [mount["path"] for mount in _render_value(values, values["openbao_kv_mounts"])]
+    baseline_values = dict(values, openbao_kv_mounts=[])
     current = _render(AI_ADMIN_POLICY, values)
     baseline = _render(AI_ADMIN_POLICY, baseline_values)
-    stanza = re.compile(r'(?ms)^path "ext-notify/\*" \{\n.*?^\}\n?')
+    stanza = re.compile(
+        r'(?ms)^path "(' + "|".join(map(re.escape, mounts)) + r')/\*" \{\n.*?^\}\n?'
+    )
     matches = list(stanza.finditer(current))
 
-    assert len(matches) == 1
+    assert [match.group(1) for match in matches] == mounts == EXPECTED_MOUNTS
     assert stanza.sub("", current) == baseline
-    assert _capabilities(matches[0].group(0)) == [
-        "create", "read", "update", "delete", "list", "patch",
-    ]
+    for match in matches:
+        assert _capabilities(match.group(0)) == [
+            "create", "read", "update", "delete", "list", "patch",
+        ]

@@ -14,6 +14,9 @@
     that:
       - (openbao_kv_mounts | map(attribute='path') | list | unique | length)
         == (openbao_kv_mounts | length)
+      # Restricted mounts come from the run environment: one lowercase segment each.
+      - openbao_kv_mounts | map(attribute='path')
+        | reject('match', '^[a-z0-9][a-z0-9-]*$') | list | length == 0
       - openbao_kv_mounts | map(attribute='path') | map('lower')
         | select('in', openbao_ai_forbidden_subtrees) | list | length == 0
       - openbao_github_enterprise_owner_mount not in
@@ -23,9 +26,9 @@
       - openbao_agent_tier_mount != openbao_github_enterprise_owner_mount
       - openbao_agent_tier_mount not in openbao_ai_forbidden_subtrees
     fail_msg: >-
-      openbao_kv_mounts declares a duplicate mount path or control-plane
-      path, or a dedicated mount overlaps a shared KV mount or control-plane
-      path.
+      openbao_kv_mounts declares a duplicate mount path, a path that is not one
+      lowercase segment, or a control-plane path, or a dedicated mount overlaps
+      a shared KV mount or control-plane path.
       Refusing to enable — a duplicate would make one tier's policies reach
       another's data, which is the whole reason these are separate mounts.
     success_msg: "KV mounts are distinct and the enterprise-owner mount is isolated."
