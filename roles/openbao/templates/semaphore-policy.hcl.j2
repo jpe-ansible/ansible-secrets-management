@@ -77,14 +77,18 @@ path "{{ openbao_kv_mount }}/data/apps/nautobot/pipeline" {
   capabilities = ["read"]
 }
 
-# Cribl pack discovery selects an org through the App installation. Pin its raw
-# request to the exact read map and forbid repository or installation selectors.
+# Cribl pack discovery and the pull-request census select an org through the
+# App installation. Pin each raw request to one of its exact read maps and
+# forbid repository or installation selectors.
+{% set _semaphore_raw_maps = [openbao_semaphore_github_raw_read_permissions]
+   + ([openbao_semaphore_github_census_read_permissions]
+      if (openbao_semaphore_github_census_read_permissions | default({})) else []) %}
 path "{{ openbao_github_everyday_mount }}/token" {
   capabilities = ["create", "update"]
   required_parameters = ["org_name", "permissions"]
   allowed_parameters = {
     "org_name" = []
-    "permissions" = [{ {% for name, level in openbao_semaphore_github_raw_read_permissions | dictsort %}"{{ name }}" = "{{ level }}"{{ ", " if not loop.last else "" }}{% endfor %} }]
+    "permissions" = [{% for map in _semaphore_raw_maps %}{ {% for name, level in map | dictsort %}"{{ name }}" = "{{ level }}"{{ ", " if not loop.last else "" }}{% endfor %} }{{ ", " if not loop.last else "" }}{% endfor %}]
   }
   denied_parameters = {
     "repositories" = []
