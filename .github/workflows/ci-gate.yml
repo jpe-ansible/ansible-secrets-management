@@ -12,16 +12,17 @@
 #
 # Lint, Role tests, Role pytest suite and Molecule restore the Galaxy content cache under the key
 # ansible-galaxy-v2-<os>-<hash of requirements.yml>. Runs on pushes to develop
-# and main save it, and pull request runs restore it.
+# and main save it, and pull request and merge queue runs restore it.
 
 name: CI Gate
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
-  # Runs on develop and main save the dependency caches that pull request runs
-  # restore; a cache saved from a pull request ref is readable by that pull
-  # request only.
+  merge_group:
+  # Runs on develop and main save the dependency caches that pull request and
+  # merge queue runs restore; a cache saved from a pull request or merge queue
+  # ref is readable by that ref only. Push runs skip the heavy jobs.
   push:
     branches: [develop, main]
 
@@ -66,15 +67,33 @@ jobs:
       molecule: false
       molecule_scenario_filters: *molecule_scenario_filters
 
+  # Almost all content here is secret-store policy, so guarded wins over low-risk.
+  lane:
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: JacobPEvans/.github/.github/workflows/_lane.yml@v1
+    with:
+      low_risk_paths: 'docs/**,**.md'
+      guarded_paths: "\
+        .github/**,roles/**,playbooks/**,tests/**,molecule/**,requirements.yml,\
+        **/*secret*,**/*credential*,**/*token*,**/vault/**,*.sops.*,.sops.yaml"
+    secrets:
+      GH_APP_PRIVATE_KEY: ${{ secrets.GH_APP_PRIVATE_KEY }}
+
   molecule:
     name: Molecule
-    needs: changes
+    needs: [changes, lane]
     # v1.11 reports molecule=true with an empty scenario list when no
     # scenario's files changed; an empty matrix would fail the job.
     if: >-
-      ${{ needs.changes.outputs.molecule == 'true' &&
+      ${{ github.event_name != 'push' &&
+      needs.changes.outputs.molecule == 'true' &&
       needs.changes.outputs.molecule_scenarios != '[]' &&
-      needs.changes.outputs.tiny != 'true' }}
+      needs.lane.outputs.heavy_jobs != 'false' &&
+      (needs.lane.outputs.tier != 'hot' ||
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'preflight')) }}
     uses: JacobPEvans/.github/.github/workflows/_molecule.yml@v1
     with:
       scenarios: ${{ needs.changes.outputs.molecule_scenarios }}
@@ -110,8 +129,13 @@ jobs:
   # suite in the pytest job below.
   tests:
     name: Role tests
-    needs: changes
-    if: ${{ needs.changes.outputs.tiny != 'true' }}
+    needs: [changes, lane]
+    if: >-
+      ${{ github.event_name != 'push' &&
+      needs.lane.outputs.heavy_jobs != 'false' &&
+      (needs.lane.outputs.tier != 'hot' ||
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'preflight')) }}
     runs-on: ubuntu-latest
     timeout-minutes: ${{ github.event_name == 'pull_request' && 5 || 10 }}
     permissions:
@@ -183,8 +207,13 @@ jobs:
   # pull-request timeout policy.
   pytest:
     name: Role pytest suite (${{ matrix.shard }}/2)
-    needs: changes
-    if: ${{ needs.changes.outputs.tiny != 'true' }}
+    needs: [changes, lane]
+    if: >-
+      ${{ github.event_name != 'push' &&
+      needs.lane.outputs.heavy_jobs != 'false' &&
+      (needs.lane.outputs.tier != 'hot' ||
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'preflight')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -256,12 +285,18 @@ jobs:
 
   gate:
     name: Merge Gate
-    needs: [conformance, ci, changes, molecule, tests, pytest]
+    needs: [conformance, ci, changes, lane, molecule, tests, pytest]
     if: ${{ always() && !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - name: Check all results
         uses: re-actors/alls-green@b5b5b37504aa4183270bd3d855c52a67f212be35 # release/v1
         with:
-          allowed-skips: ${{ needs.ci.outputs.tiny == 'true' && 'molecule,tests,pytest' || 'molecule' }}
+          allowed-skips: >-
+            ${{ (github.event_name == 'push' ||
+            needs.lane.outputs.heavy_jobs == 'false' ||
+            (needs.lane.outputs.tier == 'hot' &&
+            github.event_name == 'pull_request' &&
+            !contains(github.event.pull_request.labels.*.name, 'preflight'))) &&
+            'molecule,tests,pytest' || 'molecule' }}
           jobs: ${{ toJSON(needs) }}
