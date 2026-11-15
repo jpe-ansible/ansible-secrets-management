@@ -69,8 +69,8 @@
             < _rotate_task_names.index("Rotate each domain's AppRole secret_id in turn")
           - >-
             _rotate_task_names.index("Rotate each domain's AppRole secret_id in turn")
-            < _rotate_task_names.index("Fail the run when any identity did not rotate")
-          - _rotate_task_names[-1] == "Fail the run when any identity did not rotate"
+            < _rotate_task_names.index("Fail the run when any identity or KV target did not rotate")
+          - _rotate_task_names[-1] == "Fail the run when any identity or KV target did not rotate"
           - >-
             (lookup('ansible.builtin.file', _rotate_playbook_dir ~ '/tasks/openbao_rotate_one_domain.yml')
              | from_yaml | selectattr('rescue', 'defined') | map(attribute='rescue') | flatten

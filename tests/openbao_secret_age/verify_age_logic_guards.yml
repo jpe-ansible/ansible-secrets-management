@@ -148,7 +148,7 @@
           - _case_b2.rc == 0
           - >-
             _calls.splitlines()
-            | select('match', '^ntfy title=secrets overdue — 2 item\(s\)$')
+            | select('match', '^ntfy title=secrets overdue — 2 item\(s\) body=')
             | list | length == 1
           - >-
             _calls.splitlines()
