@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.118.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.117.1...v0.118.0) (2026-11-15)
+
+
+### Features
+
+* **openbao:** rotate declared KV fields in the scheduled rotation run ([#755](https://github.com/jpe-ansible/ansible-secrets-management/issues/755)) ([e7f441a](https://github.com/jpe-ansible/ansible-secrets-management/commit/e7f441a074398f88e845b87d3ce56d55aaac87c8))
+
 ## [0.117.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.117.0...v0.117.1) (2026-11-15)
 
 
