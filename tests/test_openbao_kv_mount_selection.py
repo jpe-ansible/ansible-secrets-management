@@ -15,10 +15,11 @@ from openbao_reconcile_bounds_helpers import (
     _stanzas,
     rendered_defaults,
 )
-from test_openbao_select import ROLE, condition, render, resolve, task
+from test_openbao_select import ROLE, ROOT, condition, render, resolve, task
 
 
 KIND = "kv_mounts"
+DOMAINS_FILE = ROOT / "playbooks/group_vars/all/openbao_secrets.yml"
 SELECTION = {KIND: ["ext-notify"]}
 EXPECTED_MOUNTS = ["secret", "secrets-external", "config", "ext-notify"]
 INIT = ROLE / "tasks/init.yml"
@@ -273,6 +274,16 @@ def test_ntfy_policy_reads_the_new_webhook_leaf_and_keeps_transitional_leaves():
     }
     assert "ext-notify" in rendered and "transitional" in rendered
     assert all(set(_capabilities(body)) <= {"read", "list"} for body in stanzas.values())
+
+
+def test_ntfy_domain_reads_the_ext_notify_leaf_last_with_a_policy_grant():
+    domains = yaml.safe_load(DOMAINS_FILE.read_text(encoding="utf-8"))["openbao_secrets_domains"]
+    paths = next(domain["paths"] for domain in domains if domain["name"] == "ntfy")
+    stanzas = dict(_stanzas(_render(NTFY_POLICY, {"ansible_managed": "fixture"})))
+    # Paths merge in order and later paths win, so the ext-notify leaf must come last.
+    assert paths[-1] == {"mount": "ext-notify", "path": "slack/webhooks/rw", "optional": True}
+    for entry in paths:
+        assert "read" in _capabilities(stanzas[f"{entry['mount']}/data/{entry['path']}"])
 
 
 def test_secret_age_audit_grants_metadata_reads_for_every_non_config_kv_mount(rendered_defaults):
