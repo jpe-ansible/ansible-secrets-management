@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.114.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.114.0...v0.114.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **openbao:** drop the retired Dify eval leaf from the apps read grant ([#731](https://github.com/jpe-ansible/ansible-secrets-management/issues/731)) ([4798511](https://github.com/jpe-ansible/ansible-secrets-management/commit/47985112d300d34692e03b028ae7501e22e17f80))
+* **openbao:** read the ntfy webhooks only from ext-notify ([#730](https://github.com/jpe-ansible/ansible-secrets-management/issues/730)) ([7dd0058](https://github.com/jpe-ansible/ansible-secrets-management/commit/7dd00580dacb6b273a322b2cabbf39856cceede8))
+
 ## [0.114.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.113.0...v0.114.0) (2026-11-15)
 
 
