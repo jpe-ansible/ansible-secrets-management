@@ -32,7 +32,7 @@ PATH_BLOCK = re.compile(
     r'(?m)^path "([^"]+)"\s*\{\s*capabilities\s*=\s*\[([^]]*)\]'
 )
 WRITE_CAPABILITIES = {"create", "update", "patch", "delete", "sudo"}
-EVAL_LEAVES = ("hatchet/eval", "dify/eval")
+EVAL_LEAVES = ("hatchet/eval",)
 
 
 def _yaml(path: Path) -> dict:
@@ -166,6 +166,13 @@ def test_grafana_service_bucket_stays_outside_the_apps_reader():
             path in {f"secret/{kind}/apps/grafana", f"secret/{kind}/apps/*"}
             for path, _ in grants
         )
+
+
+def test_retired_dify_eval_leaf_is_not_granted_to_the_apps_reader():
+    read_apps = _read_apps(_yaml(NAMES_FILE))
+    assert "dify/eval" not in read_apps
+    grants = _policy_grants(_render_apps_policy(read_apps))
+    assert not any(path.endswith("/apps/dify/eval") for path, _ in grants)
 
 
 @pytest.mark.parametrize("leaf", EVAL_LEAVES)

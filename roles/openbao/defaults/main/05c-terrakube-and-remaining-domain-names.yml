@@ -225,8 +225,6 @@ openbao_apps_read_published_apps:
   - hatchet/worker-token
   # The Hatchet eval worker's Langfuse and router keys (converge-published).
   - hatchet/eval
-  # The Dify evaluation instance's router key (converge-published).
-  - dify/eval
 openbao_apps_read_apps: >-
   {{ ((openbao_generated_app_secrets.keys()
        | reject('in', openbao_generated_app_secret_paths | default({})) | list)
