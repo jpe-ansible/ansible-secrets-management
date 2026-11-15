@@ -82,6 +82,7 @@ openbao_github_openhands_write_policies: >-
 openbao_base_policies: >-
   {{ openbao_terrakube_base_policies + openbao_base_policies_static
      + openbao_roster_owned_mcp_deny_policies
+     + openbao_workstation_ssh_key_reader_policies
      + openbao_app_agent_tier_reader_policies
      + openbao_dify_secret_id_issuer_policies
      + openbao_dify_agent_policies + openbao_window_service_policies

@@ -36,7 +36,7 @@ ASK_TASK = "Ask whether this identity may sync the reconcile policy"
 # exactly the tasks a live reconcile policy that predates a new name will
 # 403 on.
 GRANT_CONSUMERS = [
-    "Reconcile the SSH signing roles",
+    "Reconcile the SSH roles",
     "Create the missing AppRoles bound to their policy",
     "Reconcile token_policies on existing AppRoles",
 ]

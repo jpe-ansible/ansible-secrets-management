@@ -230,6 +230,21 @@ def test_actuating_credential_leaves_are_denied_only_for_ai_global_read():
     assert ai_grants.get(f"{values['openbao_kv_mount']}/metadata/apps/") != {"deny"}
 
 
+def test_workstation_ssh_key_paths_are_denied_only_for_ai_global_read():
+    mount = "int"
+    paths = (
+        f"{mount}/data/ssh/*",
+        f"{mount}/metadata/ssh/*",
+        f"{mount}/metadata/ssh/",
+    )
+    ai_grants = _grants(_render("ai-global-read-policy.hcl.j2"))
+    operator_grants = _grants(_render("operator-human-policy.hcl.j2"))
+
+    assert mount in _mounts()
+    assert all(ai_grants[path] == {"deny"} for path in paths)
+    assert all(path not in operator_grants for path in paths)
+
+
 def test_shared_read_all_block_has_only_read_and_list():
     grants = _grants(_render("templates/global-read-all-policy-block.j2"))
     assert grants == _expected_global_read_grants()

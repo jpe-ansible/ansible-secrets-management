@@ -21,6 +21,7 @@ def selection_gate(task_node, selection):
     {"policies": ["apps"]},
     {"github_permission_sets": ["jacobpevans-ai-org-secrets"]},
     {"kv_mounts": ["ext-notify"]},
+    {"ssh_roles": ["keygen"]},
 ])
 def test_all_cross_object_phases_are_skipped_in_selective_mode(selection):
     imports = {
@@ -81,7 +82,7 @@ def test_policy_and_ssh_loops_use_only_their_resolved_kind():
         }) == [{"name": "apps"}]
 
     ssh = ROLE / "tasks/init/07-ssh-ca-engine.yml"
-    read = task("Check which SSH signing roles already exist", ssh)
+    read = task("Check which SSH roles already exist", ssh)
     assert render(read["loop"], {"openbao_selected_objects": {"ssh_roles": []}}) == []
     for name in ("Enable the SSH secrets engine", "Generate the SSH CA signing key (first configuration only, never exported)"):
         assert not selection_gate(task(name, ssh), {"ssh_roles": ["apps"]})

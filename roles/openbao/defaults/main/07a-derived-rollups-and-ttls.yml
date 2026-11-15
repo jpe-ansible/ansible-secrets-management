@@ -38,7 +38,8 @@ openbao_ssh_host_role_names: >-
      | zip(openbao_ssh_roles | map(attribute='name'))
      | selectattr('0', 'equalto', 'host') | map(attribute='1') | list }}
 openbao_ssh_user_roles: >-
-  {{ openbao_ssh_roles | rejectattr('name', 'in', openbao_ssh_host_role_names) | list }}
+  {{ openbao_ssh_roles | rejectattr('name', 'in', openbao_ssh_host_role_names
+       + ['keygen']) | list }}
 # ssh-sign-<role> capability leaves: one per USER-cert SSH signing role,
 # granting ONLY the sign endpoint of that role. These are DELIBERATE
 # enumerated grants outside secret/ — the kv-leaf self-escalation proof still

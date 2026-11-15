@@ -158,7 +158,11 @@ openbao_approle_secret_id_ttl_overrides: >-
                          * (openbao_app_agent_tier_readers | length))))
      | combine({openbao_dify_secret_id_issuer_approle_name:
                openbao_rotated_domain_secret_id_ttl}
-              if openbao_dify_secret_id_issuer_targets | length > 0 else {}) }}
+              if openbao_dify_secret_id_issuer_targets | length > 0 else {})
+     | combine(dict(openbao_workstation_ssh_key_reader_approles
+                    | map(attribute='name') | list
+                    | zip([openbao_rotated_domain_secret_id_ttl]
+                         * (openbao_workstation_ssh_key_reader_approles | length)))) }}
 # num_uses 0 (unlimited redemptions) is permitted ONLY with a reason on the line.
 openbao_approle_secret_id_num_uses_overrides:
   # Its secret_id is live, non-expiring, and in active use by every agent

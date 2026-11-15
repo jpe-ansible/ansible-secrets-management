@@ -1,0 +1,55 @@
+---
+- name: Parse and validate OPENBAO_WORKSTATION_SSH_KEY_HOSTS
+  block:
+    # The default decodes the JSON; a decode error raises here and is rescued.
+    - name: Require workstation SSH key hosts to be a JSON list of objects
+      ansible.builtin.assert:
+        that:
+          - openbao_workstation_ssh_key_hosts is sequence
+          - openbao_workstation_ssh_key_hosts is not string
+          - openbao_workstation_ssh_key_hosts is not mapping
+          - >-
+            (openbao_workstation_ssh_key_hosts | select('mapping') | list | length)
+            == (openbao_workstation_ssh_key_hosts | length)
+        quiet: true
+      changed_when: false
+      no_log: true
+
+    - name: Validate workstation SSH key host names and CIDRs
+      ansible.builtin.assert:
+        that:
+          - item.name | default('', true) is string
+          - item.cidr | default('', true) is string
+          - >-
+            (item.name | default('', true) | trim == '')
+            or (item.cidr | default('', true) | trim == '')
+            or (
+              (item.name | trim) is match('^[A-Za-z0-9][A-Za-z0-9._-]*$')
+              and (item.name | trim) not in ['.', '..']
+              and (item.cidr | split(',') | map('trim') | map('ansible.utils.ipaddr')
+                   | reject | list | length == 0)
+            )
+        quiet: true
+      loop: "{{ openbao_workstation_ssh_key_hosts }}"
+      loop_control:
+        label: workstation SSH key host entry
+      changed_when: false
+      no_log: true
+
+    - name: Require unique workstation SSH key host names
+      ansible.builtin.assert:
+        that:
+          - >-
+            (openbao_workstation_ssh_key_host_entries | map(attribute='name') | list | unique | length)
+            == (openbao_workstation_ssh_key_host_entries | length)
+        quiet: true
+      changed_when: false
+      no_log: true
+
+  rescue:
+    - name: Refuse malformed workstation SSH key host input
+      ansible.builtin.fail:
+        msg: >-
+          OPENBAO_WORKSTATION_SSH_KEY_HOSTS must be a JSON list of objects with
+          safe host names and valid CIDRs. Entries with an empty name or CIDR
+          declare nothing. Input values are omitted from this error.

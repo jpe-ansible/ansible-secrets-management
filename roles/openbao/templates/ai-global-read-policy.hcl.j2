@@ -2,6 +2,17 @@
 # Global read-only policy for the trusted AI actor tier.
 {% include "templates/global-read-all-policy-block.j2" %}
 
+# Per-host login keys are read only by their own host identity.
+path "int/data/ssh/*" {
+  capabilities = ["deny"]
+}
+path "int/metadata/ssh/*" {
+  capabilities = ["deny"]
+}
+path "int/metadata/ssh/" {
+  capabilities = ["deny"]
+}
+
 {% for leaf in openbao_actuating_credential_leaves %}
 path "{{ openbao_kv_mount }}/data/{{ leaf }}" {
   capabilities = ["deny"]
