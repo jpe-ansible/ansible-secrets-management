@@ -207,8 +207,9 @@ jobs:
         with:
           version: "latest"
 
-      - name: Install Ansible, pytest, PyYAML and Jinja2
-        run: uv pip install --system 'ansible-core>=2.16' pytest pytest-xdist pyyaml jinja2
+      # netaddr backs ansible.utils.ipaddr, which the role's CIDR validation renders.
+      - name: Install Ansible, pytest, PyYAML, Jinja2 and netaddr
+        run: uv pip install --system 'ansible-core>=2.16' pytest pytest-xdist pyyaml jinja2 netaddr
 
       # Exact cache hits force-refresh only the floating homelab-contracts v5
       # tag; misses run the forced install for the full requirement set.
