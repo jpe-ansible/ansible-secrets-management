@@ -83,10 +83,9 @@
     _pepper_set: "{{ gm.permission_sets | first | default({}) }}"
   when: gm.mount == openbao_github_pepper_mount
 
-- name: "Assert the dedicated OpenHands set on mount {{ gm.mount }}"
+- name: "Assert the dedicated OpenHands pilot set on mount {{ gm.mount }}"
   ansible.builtin.assert:
     that:
-      - gm.permission_sets == openbao_github_openhands_permission_sets + openbao_github_openhands_write_permission_sets
       - _openhands_pilot_sets | length <= 1
       - >-
         _openhands_pilot_sets | length == 0
@@ -98,25 +97,53 @@
             and _openhands_set.permissions
                 == {'checks': 'read', 'contents': 'write',
                     'metadata': 'read', 'pull_requests': 'write'})
-      - >-
-        _openhands_write_sets | length
-        == openbao_github_openhands_write_permission_sets | length
-      - >-
-        openbao_github_openhands_write_permissions
-        == {'actions': 'read', 'checks': 'read', 'contents': 'write',
-            'metadata': 'read', 'pull_requests': 'write'}
     fail_msg: >-
       {{ gm.mount }} must declare its exact pilot set, when configured, and
-      every declared org-only write set.
+      no more than one pilot set.
     quiet: true
   vars:
     _openhands_pilot_sets: >-
       {{ gm.permission_sets
          | selectattr('name', 'equalto', openbao_github_openhands_set_name) | list }}
     _openhands_set: "{{ _openhands_pilot_sets | first | default({}) }}"
-    _openhands_write_sets: >-
-      {{ gm.permission_sets | selectattr('tier', 'equalto', 'openhands-write') | list }}
   when: gm.mount == openbao_github_openhands_mount
+
+- name: "Assert each write route mount contains exactly its declared sets: {{ gm.mount }}"
+  ansible.builtin.assert:
+    that:
+      - >-
+        gm.permission_sets
+        == _write_route_pilot_sets + _write_route_sets
+      - >-
+        _write_route_sets | length
+        == (openbao_github_write_route.orgs | length
+            if openbao_github_write_route.app_id | string | length > 0 else 0)
+      - >-
+        _write_route_sets | map(attribute='org_name') | list
+        == (openbao_github_write_route.orgs
+            if openbao_github_write_route.app_id | string | length > 0 else [])
+      - >-
+        _write_route_sets
+        | rejectattr('permissions', 'equalto', openbao_github_write_route.permissions)
+        | list | length == 0
+    fail_msg: >-
+      {{ gm.mount }} must declare its configured base sets and exactly the
+      org-only write sets derived from {{ openbao_github_write_route.prefix }}.
+    quiet: true
+  vars:
+    _write_route_sets: >-
+      {{ openbao_github_write_permission_sets
+         | selectattr('tier', 'equalto', openbao_github_write_route.prefix)
+         | list }}
+    _write_route_pilot_sets: >-
+      {{ openbao_github_openhands_permission_sets
+         if openbao_github_write_route.prefix == openbao_github_openhands_write_set_prefix else [] }}
+  loop: >-
+    {{ openbao_github_write_routes
+       | selectattr('mount', 'equalto', gm.mount) | list }}
+  loop_control:
+    loop_var: openbao_github_write_route
+    label: "{{ openbao_github_write_route.prefix }}"
 
 # ponytail: one page of 100; add pagination when a list passes 100 repos.
 - name: "Resolve the set repository lists on mount {{ gm.mount }}"

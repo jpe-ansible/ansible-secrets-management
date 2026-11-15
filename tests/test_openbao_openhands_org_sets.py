@@ -16,7 +16,6 @@ from openbao_reconcile_bounds_helpers import (
 
 DEFAULTS = ROOT / "roles/openbao/defaults/main"
 MOUNT_TASKS = ROOT / "roles/openbao/tasks/init/05b-github-app-mount.yml"
-SET_CHECK_TASKS = ROOT / "roles/openbao/tasks/init/05b-github-app-set-checks.yml"
 
 
 @pytest.fixture
@@ -28,6 +27,10 @@ def openhands_defaults(monkeypatch):
         "OPENBAO_GITHUB_OPENHANDS_APP_PRIVATE_KEY",
         "OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS",
         "OPENBAO_GITHUB_OPENHANDS_WRITE_WORKFLOWS",
+        "OPENBAO_GITHUB_CLAUDE_APP_ID",
+        "OPENBAO_GITHUB_CLAUDE_APP_PRIVATE_KEY",
+        "OPENBAO_GITHUB_CLAUDE_WRITE_ORGS",
+        "OPENBAO_GITHUB_CLAUDE_WRITE_WORKFLOWS",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -90,9 +93,13 @@ def test_openhands_org_write_set_and_policy_use_org_name(
             "name": "openhands-write-exampleorg",
             "tier": "openhands-write",
             "org_name": "ExampleOrg",
-            "permissions": openhands_defaults[
-                "openbao_github_openhands_write_permissions"
-            ],
+            "permissions": {
+                "actions": "read",
+                "checks": "read",
+                "contents": "write",
+                "metadata": "read",
+                "pull_requests": "write",
+            },
         }
     ]
     assert "installation_id" not in sets[0]
@@ -118,14 +125,28 @@ def test_openhands_org_validator_rejects_invalid_names(openhands_defaults, org):
     tasks = yaml.safe_load(MOUNT_TASKS.read_text(encoding="utf-8"))
     validation = next(
         task for task in tasks
-        if task["name"].startswith("Assert OpenHands org and workflow inputs")
+        if task["name"].startswith("Assert GitHub write route inputs")
     )
     org_pattern = next(
         check for check in validation["ansible.builtin.assert"]["that"]
-        if isinstance(check, str) and "write_orgs" in check and "reject" in check
+        if isinstance(check, str)
+        and "openbao_github_write_route.orgs" in check
+        and "reject" in check
     )
-    openhands_defaults["openbao_github_openhands_write_orgs"] = [org]
-    result = _render_value(openhands_defaults, "{{ " + org_pattern + " }}")
+    route = {
+        "prefix": "openhands-write",
+        "orgs": [org],
+        "workflows": [],
+        "permissions": openhands_defaults[
+            "openbao_github_openhands_write_permissions"
+        ],
+        "app_id": "12345",
+    }
+    result = _render_value(
+        openhands_defaults,
+        "{{ " + org_pattern + " }}",
+        openbao_github_write_route=route,
+    )
 
     assert result is False or result == "False"
 
@@ -144,14 +165,28 @@ def test_openhands_workflow_validator_rejects_globs_refs_and_wrong_prefix(
     tasks = yaml.safe_load(MOUNT_TASKS.read_text(encoding="utf-8"))
     validation = next(
         task for task in tasks
-        if task["name"].startswith("Assert OpenHands org and workflow inputs")
+        if task["name"].startswith("Assert GitHub write route inputs")
     )
     workflow_pattern = next(
         check for check in validation["ansible.builtin.assert"]["that"]
-        if isinstance(check, str) and "write_workflows" in check and "reject" in check
+        if isinstance(check, str)
+        and "openbao_github_write_route.workflows" in check
+        and "reject" in check
     )
-    openhands_defaults["openbao_github_openhands_write_workflows"] = [workflow]
-    result = _render_value(openhands_defaults, "{{ " + workflow_pattern + " }}")
+    route = {
+        "prefix": "openhands-write",
+        "orgs": [],
+        "workflows": [workflow],
+        "permissions": openhands_defaults[
+            "openbao_github_openhands_write_permissions"
+        ],
+        "app_id": "12345",
+    }
+    result = _render_value(
+        openhands_defaults,
+        "{{ " + workflow_pattern + " }}",
+        openbao_github_write_route=route,
+    )
 
     assert result is False or result == "False"
 
@@ -250,24 +285,35 @@ def test_org_and_installation_reconcile_payloads_and_drift_comparisons():
 
 
 def test_openhands_write_permissions_have_a_fixed_five_permission_ceiling():
-    tasks = yaml.safe_load(SET_CHECK_TASKS.read_text(encoding="utf-8"))
-    dedicated = next(
-        task for task in tasks
-        if task["name"].startswith("Assert the dedicated OpenHands set")
+    defaults = yaml.safe_load(
+        (DEFAULTS / "03-github-engine.yml").read_text(encoding="utf-8")
     )
-    fixed_map_assertion = next(
-        check for check in dedicated["ansible.builtin.assert"]["that"]
-        if isinstance(check, str)
-        and "openbao_github_openhands_write_permissions" in check
-        and "actions" in check
-    )
+    assert defaults["openbao_github_write_permission_profiles"]["openhands-write"] == {
+        "actions": "read",
+        "checks": "read",
+        "contents": "write",
+        "metadata": "read",
+        "pull_requests": "write",
+    }
 
-    assert "'actions': 'read'" in fixed_map_assertion
-    assert "'checks': 'read'" in fixed_map_assertion
-    assert "'contents': 'write'" in fixed_map_assertion
-    assert "'metadata': 'read'" in fixed_map_assertion
-    assert "'pull_requests': 'write'" in fixed_map_assertion
-    assert "'workflows'" not in fixed_map_assertion
+    tasks = yaml.safe_load(
+        (ROOT / "roles/openbao/tasks/init/05-github-permission-sets.yml").read_text(
+            encoding="utf-8"
+        )
+    )
+    route_assertion = next(
+        task for task in tasks
+        if task["name"] == "Assert each GitHub write route uses its exact permission map"
+    )
+    # The task pins its own literal maps, so a defaults override cannot widen a route.
+    assert route_assertion["ansible.builtin.assert"]["that"] == [
+        "item.prefix in _approved_write_permission_profiles",
+        "item.permissions == _approved_write_permission_profiles[item.prefix]",
+    ]
+    assert (
+        route_assertion["vars"]["_approved_write_permission_profiles"]
+        == defaults["openbao_github_write_permission_profiles"]
+    )
 
 
 def test_unconfigured_and_check_mode_mount_paths_are_guarded():

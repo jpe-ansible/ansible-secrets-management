@@ -139,60 +139,65 @@
          and (openbao_github_app_mount_configured | bool
               or (gm.app_id | length > 0 and gm.private_key | length > 0)) }}
 
-- name: "Assert OpenHands org and workflow inputs on mount {{ gm.mount }}"
+- name: "Assert GitHub write route inputs on mount {{ gm.mount }}"
   ansible.builtin.assert:
     that:
-      - openbao_github_openhands_write_orgs is sequence
-      - openbao_github_openhands_write_orgs is not string
-      - openbao_github_openhands_write_orgs is not mapping
+      - openbao_github_write_route.orgs is sequence
+      - openbao_github_write_route.orgs is not string
+      - openbao_github_write_route.orgs is not mapping
       - >-
-        openbao_github_openhands_write_orgs
+        openbao_github_write_route.orgs
         | reject('match', '^[A-Za-z0-9][A-Za-z0-9-]*$')
         | list | length == 0
       - >-
-        openbao_github_openhands_write_orgs | unique | list
-        == openbao_github_openhands_write_orgs
+        openbao_github_write_route.orgs | map('lower') | unique | list
+        == openbao_github_write_route.orgs | map('lower') | list
       - >-
-        openbao_github_openhands_write_permission_sets
-        | map(attribute='org_name') | list
-        == openbao_github_openhands_write_orgs
-      - openbao_github_openhands_write_workflows is sequence
-      - openbao_github_openhands_write_workflows is not string
-      - openbao_github_openhands_write_workflows is not mapping
+        _write_route_sets | map(attribute='org_name') | list
+        == openbao_github_write_route.orgs
       - >-
-        openbao_github_openhands_write_workflows
+        _write_route_sets | map(attribute='name') | list
+        == (openbao_github_write_route.orgs | map('lower')
+            | map('regex_replace', '^', openbao_github_write_route.prefix ~ '-')
+            | list)
+      - >-
+        _write_route_sets
+        | rejectattr('permissions', 'equalto', openbao_github_write_route.permissions)
+        | list | length == 0
+      - >-
+        _write_route_sets
+        | selectattr('installation_id', 'defined') | list | length == 0
+      - >-
+        _write_route_sets
+        | selectattr('repositories', 'defined') | list | length == 0
+      - openbao_github_write_route.workflows is sequence
+      - openbao_github_write_route.workflows is not string
+      - openbao_github_write_route.workflows is not mapping
+      - >-
+        openbao_github_write_route.workflows
         | reject('match', '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/\.github/workflows/[A-Za-z0-9_.-]+\.ya?ml$')
         | list | length == 0
       - >-
-        openbao_github_openhands_write_workflows | unique | list
-        == openbao_github_openhands_write_workflows
+        openbao_github_write_route.workflows | unique | list
+        == openbao_github_write_route.workflows
     fail_msg: >-
-      OpenHands write organizations must be valid GitHub organization names,
-      and write workflows must be repo-qualified .github/workflows YAML paths.
+      The {{ openbao_github_write_route.prefix }} write route must declare
+      valid, unique organizations and repo-qualified .github/workflows YAML paths;
+      its sets must match the declared orgs and permission map.
     quiet: true
-  when:
-    - not openbao_github_app_mount_absent_check_mode | bool
-    - gm.mount == openbao_github_openhands_mount
-
-- name: "Assert each OpenHands org-only write set matches its declaration on mount {{ gm.mount }}"
-  ansible.builtin.assert:
-    that:
-      - item.name == ('openhands-write-' ~ (item.org_name | lower))
-      - item.tier == 'openhands-write'
-      - item.org_name in openbao_github_openhands_write_orgs
-      - item.installation_id is not defined
-      - item.repositories is not defined
-      - item.permissions == openbao_github_openhands_write_permissions
-    fail_msg: >-
-      {{ gm.mount }}/permissionset/{{ item.name }} must be the declared
-      org-only OpenHands write set.
-    quiet: true
-  loop: "{{ gm.permission_sets | selectattr('tier', 'equalto', 'openhands-write') | list }}"
+  vars:
+    _write_route_sets: >-
+      {{ openbao_github_write_permission_sets
+         | selectattr('tier', 'equalto', openbao_github_write_route.prefix)
+         | list }}
+  loop: >-
+    {{ openbao_github_write_routes
+       | selectattr('mount', 'equalto', gm.mount) | list }}
   loop_control:
-    label: "{{ item.name }}"
+    loop_var: openbao_github_write_route
+    label: "{{ openbao_github_write_route.prefix }}"
   when:
     - not openbao_github_app_mount_absent_check_mode | bool
-    - gm.mount == openbao_github_openhands_mount
 
 - name: "Assert every set declares an administration-free ceiling on mount {{ gm.mount }}"
   ansible.builtin.assert:

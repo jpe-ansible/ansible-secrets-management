@@ -1,5 +1,0 @@
-{{ ansible_managed | comment }}
-# This policy grants token minting for one org-specific OpenHands write set.
-path "{{ openbao_github_openhands_mount }}/token/{{ item.set.name }}" {
-  capabilities = ["create", "read", "update"]
-}

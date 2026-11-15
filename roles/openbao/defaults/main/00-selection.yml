@@ -43,7 +43,7 @@ openbao_select_profiles:
     suffixes: [""]
     capability: update
   github_oidc_roles:
-    candidates: "{{ openbao_github_openhands_write_oidc_roles | default([]) }}"
+    candidates: "{{ openbao_github_write_oidc_roles | default([]) }}"
     prefix: "auth/{{ openbao_github_oidc_auth_path }}/role/"
     suffixes: [""]
     capability: update

@@ -36,7 +36,7 @@ def _import_target(task_node):
     return None
 
 
-def test_profiles_use_only_declared_mounts_and_openhands_write_oidc_roles():
+def test_profiles_use_only_declared_mounts_and_generic_write_oidc_roles():
     profiles = yaml.safe_load(PROFILES.read_text(encoding="utf-8"))["openbao_select_profiles"]
     mounts = profiles[APP_MOUNTS]
     roles = profiles[OIDC_ROLES]
@@ -48,7 +48,7 @@ def test_profiles_use_only_declared_mounts_and_openhands_write_oidc_roles():
     assert mounts["prefix"] == "sys/mounts/"
     assert mounts["suffixes"] == [""]
     assert mounts["capability"] == "update"
-    assert roles["candidates"] == "{{ openbao_github_openhands_write_oidc_roles | default([]) }}"
+    assert roles["candidates"] == "{{ openbao_github_write_oidc_roles | default([]) }}"
     assert roles["prefix"] == "auth/{{ openbao_github_oidc_auth_path }}/role/"
     assert roles["suffixes"] == [""]
     assert roles["capability"] == "update"

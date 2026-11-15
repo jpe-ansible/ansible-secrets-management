@@ -63,15 +63,21 @@ openbao_dify_secret_id_issuer_policies: >-
         'targets': openbao_dify_secret_id_issuer_targets}]
       if openbao_dify_secret_id_issuer_targets | length > 0 else []) }}
 
-# Each OpenHands org set has its own token-path policy.
-openbao_github_openhands_write_policies: >-
+# Each org-scoped GitHub write set has its own token-path policy.
+openbao_github_write_policies: >-
   {%- set _policies = [] -%}
-  {%- for permission_set in openbao_github_openhands_write_permission_sets -%}
+  {%- for route in openbao_github_write_routes -%}
+  {%- for permission_set in openbao_github_write_permission_sets
+      | selectattr('tier', 'equalto', route.prefix) -%}
   {%- set _ = _policies.append({'name': permission_set.name,
       'org': permission_set.org_name, 'set': permission_set,
-      'template': 'openhands-write-policy.hcl.j2'}) -%}
+      'mount': route.mount, 'template': 'github-write-route-policy.hcl.j2'}) -%}
+  {%- endfor -%}
   {%- endfor -%}
   {{ _policies }}
+openbao_github_openhands_write_policies: >-
+  {{ openbao_github_write_policies
+     | selectattr('set.tier', 'equalto', openbao_github_openhands_write_set_prefix) | list }}
 
 openbao_base_policies: >-
   {{ openbao_terrakube_base_policies + openbao_base_policies_static
@@ -80,7 +86,7 @@ openbao_base_policies: >-
      + openbao_dify_secret_id_issuer_policies
      + openbao_dify_agent_policies + openbao_window_service_policies
      + openbao_pr_reconcile_policies
-     + openbao_github_openhands_write_policies }}
+     + openbao_github_write_policies }}
 
 # Static policy catalog, loaded with the other defaults.
 openbao_base_policies_static:

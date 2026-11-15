@@ -520,10 +520,10 @@
     - not (openbao_github_pr_reconcile_enabled | bool)
     - (openbao_github_oidc_pr_reconcile_role_current.rc | default(1)) == 0
 
-# A dropped org's OIDC role must be deleted by hand.
-# OpenHands write workflows use a reusable workflow identity. Each role is
-# bound to one org and to the reusable workflows with their configured ref suffix.
-- name: Read each OpenHands write OIDC role
+# A dropped org's OIDC role must be deleted by hand because this identity
+# cannot list roles. GitHub write workflows use a reusable workflow identity.
+# Each role is bound to one org and to its route's configured workflows/ref suffix.
+- name: Read each GitHub write OIDC role
   ansible.builtin.command:
     cmd: >-
       bao read -format=json
@@ -537,7 +537,7 @@
     ansible_become: "{{ openbao_cli_become }}"
     openbao_github_oidc_role_targets: >-
       {{ (openbao_selected_objects | default({})).get('github_oidc_roles', []) }}
-  register: openbao_github_oidc_openhands_write_roles_current
+  register: openbao_github_oidc_write_roles_current
   no_log: true
   changed_when: false
   check_mode: false
@@ -548,28 +548,31 @@
       openbao_select | default({}) | length == 0
       or item.name
          in (openbao_github_oidc_role_targets | map(attribute='name') | list)
-  loop: "{{ openbao_github_openhands_write_oidc_roles }}"
+  loop: "{{ openbao_github_write_oidc_roles }}"
   loop_control:
     label: "{{ item.name }}"
 
-- name: Reconcile each OpenHands write OIDC role
+- name: Reconcile each GitHub write OIDC role
   vars:
     ansible_become: "{{ openbao_cli_become }}"
     openbao_github_oidc_role_targets: >-
       {{ (openbao_selected_objects | default({})).get('github_oidc_roles', []) }}
-    _openhands_write_role_claims:
+    _github_write_route: >-
+      {{ openbao_github_write_routes
+         | selectattr('prefix', 'equalto', item.set.tier) | first }}
+    _github_write_role_claims:
       job_workflow_ref: >-
-        {{ openbao_github_openhands_write_workflows
-           | map('regex_replace', '$', openbao_github_openhands_write_workflow_ref_suffix) | list }}
+        {{ _github_write_route.workflows
+           | map('regex_replace', '$', openbao_github_write_workflow_ref_suffix) | list }}
       repository_owner: "{{ [item.org] }}"
-    _openhands_write_role_live: >-
-      {{ (openbao_github_oidc_openhands_write_roles_current.results[
-             openbao_github_openhands_write_role_index].stdout | default('{}') | from_json).data
+    _github_write_role_live: >-
+      {{ (openbao_github_oidc_write_roles_current.results[
+             openbao_github_write_role_index].stdout | default('{}') | from_json).data
          | default({}, true) }}
-    _openhands_write_token_ttl_s: >-
-      {{ openbao_github_openhands_write_token_ttl | community.general.to_seconds | int }}
-    _openhands_write_token_max_ttl_s: >-
-      {{ openbao_github_openhands_write_token_max_ttl | community.general.to_seconds | int }}
+    _github_write_token_ttl_s: >-
+      {{ _github_write_route.token_ttl | community.general.to_seconds | int }}
+    _github_write_token_max_ttl_s: >-
+      {{ _github_write_route.token_max_ttl | community.general.to_seconds | int }}
   ansible.builtin.command:
     cmd: >-
       bao write
@@ -577,14 +580,14 @@
     stdin: >-
       {{ {'role_type': 'jwt',
             'user_claim': 'job_workflow_ref',
-            'bound_audiences': [openbao_github_openhands_write_audience],
-            'bound_claims': _openhands_write_role_claims,
+            'bound_audiences': [openbao_github_write_audience],
+            'bound_claims': _github_write_role_claims,
             'bound_claims_type': 'glob',
             'token_policies': [item.name],
             'token_no_default_policy': true,
             'token_type': 'batch',
-            'token_ttl': openbao_github_openhands_write_token_ttl,
-            'token_max_ttl': openbao_github_openhands_write_token_max_ttl} | to_json }}
+            'token_ttl': _github_write_route.token_ttl,
+            'token_max_ttl': _github_write_route.token_max_ttl} | to_json }}
   environment:
     BAO_ADDR: "{{ openbao_cli_addr }}"
     BAO_TOKEN: "{{ openbao_bootstrap_token }}"
@@ -594,30 +597,29 @@
   changed_when: true
   when:
     - openbao_bootstrap_token is defined
-    - openbao_github_openhands_write_oidc_enabled | bool
     - >-
       openbao_select | default({}) | length == 0
       or item.name
          in (openbao_github_oidc_role_targets | map(attribute='name') | list)
     - >-
-      (openbao_github_oidc_openhands_write_roles_current.results[
-         openbao_github_openhands_write_role_index].rc | default(1)) != 0
-      or (_openhands_write_role_live.role_type | default('')) != 'jwt'
-      or (_openhands_write_role_live.bound_audiences | default([]))
-         != [openbao_github_openhands_write_audience]
-      or (_openhands_write_role_live.bound_claims | default({}, true))
-         != _openhands_write_role_claims
-      or (_openhands_write_role_live.bound_claims_type | default('')) != 'glob'
-      or (_openhands_write_role_live.user_claim | default('')) != 'job_workflow_ref'
-      or (_openhands_write_role_live.token_policies | default([]) | sort)
+      (openbao_github_oidc_write_roles_current.results[
+         openbao_github_write_role_index].rc | default(1)) != 0
+      or (_github_write_role_live.role_type | default('')) != 'jwt'
+      or (_github_write_role_live.bound_audiences | default([]))
+         != [openbao_github_write_audience]
+      or (_github_write_role_live.bound_claims | default({}, true))
+         != _github_write_role_claims
+      or (_github_write_role_live.bound_claims_type | default('')) != 'glob'
+      or (_github_write_role_live.user_claim | default('')) != 'job_workflow_ref'
+      or (_github_write_role_live.token_policies | default([]) | sort)
          != [item.name]
-      or not (_openhands_write_role_live.token_no_default_policy | default(false) | bool)
-      or (_openhands_write_role_live.token_type | default('')) != 'batch'
-      or (_openhands_write_role_live.token_ttl | default(0) | int)
-         != (_openhands_write_token_ttl_s | int)
-      or (_openhands_write_role_live.token_max_ttl | default(0) | int)
-         != (_openhands_write_token_max_ttl_s | int)
-  loop: "{{ openbao_github_openhands_write_oidc_roles }}"
+      or not (_github_write_role_live.token_no_default_policy | default(false) | bool)
+      or (_github_write_role_live.token_type | default('')) != 'batch'
+      or (_github_write_role_live.token_ttl | default(0) | int)
+         != (_github_write_token_ttl_s | int)
+      or (_github_write_role_live.token_max_ttl | default(0) | int)
+         != (_github_write_token_max_ttl_s | int)
+  loop: "{{ openbao_github_write_oidc_roles }}"
   loop_control:
-    index_var: openbao_github_openhands_write_role_index
+    index_var: openbao_github_write_role_index
     label: "{{ item.name }}"

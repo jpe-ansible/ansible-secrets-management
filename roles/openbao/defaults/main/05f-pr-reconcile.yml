@@ -36,23 +36,29 @@ openbao_pr_reconcile_policies: >-
        'template': 'pr-reconcile-sweep-policy.hcl.j2'}]
      if openbao_github_pr_reconcile_enabled | bool else [] }}
 
-# OpenHands write jobs authenticate using their GitHub Actions reusable
-# workflow identity. Its owner and workflow claims come from the run
-# environment, like the OpenHands App ID.
+# GitHub write jobs authenticate using their GitHub Actions reusable workflow
+# identity. The audience and workflow-ref suffix are shared by every route.
 openbao_github_openhands_write_audience: "{{ openbao_github_oidc_audience }}"
+openbao_github_write_audience: "{{ openbao_github_openhands_write_audience }}"
 openbao_github_openhands_write_token_ttl: "{{ openbao_github_pr_reconcile_token_ttl }}"
 openbao_github_openhands_write_token_max_ttl: "{{ openbao_github_pr_reconcile_token_max_ttl }}"
 openbao_github_openhands_write_workflow_ref_suffix: "@*"
-openbao_github_openhands_write_oidc_enabled: >-
-  {{ openbao_github_openhands_write_orgs | length > 0
-     and openbao_github_openhands_write_workflows | length > 0
-     and openbao_github_openhands_app_id | length > 0 }}
-openbao_github_openhands_write_oidc_roles: >-
+openbao_github_write_workflow_ref_suffix: "{{ openbao_github_openhands_write_workflow_ref_suffix }}"
+openbao_github_claude_write_token_ttl: 15m
+openbao_github_claude_write_token_max_ttl: 15m
+openbao_github_write_oidc_roles: >-
   {%- set _roles = [] -%}
-  {%- if openbao_github_openhands_write_oidc_enabled | bool -%}
-  {%- for permission_set in openbao_github_openhands_write_permission_sets -%}
+  {%- for route in openbao_github_write_routes -%}
+  {%- if route.orgs | length > 0 and route.workflows | length > 0
+      and route.app_id | length > 0 -%}
+  {%- for permission_set in openbao_github_write_permission_sets
+      | selectattr('tier', 'equalto', route.prefix) -%}
   {%- set _ = _roles.append({'name': permission_set.name,
       'org': permission_set.org_name, 'set': permission_set}) -%}
   {%- endfor -%}
   {%- endif -%}
+  {%- endfor -%}
   {{ _roles }}
+openbao_github_openhands_write_oidc_roles: >-
+  {{ openbao_github_write_oidc_roles
+     | selectattr('set.tier', 'equalto', openbao_github_openhands_write_set_prefix) | list }}
