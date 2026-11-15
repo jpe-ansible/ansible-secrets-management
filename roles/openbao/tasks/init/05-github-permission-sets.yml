@@ -97,6 +97,21 @@
       openbao_select | default({}) | length == 0
       or 'org-secrets' in (openbao_github_permission_set_targets | map(attribute='tier', default='') | list)
 
+- name: Assert the org-variables permission map is exactly organization_actions_variables:write
+  ansible.builtin.assert:
+    that:
+      - openbao_github_org_variables_permissions.keys() | list == ['organization_actions_variables']
+      - openbao_github_org_variables_permissions.organization_actions_variables == 'write'
+    fail_msg: >-
+      openbao_github_org_variables_permissions must be exactly
+      {organization_actions_variables: write}; add a new tier instead of broadening it.
+  when:
+    - openbao_bootstrap_token is defined
+    - openbao_github_engine_enabled | bool
+    - >-
+      openbao_select | default({}) | length == 0
+      or 'org-variables' in (openbao_github_permission_set_targets | map(attribute='tier', default='') | list)
+
 # init/02 resolves this run's token, including the per-call reconcile token,
 # into openbao_bootstrap_token. Only a 404 establishes that a set is missing.
 - name: Read the GitHub token permission sets

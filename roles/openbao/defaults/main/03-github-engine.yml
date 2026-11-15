@@ -132,6 +132,9 @@ openbao_github_org_admin_permissions:
 # Org Actions secrets use only the organization_secrets permission.
 openbao_github_org_secrets_permissions:
   organization_secrets: write
+# Org Actions variables use only the organization_actions_variables permission.
+openbao_github_org_variables_permissions:
+  organization_actions_variables: write
 # Runner registration is organization-scoped.  This is deliberately separate
 # from repository read/write credentials: it cannot read source or name a
 # repository, and only mints the short-lived registration token a runner needs.
@@ -454,11 +457,23 @@ openbao_github_org_secrets_permission_sets: >-
   {%- endif -%}
   {%- endfor -%}
   {{ _sets }}
+# One org-variables set per org-secrets organization, same installation.
+openbao_github_org_variables_permission_sets: >-
+  {%- set _sets = [] -%}
+  {%- for org in openbao_github_org_secrets_installations -%}
+  {%- if org.installation_id | default('', true) | string | length > 0 -%}
+  {%- set _ = _sets.append({'name': org.name ~ '-org-variables',
+      'tier': 'org-variables', 'installation_id': org.installation_id,
+      'permissions': openbao_github_org_variables_permissions}) -%}
+  {%- endif -%}
+  {%- endfor -%}
+  {{ _sets }}
 # Full set list = the static base above plus repository-scoped tiers, which
 # exist only when their repository lists are configured.
 # Sets on the admin mount only; 05-github-engine.yml reconciles exactly these.
 openbao_github_admin_permission_sets: >-
   {{ openbao_github_base_permission_sets + openbao_github_org_secrets_permission_sets
+     + openbao_github_org_variables_permission_sets
      + openbao_github_docs_publisher_permission_sets
      + openbao_github_dify_pr_automation_permission_sets
      + openbao_github_ci_resolver_permission_sets

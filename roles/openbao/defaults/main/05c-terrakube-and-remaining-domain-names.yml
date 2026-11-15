@@ -43,10 +43,12 @@ openbao_terrakube_workspaces:
     kv_read_config: ["{{ openbao_hermes_webhook_kv_path }}"]
   - name: "{{ openbao_terrakube_org_secrets_workspace_name }}"
     # This dedicated workspace reads the scoped organization-secret source
-    # policy and only the configured org-secret permission-set endpoints.
+    # policy and only the configured org-secret and org-variable
+    # permission-set endpoints.
     additional_policies: ["{{ openbao_github_org_secrets_read_policy_name }}"]
     api_read: >-
-      {{ openbao_github_org_secrets_permission_sets
+      {{ (openbao_github_org_secrets_permission_sets
+          + openbao_github_org_variables_permission_sets)
          | map(attribute='name')
          | map('regex_replace', '^', openbao_github_mount ~ '/token/')
          | list }}
