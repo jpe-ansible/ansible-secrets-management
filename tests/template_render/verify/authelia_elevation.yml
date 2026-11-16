@@ -185,11 +185,11 @@
       vars:
         _elevate: "{{ _authelia_config['identity_providers']['oidc']['authorization_policies']['elevate'] }}"
 
-    - name: Assert the device-code lifespan is fifteen minutes
+    - name: Assert the device-code lifespan is one hour
       ansible.builtin.assert:
         that:
-          - _lifespans.device_code == '15m'
-        fail_msg: "device_code lifespan is not 15m (got {{ _lifespans.device_code | default('ABSENT') }})"
+          - _lifespans.device_code == '1h'
+        fail_msg: "device_code lifespan is not 1h (got {{ _lifespans.device_code | default('ABSENT') }})"
       vars:
         _lifespans: "{{ _authelia_config['identity_providers']['oidc']['lifespans'] }}"
 
