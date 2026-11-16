@@ -148,6 +148,9 @@ openbao_approle_secret_id_ttl_overrides_base:
   ai-sessions-backup: "0s"
 openbao_approle_secret_id_ttl_overrides: >-
   {{ openbao_approle_secret_id_ttl_overrides_base
+     | combine({openbao_agentgateway_openhands_mint_approle_name:
+               openbao_rotated_domain_secret_id_ttl}
+              if openbao_agentgateway_openhands_mint_secret_id_cidr | length > 0 else {})
      | combine(dict(openbao_roster_agent_valid_names
                     | zip([openbao_rotated_domain_secret_id_ttl]
                          * (openbao_roster_agent_valid_names | length))))

@@ -135,4 +135,8 @@ openbao_approle_class_map: >-
   {%- for reader in openbao_app_agent_tier_readers -%}
   {%- set _ = _classes.update({'app-agent-' ~ reader.tier: reader.trust_class}) -%}
   {%- endfor -%}
+  {%- if openbao_agentgateway_openhands_mint_secret_id_cidr | length > 0 -%}
+  {%- set _ = _classes.update({
+      openbao_agentgateway_openhands_mint_approle_name: 'service-runtime'}) -%}
+  {%- endif -%}
   {{ _classes }}

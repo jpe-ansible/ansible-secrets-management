@@ -395,10 +395,14 @@
       - _openhands_set.name == openbao_github_openhands_set_name
       - _openhands_set.tier == 'openhands'
       - _openhands_set.installation_id == openbao_github_openhands_installation_id
-      - _openhands_set.repositories is not defined
+      - >-
+        (openbao_github_openhands_pilot_repos | length == 0
+         and _openhands_set.repositories is not defined)
+        or _openhands_set.repositories == openbao_github_openhands_pilot_repos
       - >-
         _openhands_set.permissions
-        == {'checks': 'read', 'contents': 'write', 'metadata': 'read', 'pull_requests': 'write'}
+        == {'actions': 'read', 'checks': 'read', 'contents': 'write',
+            'metadata': 'read', 'pull_requests': 'write'}
       - openbao_github_openhands_permissions == _openhands_set.permissions
       - "'administration' not in _openhands_set.permissions"
       - "'workflows' not in _openhands_set.permissions"
@@ -417,8 +421,9 @@
         _openhands_capabilities
         == ['["create", "read", "update"]', '["read"]', '["read"]', '["read"]', '["read"]']
     fail_msg: >-
-      OpenHands may mint only its stored set with contents and pull request
-      write, checks and metadata read, and read only its two buckets.
+      OpenHands may mint only its stored set with actions and checks read,
+      contents and pull request write, and metadata read, plus read only its
+      two buckets.
 
 - name: Assert no broad identity or the CI resolver inherits the OpenHands write set
   ansible.builtin.assert:

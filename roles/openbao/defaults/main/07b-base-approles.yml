@@ -320,8 +320,17 @@ openbao_base_approles_core:
 # openbao_base_approles_elevated (iac-platform-deploy through slack-ops) lives
 # in 07f-elevated-approles.yml — split for the CI token-limits gate.
 # openbao_seed_writer_approles lives in 07i-seed-writer-approles.yml.
+# The gateway reuses its secret_id for connector token mints between scheduled
+# rotations; unlimited uses are bounded by its /32 and 36h secret_id TTL.
+openbao_agentgateway_openhands_mint_approles: >-
+  {{ ([{'name': openbao_agentgateway_openhands_mint_approle_name,
+        'policy': openbao_agentgateway_openhands_mint_policy_name,
+        'secret_id_bound_cidrs': openbao_agentgateway_openhands_mint_secret_id_cidr,
+        'token_ttl': '1h', 'token_max_ttl': '1h', 'secret_id_num_uses': 0}]
+      if openbao_agentgateway_openhands_mint_secret_id_cidr | length > 0 else []) }}
 openbao_base_approles: >-
   {{ openbao_base_approles_core + openbao_base_approles_elevated
+     + openbao_agentgateway_openhands_mint_approles
      + openbao_hermes_private_agent_approles + openbao_sandbox_agent_approles
      + openbao_pepper_approles + openbao_workstation_ssh_key_reader_approles
      + openbao_app_agent_tier_reader_approles

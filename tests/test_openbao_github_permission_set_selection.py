@@ -306,7 +306,7 @@ def test_org_secrets_selection_checks_its_map_and_full_runs_check_every_map():
     assertions = {
         "repo-create": "Assert the repo-create permission map is exactly administration:write",
         "ci-resolver": "Assert the CI resolver permission map is exactly its four write permissions",
-        "openhands": "Assert the OpenHands permission map is exactly its four permissions",
+        "openhands": "Assert the OpenHands permission map is exactly its five permissions",
         "org-admin": "Assert the org-admin permission map is exactly organization_administration:write",
         "org-secrets": "Assert the org-secrets permission map is exactly organization_secrets:write",
         "org-variables": (
