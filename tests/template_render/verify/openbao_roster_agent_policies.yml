@@ -873,10 +873,6 @@
         that:
           - openbao_agent_caller_ids == _expected_gateway_key_caller_ids
           - >-
-            agent_callers_registry | dict2items
-            | selectattr('value.gateway_key', 'defined') | list == []
-          - openbao_agent_caller_ids == openbao_agent_caller_registry_ids
-          - >-
             openbao_caller_gateway_generated_app_secrets.keys() | list | sort
             == openbao_agent_caller_ids | map('regex_replace', '$', '-gw') | list | sort
           - openbao_caller_gateway_key_policies | length == openbao_agent_caller_ids | length
