@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.122.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.121.0...v0.122.0) (2026-11-16)
+
+
+### Features
+
+* **openbao:** add a read-only YouTrack window service ([#784](https://github.com/jpe-ansible/ansible-secrets-management/issues/784)) ([144a4fd](https://github.com/jpe-ansible/ansible-secrets-management/commit/144a4fdfff307b9280215287caa4f60260811a44))
+
 ## [0.121.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.120.2...v0.121.0) (2026-11-16)
 
 
