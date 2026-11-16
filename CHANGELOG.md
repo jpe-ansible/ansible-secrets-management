@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.119.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.118.0...v0.119.0) (2026-11-16)
+
+
+### Features
+
+* **openbao:** let the local-llm identity read the Z.ai external leaf ([#758](https://github.com/jpe-ansible/ansible-secrets-management/issues/758)) ([54eaebf](https://github.com/jpe-ansible/ansible-secrets-management/commit/54eaebfedff6e7ce1c94bc072a76c359fb2cd510))
+
 ## [0.118.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.117.1...v0.118.0) (2026-11-15)
 
 
