@@ -43,7 +43,7 @@ def test_ci_ai_review_role_uses_the_required_bounds_and_enterprise_claim():
 
     assert defaults["openbao_ci_ai_review_policy_name"] == "ci-ai-review"
     assert defaults["openbao_ci_ai_review_job_workflow_ref"] == (
-        "JacobPEvans/.github-ai/.github/workflows/ai-review.yml@refs/tags/v1"
+        "JacobPEvans/.github-ai/.github/workflows/verdict.yml@refs/tags/v2"
     )
     assert defaults["openbao_ci_ai_review_enterprise_id"] == (
         "{{ openbao_platform_env['OPENBAO_GITHUB_ENTERPRISE_ID'] | default('', true) }}"
