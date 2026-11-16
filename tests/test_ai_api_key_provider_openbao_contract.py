@@ -111,7 +111,7 @@ def test_legacy_internal_provider_area_remains_denied():
     ]
 
 
-def test_local_llm_reads_only_the_qwencloud_external_data_leaf():
+def test_local_llm_reads_only_the_declared_external_data_leaves():
     declarations = _policy_grants(_render_local_llm_policy())
     grants = dict(declarations)
     external_paths = [
@@ -124,6 +124,7 @@ def test_local_llm_reads_only_the_qwencloud_external_data_leaf():
         "secret/data/ai/saas/*",
         "secret/metadata/ai/saas/*",
         "secrets-external/data/ai/saas/qwencloud",
+        "secrets-external/data/ai/saas/zai",
         "secret/data/ai/clickhouse",
         "secret/metadata/ai/clickhouse",
         "secret/data/ai/clickhouse-ingest",
@@ -131,8 +132,13 @@ def test_local_llm_reads_only_the_qwencloud_external_data_leaf():
         "secret/data/ai/clickhouse-wall",
         "secret/metadata/ai/clickhouse-wall",
     ]
-    assert external_paths == ["secrets-external/data/ai/saas/qwencloud"]
-    assert grants["secrets-external/data/ai/saas/qwencloud"] == ["read"]
+    assert external_paths == [
+        "secrets-external/data/ai/saas/qwencloud",
+        "secrets-external/data/ai/saas/zai",
+    ]
+    assert {path: grants[path] for path in external_paths} == {
+        path: ["read"] for path in external_paths
+    }
 
 
 def test_qwencloud_external_secret_promotes_only_the_known_verbatim_fields():
