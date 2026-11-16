@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.120.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.120.0...v0.120.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* **openbao:** omit the OpenHands pilot set unless exactly one repository is given ([#772](https://github.com/jpe-ansible/ansible-secrets-management/issues/772)) ([8f1a36f](https://github.com/jpe-ansible/ansible-secrets-management/commit/8f1a36fc17b1c743d1a1b3801e07f0b3c4c028ea))
+
 ## [0.120.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.119.0...v0.120.0) (2026-11-16)
 
 
