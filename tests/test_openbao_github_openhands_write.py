@@ -170,12 +170,14 @@ def test_write_sets_are_exact_org_scoped_and_omitted_without_inputs():
         **engine,
         "openbao_github_openhands_installation_id": "303",
         "openbao_github_openhands_app_id": "12345",
+        "openbao_github_openhands_pilot_repos": ["fixture-repo"],
     }
     pilot_sets = _render(
         engine["openbao_github_openhands_permission_sets"], engine_values
     )
     assert len(pilot_sets) == 1
     assert pilot_sets[0]["name"] == "openhands-pilot"
+    assert pilot_sets[0]["repositories"] == ["fixture-repo"]
 
 
 def test_openhands_write_policy_is_only_declared_for_configured_sets():
