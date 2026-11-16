@@ -248,6 +248,7 @@ class SelectedPolicyLoops(unittest.TestCase):
             [
                 "Assert every Terrakube workspace policy names the workspace it points at",
                 "Assert no AI domain name is a wildcard or the all rollup",
+                "Assert every KV rotation target renders only exact policy paths",
             ],
         )
         self.assertTrue(all(task.get("run_once") for task in tasks))

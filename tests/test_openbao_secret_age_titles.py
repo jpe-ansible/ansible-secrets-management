@@ -42,6 +42,6 @@ def test_due_digest_count_follows_its_stable_title() -> None:
     match = re.search(r'ntfy_send default key "([^"]+)"', script)
 
     assert match is not None
-    assert match.group(1).replace("${due_count}", "52") == (
+    assert match.group(1).replace("${daily_count}", "52") == (
         "secret rotation due — 52 item(s)"
     )

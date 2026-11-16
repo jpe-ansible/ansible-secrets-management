@@ -28,6 +28,7 @@
     openbao_api_port: 8200
     openbao_secret_age_schedule: "*-*-* 06:05:00 UTC"
     openbao_secret_age_target_days: 30
+    openbao_secret_age_warn_days: 40
     openbao_secret_age_max_days: 47
     openbao_secret_age_report_path: "{{ fixture_dir }}/secret-age.json"
     openbao_secret_age_ntfy_url: "https://ntfy.example.test/secrets-security"
@@ -147,12 +148,14 @@
           - _case_b2.rc == 0
           - >-
             _calls.splitlines()
-            | select('match', '^ntfy title=secrets overdue — 2 item\(s\)$')
+            | select('match', '^ntfy title=secrets overdue — 2 item\(s\) body=')
             | list | length == 1
           - >-
             _calls.splitlines()
             | select('match', '^ntfy title=secret overdue: ')
             | list | length == 0
+          - "'Due for rotation (at least 30 days)' in _calls"
+          - "'Due soon, rotation should have run (at least 40 days)' in _calls"
         fail_msg: >-
           The 2 overdue items (apps/overdue-app#password, test-role) must
           page as exactly ONE digest titled "secrets overdue — 2 item(s)" —

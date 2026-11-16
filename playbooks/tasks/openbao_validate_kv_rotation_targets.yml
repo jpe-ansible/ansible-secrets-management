@@ -1,0 +1,233 @@
+---
+- name: Assert KV rotation targets are a list
+  ansible.builtin.assert:
+    that:
+      - openbao_kv_rotation_targets is sequence
+      - openbao_kv_rotation_targets is not string
+    fail_msg: OPENBAO_KV_ROTATION_TARGETS must be a JSON list.
+    quiet: true
+
+- name: Assert each KV rotation target is a mapping
+  ansible.builtin.assert:
+    that:
+      - >-
+        (openbao_kv_rotation_targets | select('mapping') | list | length)
+        == (openbao_kv_rotation_targets | length)
+    fail_msg: Every KV rotation target must be a JSON object.
+    quiet: true
+
+- name: Validate each KV rotation target schema
+  vars:
+    _generate: >-
+      {{ rotate_kv_target.get('generate', {})
+         if rotate_kv_target.get('generate', {}) is mapping else {} }}
+    _admin_credential: >-
+      {{ _generate.get('admin_credential', {})
+         if _generate.get('admin_credential', {}) is mapping else {} }}
+    _push: >-
+      {{ rotate_kv_target.get('push', {})
+         if rotate_kv_target.get('push', {}) is mapping else {} }}
+    _probe: >-
+      {{ rotate_kv_target.get('probe', {})
+         if rotate_kv_target.get('probe', {}) is mapping else {} }}
+    _invalidate: >-
+      {{ rotate_kv_target.get('invalidate', {})
+         if rotate_kv_target.get('invalidate', {}) is mapping else {} }}
+    _old_dead_status: "{{ rotate_kv_target.get('old_dead_status', []) }}"
+    _old_dead_status_length: >-
+      {{ _old_dead_status | length
+         if _old_dead_status is sequence and _old_dead_status is not string else 0 }}
+    _row_name: "{{ rotate_kv_target.get('name', '') | default('unnamed', true) }}"
+    _secret_urls: >-
+      {{ [_generate.get('url', ''), _probe.get('url', ''), _invalidate.get('url', '')]
+         | map('string') | list }}
+  ansible.builtin.assert:
+    that:
+      - rotate_kv_target.get('name', '') is string
+      - rotate_kv_target.get('name', '') is match('^[a-z0-9-]+$')
+      - >-
+        rotate_kv_target.get('mount', '') is string
+        and rotate_kv_target.get('mount', '') is match('^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$')
+        and '..' not in rotate_kv_target.get('mount', '').split('/')
+      - >-
+        rotate_kv_target.get('path', '') is string
+        and rotate_kv_target.get('path', '') is match('^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$')
+        and '..' not in rotate_kv_target.get('path', '').split('/')
+      - >-
+        rotate_kv_target.get('field', '') is string
+        and rotate_kv_target.get('field', '') is match('^[A-Za-z0-9._-]+$')
+      - rotate_kv_target.get('generate') is mapping
+      - _generate.get('kind', '') in ['random', 'vendor_roll']
+      - >-
+        _generate.get('kind') != 'random'
+        or (_generate.get('length', 40) is integer and (_generate.get('length', 40) | int) > 0)
+      - >-
+        _generate.get('kind') != 'vendor_roll'
+        or (
+          _generate.get('url', '') is string
+          and _generate.get('url', '') | length > 0
+          and _generate.get('method', '') | length > 0
+          and _generate.get('headers', {}) is mapping
+          and _generate.get('value_from', '') | length > 0
+          and _generate.get('admin_credential', {}) is mapping
+          and _admin_credential.get('mount', '') is string
+          and _admin_credential.get('mount', '') is match('^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$')
+          and '..' not in _admin_credential.get('mount', '').split('/')
+          and _admin_credential.get('path', '') is string
+          and _admin_credential.get('path', '') is match('^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$')
+          and '..' not in _admin_credential.get('path', '').split('/')
+          and _admin_credential.get('field', '') is string
+          and _admin_credential.get('field', '') is match('^[A-Za-z0-9._-]+$')
+        )
+      - >-
+        _generate.get('kind') != 'vendor_roll'
+        or '__ADMIN_CREDENTIAL__' in (_generate.get('url', '') | string)
+        or '__ADMIN_CREDENTIAL__' in (_generate.get('headers', {}) | to_json)
+        or '__ADMIN_CREDENTIAL__' in (_generate.get('body', {}) | to_json)
+      - rotate_kv_target.get('push') is mapping
+      - _push.get('kind', '') in ['none', 'semaphore', 'terrakube']
+      - >-
+        _push.get('kind') != 'semaphore'
+        or (
+          (
+            (_push.get('project_id') is integer
+             and _push.get('project_id') is not boolean
+             and _push.get('project_id') > 0)
+            or (_push.get('project_id') is string
+                and _push.get('project_id') is match('^[0-9]+$')
+                and (_push.get('project_id') | int) > 0)
+          )
+          and (
+            (_push.get('template_id') is integer
+             and _push.get('template_id') is not boolean
+             and _push.get('template_id') > 0)
+            or (_push.get('template_id') is string
+                and _push.get('template_id') is match('^[0-9]+$')
+                and (_push.get('template_id') | int) > 0)
+          )
+        )
+      - >-
+        _push.get('kind') != 'terrakube'
+        or (_push.get('organization_id', '') | length > 0 and _push.get('workspace_id', '') | length > 0)
+      - >-
+        _push.get('kind') != 'semaphore'
+        or _push.get('extra_args', '') is string
+      - _push.get('consumer_reads_openbao', false) is boolean
+      - rotate_kv_target.get('probe') is mapping
+      - _probe.get('url', '') is string and _probe.get('url', '') | length > 0
+      - _probe.get('method', '') | length > 0
+      - _probe.get('expect_status') is integer
+      - >-
+        _probe.get('expect_status') is not integer
+        or (100 <= _probe.get('expect_status') <= 599)
+      - _probe.get('headers', {}) is mapping
+      - rotate_kv_target.get('invalidate') is mapping
+      - _invalidate.get('kind', '') in ['none', 'http']
+      - >-
+        _invalidate.get('kind') != 'http'
+        or (
+          _invalidate.get('url', '') is string
+          and _invalidate.get('url', '') | length > 0
+          and _invalidate.get('method', '') | length > 0
+          and _invalidate.get('headers', {}) is mapping
+          and _invalidate.get('expect_status') is integer
+          and (100 <= _invalidate.get('expect_status') <= 599)
+        )
+      - >-
+        _old_dead_status is sequence and _old_dead_status is not string
+        and (_old_dead_status | select('integer') | list | length) == (_old_dead_status | length)
+        and (_old_dead_status | select('lt', 100) | list | length) == 0
+        and (_old_dead_status | select('gt', 599) | list | length) == 0
+      - >-
+        (_old_dead_status_length > 0
+        or (_invalidate.get('kind') == 'none' and _push.get('kind') != 'none')
+        )
+      - >-
+        _invalidate.get('kind') != 'none'
+        or (
+          _old_dead_status is sequence
+          and _old_dead_status is not string
+          and _old_dead_status_length == 0
+        )
+      - >-
+        not (_invalidate.get('kind') == 'http' and _push.get('kind') == 'none')
+        or _push.get('consumer_reads_openbao', false) is sameas true
+      - >-
+        rotate_kv_target.get('secret_in_url', false) is boolean
+        and (
+          rotate_kv_target.get('secret_in_url', false) is sameas true
+          or (_secret_urls | select('search', '__ADMIN_CREDENTIAL__|__VALUE__|__OLD__|__NEW__')
+              | list | length == 0)
+        )
+    fail_msg: >-
+      KV rotation target {{ _row_name }} is invalid.
+      Check required keys, segment-safe paths, push IDs and mappings, URL secrets,
+      consumer behavior, allowed kinds, and old-value invalidation proof.
+    quiet: true
+  loop: "{{ openbao_kv_rotation_targets }}"
+  loop_control:
+    loop_var: rotate_kv_target
+    label: "{{ rotate_kv_target.name | default('unnamed', true) }}"
+
+- name: Assert KV rotation target names are unique
+  ansible.builtin.assert:
+    that:
+      - >-
+        (openbao_kv_rotation_targets | map(attribute='name') | list | unique | length)
+        == (openbao_kv_rotation_targets | length)
+    fail_msg: KV rotation target names must be unique.
+    quiet: true
+
+- name: Assert Semaphore token path is empty or complete
+  vars:
+    _token_path: "{{ openbao_kv_rotation_semaphore_token if openbao_kv_rotation_semaphore_token is mapping else {} }}"
+    _target_names: >-
+      {{ openbao_kv_rotation_targets | selectattr('push.kind', 'equalto', 'semaphore')
+         | map(attribute='name', default='unnamed') | list | join(', ')
+         | default('none declared', true) }}
+  ansible.builtin.assert:
+    that:
+      - openbao_kv_rotation_semaphore_token is mapping
+      - >-
+        (_token_path | length == 0)
+        or (
+          _token_path.get('mount', '') is string
+          and _token_path.get('mount', '') is match('^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$')
+          and '..' not in _token_path.get('mount', '').split('/')
+          and _token_path.get('path', '') is string
+          and _token_path.get('path', '') is match('^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$')
+          and '..' not in _token_path.get('path', '').split('/')
+          and _token_path.get('field', '') is string
+          and _token_path.get('field', '') is match('^[A-Za-z0-9._-]+$')
+        )
+    fail_msg: >-
+      KV rotation target {{ _target_names | default('none declared', true) }}: Semaphore token KV reference
+      must be empty or contain segment-safe mount, path, and field values.
+    quiet: true
+
+- name: Assert Terrakube token path is empty or complete
+  vars:
+    _token_path: "{{ openbao_kv_rotation_terrakube_token if openbao_kv_rotation_terrakube_token is mapping else {} }}"
+    _target_names: >-
+      {{ openbao_kv_rotation_targets | selectattr('push.kind', 'equalto', 'terrakube')
+         | map(attribute='name', default='unnamed') | list | join(', ')
+         | default('none declared', true) }}
+  ansible.builtin.assert:
+    that:
+      - openbao_kv_rotation_terrakube_token is mapping
+      - >-
+        (_token_path | length == 0)
+        or (
+          _token_path.get('mount', '') is string
+          and _token_path.get('mount', '') is match('^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$')
+          and '..' not in _token_path.get('mount', '').split('/')
+          and _token_path.get('path', '') is string
+          and _token_path.get('path', '') is match('^[A-Za-z0-9._-]+(/[A-Za-z0-9._-]+)*$')
+          and '..' not in _token_path.get('path', '').split('/')
+          and _token_path.get('field', '') is string
+          and _token_path.get('field', '') is match('^[A-Za-z0-9._-]+$')
+        )
+    fail_msg: >-
+      KV rotation target {{ _target_names | default('none declared', true) }}: Terrakube token KV reference
+      must be empty or contain segment-safe mount, path, and field values.
+    quiet: true

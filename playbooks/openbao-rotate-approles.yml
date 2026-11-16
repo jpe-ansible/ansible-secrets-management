@@ -98,6 +98,9 @@
     # human-gated run; an unattended run fails that identity. Scheduled rotation
     # never touches these identities.
     bootstrap_seed_only: false
+    # KV targets are selected by name, comma-separated text, or the literal
+    # `all`; an empty value lets each row use its declared age only.
+    rotate_kv_targets: []
 
   # The harness caller registry, loaded the way roles/openbao's meta dependency
   # loads it. Without it openbao_agent_caller_ids is empty here, so the
@@ -192,17 +195,51 @@
           OPENBAO_ROTATE_DOPPLER_CONFIG in config/platform/ansible/env, or run
           under `doppler run -p <project> -c <config> -- ...`.
         quiet: true
-      when: not (bootstrap_seed_only | bool)
+      when:
+        - not (bootstrap_seed_only | bool)
+        - not ansible_check_mode
+
+    - name: Validate environment-provided KV rotation targets
+      ansible.builtin.include_tasks: tasks/openbao_validate_kv_rotation_targets.yml
+      when: openbao_kv_rotation_targets != []
+
+    - name: Resolve requested KV targets
+      ansible.builtin.set_fact:
+        rotate_kv_targets_normalized: >-
+          {{ (rotate_kv_targets.split(',') | map('trim') | reject('equalto', '') | list)
+             if rotate_kv_targets is string else rotate_kv_targets }}
+        rotate_failed_kv_targets: []
+        rotate_kv_due_target_names: []
+        rotate_kv_metadata_updated_time_by_path: {}
+
+    - name: Refuse an invalid KV target selection
+      ansible.builtin.assert:
+        that:
+          - rotate_kv_targets_normalized is sequence
+          - rotate_kv_targets_normalized is not string
+          - >-
+            (rotate_kv_targets_normalized | reject('equalto', 'all')
+             | reject('in', openbao_kv_rotation_targets | map(attribute='name') | list)
+             | list | length) == 0
+        fail_msg: rotate_kv_targets must name declared targets or use all.
+        quiet: true
 
     - name: Explain that AppRole rotation has no check-mode dry run
       ansible.builtin.debug:
         msg: AppRole rotation has no dry run because it consumes single-use credentials.
-      when: ansible_check_mode
+      when:
+        - ansible_check_mode
+        - openbao_kv_rotation_targets | length == 0
 
-    - name: End AppRole rotation in check mode before using credentials
+    - name: End check mode before credentials when no KV targets are configured
       ansible.builtin.meta: end_play
-      when: ansible_check_mode
+      when:
+        - ansible_check_mode
+        - openbao_kv_rotation_targets | length == 0
 
+    # Check mode needs an authenticated metadata read to list due KV target
+    # names. In human mode that consumes the supplied wrap, then check mode
+    # ends before any AppRole or KV value read/write.
     - name: Unwrap the single-use secret_id (human mode)
       ansible.builtin.uri:
         url: "{{ rotate_bao_addr }}/v1/sys/wrapping/unwrap"
@@ -212,6 +249,7 @@
         status_code: 200
       register: rotate_unwrap
       changed_when: false
+      check_mode: false
       no_log: true
       when: rotate_human_mode | bool
 
@@ -235,6 +273,7 @@
         status_code: 200
       register: rotate_login
       changed_when: false
+      check_mode: false
       no_log: true
       when: not (rotate_preissued_mode | bool)
 
@@ -246,6 +285,7 @@
         status_code: 200
       register: rotate_preissued_lookup
       changed_when: false
+      check_mode: false
       no_log: true
       when: rotate_preissued_mode | bool
 
@@ -269,6 +309,36 @@
               client_token: "{{ rotate_preissued_token }}"
       no_log: true
       when: rotate_preissued_mode | bool
+
+    - name: Read KV metadata only to list due targets in check mode
+      ansible.builtin.include_tasks: tasks/openbao_rotate_kv_target.yml
+      loop: "{{ openbao_kv_rotation_targets }}"
+      loop_control:
+        loop_var: rotate_kv_target
+        label: "{{ rotate_kv_target.name }}"
+      when:
+        - ansible_check_mode
+        - openbao_kv_rotation_targets | length > 0
+
+    - name: List due KV targets in check mode
+      ansible.builtin.debug:
+        msg: >-
+          Due KV targets: {{ rotate_kv_due_target_names | join(', ')
+                             if rotate_kv_due_target_names | length > 0 else 'none' }}
+      when: ansible_check_mode
+
+    - name: Fail check mode when KV metadata could not be read
+      ansible.builtin.fail:
+        msg: >-
+          KV metadata check failed for {{ rotate_failed_kv_targets
+             | map(attribute='name') | list | join(', ') }}.
+      when:
+        - ansible_check_mode
+        - rotate_failed_kv_targets | length > 0
+
+    - name: End check mode before reading any KV value
+      ansible.builtin.meta: end_play
+      when: ansible_check_mode
 
     - name: Probe the roster key-reader AppRoles
       ansible.builtin.include_tasks: tasks/rotate-roster-probe.yml
@@ -340,6 +410,16 @@
       loop_control:
         loop_var: rotate_domain_name
 
+    - name: Rotate each due KV target in turn
+      ansible.builtin.include_tasks: tasks/openbao_rotate_kv_target.yml
+      loop: "{{ openbao_kv_rotation_targets }}"
+      loop_control:
+        loop_var: rotate_kv_target
+        label: "{{ rotate_kv_target.name }}"
+      when:
+        - not (bootstrap_seed_only | bool)
+        - openbao_kv_rotation_targets | length > 0
+
     - name: Say what must happen next
       ansible.builtin.debug:
         msg: >-
@@ -352,10 +432,12 @@
     # A domain that fails is recorded by the rescue in
     # tasks/openbao_rotate_one_domain.yml and the loop moves on. The run still
     # ends failed, with one stable message, so the failure alerts.
-    - name: Fail the run when any identity did not rotate
+    - name: Fail the run when any identity or KV target did not rotate
       ansible.builtin.fail:
         msg: >-
-          AppRole rotation failed for: {{ rotate_failed_domains | sort | join(', ') }}.
+          AppRole rotation failed for: {{ rotate_failed_domains | default([]) | sort | join(', ') }}.
+          KV target rotation failed for: {{ (rotate_failed_kv_targets | default([])
+            | map(attribute='name') | list | join(', ')) }}.
           {{ (
             'A human-gated run is required to re-seed ' ~
             (rotate_human_gated_seed_domains | default([]) | sort | join(', ')) ~
@@ -363,5 +445,6 @@
             'OPENBAO_ROTATE_TOKEN=$BAO_TOKEN ... ansible-playbook ' ~
             'playbooks/openbao-rotate-approles.yml -e bootstrap_seed_only=true`.'
           ) if (rotate_human_gated_seed_domains | default([]) | length > 0) else '' }}
-          The run continued for the other identities.
-      when: rotate_failed_domains | default([]) | length > 0
+          The run continued for the other identities and KV targets.
+      when:
+        - rotate_failed_domains | default([]) | length > 0 or rotate_failed_kv_targets | default([]) | length > 0

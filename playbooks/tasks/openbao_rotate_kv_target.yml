@@ -1,0 +1,594 @@
+---
+# One KV v2 field, invoked once per declared target. The metadata read is safe
+# in check mode; every value read/write and every consumer request is skipped.
+- name: Process one KV rotation target
+  vars:
+    rotate_kv_push_poll_delay_sec: 5
+  block:
+    - name: Read KV target metadata
+      ansible.builtin.uri:
+        url: >-
+          {{ rotate_bao_addr }}/v1/{{ rotate_kv_target.mount }}/metadata/{{ rotate_kv_target.path }}
+        method: GET
+        headers:
+          X-Vault-Token: "{{ rotate_login.json.auth.client_token }}"
+        status_code: 200
+      register: rotate_kv_metadata_read
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Keep the first observed updated time for each KV leaf
+      ansible.builtin.set_fact:
+        rotate_kv_metadata_updated_time_by_path: >-
+          {{ (rotate_kv_metadata_updated_time_by_path
+              | combine({(rotate_kv_target.mount ~ '/' ~ rotate_kv_target.path):
+                rotate_kv_metadata_read.json.data.updated_time}))
+             if (rotate_kv_target.mount ~ '/' ~ rotate_kv_target.path)
+                not in rotate_kv_metadata_updated_time_by_path
+             else rotate_kv_metadata_updated_time_by_path }}
+      no_log: true
+
+    - name: Compute KV target age
+      ansible.builtin.set_fact:
+        rotate_kv_target_age_seconds: >-
+          {{ ((now(utc=true, fmt='%Y-%m-%dT%H:%M:%SZ')
+                | to_datetime('%Y-%m-%dT%H:%M:%SZ'))
+              - ((rotate_kv_metadata_updated_time_by_path[
+                    rotate_kv_target.mount ~ '/' ~ rotate_kv_target.path]
+                   | regex_replace('\\.\\d+Z$', 'Z'))
+                  | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds() | int }}
+      no_log: true
+
+    - name: Decide whether the KV target is due
+      ansible.builtin.set_fact:
+        rotate_kv_target_is_due: >-
+          {{ ('all' in rotate_kv_targets_normalized)
+             or (rotate_kv_target.name in rotate_kv_targets_normalized)
+             or (rotate_kv_target_age_seconds
+                 >= (openbao_rotation_target_days | int) * 86400) }}
+      no_log: true
+
+    - name: Record due KV target name for check mode
+      ansible.builtin.set_fact:
+        rotate_kv_due_target_names: >-
+          {{ (rotate_kv_due_target_names | default([])) + [rotate_kv_target.name] }}
+      when:
+        - ansible_check_mode
+        - rotate_kv_target_is_due | bool
+
+    - name: Skip KV target that is not due
+      ansible.builtin.debug:
+        msg: "{{ rotate_kv_target.name }}: not due"
+      when:
+        - not (ansible_check_mode | bool)
+        - not (rotate_kv_target_is_due | bool)
+
+    - name: Require Semaphore push configuration before changing the KV leaf
+      ansible.builtin.assert:
+        that:
+          - openbao_kv_rotation_semaphore_token | length > 0
+          - lookup('env', 'SEMAPHORE_URL') | length > 0
+        fail_msg: >-
+          KV target {{ rotate_kv_target.name }} needs a Semaphore token KV reference
+          and SEMAPHORE_URL before it can be rotated.
+        quiet: true
+      when:
+        - rotate_kv_target_is_due | bool
+        - not (ansible_check_mode | bool)
+        - rotate_kv_target.push.kind == 'semaphore'
+
+    - name: Require Terrakube push configuration before changing the KV leaf
+      ansible.builtin.assert:
+        that:
+          - openbao_kv_rotation_terrakube_token | length > 0
+          - lookup('env', 'TERRAKUBE_URL') | length > 0
+        fail_msg: >-
+          KV target {{ rotate_kv_target.name }} needs a Terrakube token KV reference
+          and TERRAKUBE_URL before it can be rotated.
+        quiet: true
+      when:
+        - rotate_kv_target_is_due | bool
+        - not (ansible_check_mode | bool)
+        - rotate_kv_target.push.kind == 'terrakube'
+
+    - name: Rotate the due KV target
+      when:
+        - rotate_kv_target_is_due | bool
+        - not (ansible_check_mode | bool)
+      block:
+        - name: Read KV target data
+          ansible.builtin.uri:
+            url: >-
+              {{ rotate_bao_addr }}/v1/{{ rotate_kv_target.mount }}/data/{{ rotate_kv_target.path }}
+            method: GET
+            headers:
+              X-Vault-Token: "{{ rotate_login.json.auth.client_token }}"
+            status_code: 200
+          register: rotate_kv_data_read
+          changed_when: false
+          no_log: true
+
+        - name: Keep the current value and complete KV data map private
+          ansible.builtin.set_fact:
+            rotate_kv_old_value: "{{ rotate_kv_data_read.json.data.data[rotate_kv_target.field] }}"
+            rotate_kv_current_data: "{{ rotate_kv_data_read.json.data.data }}"
+          no_log: true
+
+        - name: Generate a random KV replacement
+          ansible.builtin.set_fact:
+            rotate_kv_new_value: >-
+              {{ lookup('community.general.random_string',
+                 length=rotate_kv_target.generate.length | default(40) | int,
+                 upper=true, numbers=true, special=false) }}
+          when: rotate_kv_target.generate.kind == 'random'
+          no_log: true
+
+        - name: Require a vendor admin credential placeholder
+          ansible.builtin.assert:
+            that:
+              - >-
+                '__ADMIN_CREDENTIAL__' in
+                ((rotate_kv_target.generate.headers | default({})) | to_json)
+                or '__ADMIN_CREDENTIAL__' in
+                ((rotate_kv_target.generate.body | default('')) | to_json)
+                or '__ADMIN_CREDENTIAL__' in (rotate_kv_target.generate.url | string)
+            fail_msg: >-
+              KV target {{ rotate_kv_target.name }} vendor_roll requires __ADMIN_CREDENTIAL__ in its URL, headers,
+              or body so the declared OpenBao admin credential is used.
+            quiet: true
+          when: rotate_kv_target.generate.kind == 'vendor_roll'
+          no_log: true
+
+        - name: Read the vendor admin credential
+          ansible.builtin.uri:
+            url: >-
+              {{ rotate_bao_addr }}/v1/{{ rotate_kv_target.generate.admin_credential.mount
+                 }}/data/{{ rotate_kv_target.generate.admin_credential.path }}
+            method: GET
+            headers:
+              X-Vault-Token: "{{ rotate_login.json.auth.client_token }}"
+            status_code: 200
+          register: rotate_kv_admin_credential_read
+          changed_when: false
+          when: rotate_kv_target.generate.kind == 'vendor_roll'
+          no_log: true
+
+        - name: Resolve the vendor admin credential
+          ansible.builtin.set_fact:
+            rotate_kv_admin_credential: >-
+              {{ rotate_kv_admin_credential_read.json.data.data[
+                 rotate_kv_target.generate.admin_credential.field] }}
+          when: rotate_kv_target.generate.kind == 'vendor_roll'
+          no_log: true
+
+        - name: Require a non-empty vendor admin credential
+          ansible.builtin.assert:
+            that:
+              - rotate_kv_admin_credential is string
+              - rotate_kv_admin_credential | length > 0
+            fail_msg: KV target vendor_roll admin credential is empty.
+            quiet: true
+          when: rotate_kv_target.generate.kind == 'vendor_roll'
+          no_log: true
+
+        - name: Prepare the vendor roll request
+          ansible.builtin.set_fact:
+            rotate_kv_vendor_headers: >-
+              {{ ((rotate_kv_target.generate.headers | default({}) | to_json)
+                  | replace('__ADMIN_CREDENTIAL__',
+                    rotate_kv_admin_credential | to_json | regex_replace('^"|"$', '')))
+                 | from_json }}
+            rotate_kv_vendor_url: >-
+              {{ rotate_kv_target.generate.url
+                 | replace('__ADMIN_CREDENTIAL__', rotate_kv_admin_credential | urlencode) }}
+            rotate_kv_vendor_body_format: >-
+              {{ 'json' if (rotate_kv_target.generate.body | default({}) is mapping
+                            or (rotate_kv_target.generate.body | default({}) is sequence
+                                and rotate_kv_target.generate.body | default({}) is not string))
+                 else 'raw' }}
+            rotate_kv_vendor_body: >-
+              {{ (((rotate_kv_target.generate.body | default({}) | to_json)
+                   | replace('__ADMIN_CREDENTIAL__',
+                     rotate_kv_admin_credential | to_json | regex_replace('^"|"$', '')))
+                  | from_json)
+                 if (rotate_kv_target.generate.body | default({}) is mapping
+                     or (rotate_kv_target.generate.body | default({}) is sequence
+                         and rotate_kv_target.generate.body | default({}) is not string))
+                 else (rotate_kv_target.generate.body | default('') | string
+                       | replace('__ADMIN_CREDENTIAL__', rotate_kv_admin_credential)) }}
+          when: rotate_kv_target.generate.kind == 'vendor_roll'
+          no_log: true
+
+        - name: Request a vendor-rolled replacement
+          ansible.builtin.uri:
+            url: "{{ rotate_kv_vendor_url }}"
+            method: "{{ rotate_kv_target.generate.method }}"
+            headers: "{{ rotate_kv_vendor_headers }}"
+            body_format: "{{ rotate_kv_vendor_body_format }}"
+            body: >-
+              {{ rotate_kv_vendor_body
+                 if rotate_kv_target.generate.body is defined else omit }}
+            status_code: [200, 201, 202]
+          register: rotate_kv_vendor_roll
+          when: rotate_kv_target.generate.kind == 'vendor_roll'
+          no_log: true
+
+        - name: Extract the vendor-rolled replacement
+          ansible.builtin.set_fact:
+            rotate_kv_new_value: >-
+              {{ rotate_kv_vendor_roll.json
+                 | community.general.json_query(rotate_kv_target.generate.value_from) }}
+          when: rotate_kv_target.generate.kind == 'vendor_roll'
+          no_log: true
+
+        - name: Require the generated KV replacement to be a non-empty string
+          ansible.builtin.assert:
+            that:
+              - rotate_kv_new_value is string
+              - rotate_kv_new_value | length > 0
+            fail_msg: KV target generation did not return a non-empty string.
+            quiet: true
+          no_log: true
+
+        - name: Merge the new value into the existing KV data map
+          ansible.builtin.set_fact:
+            rotate_kv_updated_data: >-
+              {{ rotate_kv_current_data
+                 | combine({rotate_kv_target.field: rotate_kv_new_value}) }}
+          no_log: true
+
+        - name: Write the KV replacement with compare-and-set
+          ansible.builtin.uri:
+            url: >-
+              {{ rotate_bao_addr }}/v1/{{ rotate_kv_target.mount }}/data/{{ rotate_kv_target.path }}
+            method: POST
+            headers:
+              X-Vault-Token: "{{ rotate_login.json.auth.client_token }}"
+            body_format: json
+            body:
+              data: "{{ rotate_kv_updated_data }}"
+              options:
+                cas: "{{ rotate_kv_metadata_read.json.data.current_version | int }}"
+            status_code: 200
+          register: rotate_kv_write
+          no_log: true
+
+        - name: Push the new value through Semaphore
+          when: rotate_kv_target.push.kind == 'semaphore'
+          block:
+            - name: Read the Semaphore API token
+              ansible.builtin.uri:
+                url: >-
+                  {{ rotate_bao_addr }}/v1/{{ openbao_kv_rotation_semaphore_token.mount
+                     }}/data/{{ openbao_kv_rotation_semaphore_token.path }}
+                method: GET
+                headers:
+                  X-Vault-Token: "{{ rotate_login.json.auth.client_token }}"
+                status_code: 200
+              register: rotate_kv_semaphore_token_read
+              changed_when: false
+              no_log: true
+
+            - name: Resolve the Semaphore API token
+              ansible.builtin.set_fact:
+                rotate_kv_semaphore_token: >-
+                  {{ rotate_kv_semaphore_token_read.json.data.data[
+                     openbao_kv_rotation_semaphore_token.field] }}
+              no_log: true
+
+            - name: Require a non-empty Semaphore API token
+              ansible.builtin.assert:
+                that:
+                  - rotate_kv_semaphore_token is string
+                  - rotate_kv_semaphore_token | length > 0
+                fail_msg: KV target Semaphore token field is empty.
+                quiet: true
+              no_log: true
+
+            - name: Build the Semaphore task request
+              ansible.builtin.set_fact:
+                rotate_kv_semaphore_task_body: >-
+                  {{ {'template_id': rotate_kv_target.push.template_id | int}
+                     | combine({'arguments': rotate_kv_target.push.extra_args}
+                       if rotate_kv_target.push.extra_args is defined else {}) }}
+              no_log: true
+
+            - name: Start the Semaphore template task
+              ansible.builtin.uri:
+                url: >-
+                  {{ lookup('env', 'SEMAPHORE_URL') ~ '/api/project/'
+                     ~ rotate_kv_target.push.project_id ~ '/tasks' }}
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ rotate_kv_semaphore_token }}"
+                  Content-Type: application/json
+                body_format: json
+                body: "{{ rotate_kv_semaphore_task_body }}"
+                status_code: [200, 201]
+                timeout: 5
+              register: rotate_kv_semaphore_task_create
+              no_log: true
+
+            - name: Wait for the Semaphore task to finish
+              ansible.builtin.uri:
+                url: >-
+                  {{ lookup('env', 'SEMAPHORE_URL') ~ '/api/project/'
+                     ~ rotate_kv_target.push.project_id ~ '/tasks/'
+                     ~ rotate_kv_semaphore_task_create.json.id }}
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ rotate_kv_semaphore_token }}"
+                status_code: 200
+              register: rotate_kv_semaphore_task_poll
+              until: >-
+                rotate_kv_semaphore_task_poll.json.status | lower
+                in ['success', 'error', 'stopped']
+              retries: "{{ (openbao_kv_rotation_push_timeout_sec | int) // rotate_kv_push_poll_delay_sec }}"
+              delay: "{{ rotate_kv_push_poll_delay_sec }}"
+              timeout: 10
+              no_log: true
+
+            - name: Require Semaphore task success
+              ansible.builtin.assert:
+                that:
+                  - rotate_kv_semaphore_task_poll.json.status | lower == 'success'
+                fail_msg: KV target Semaphore push task did not succeed.
+                quiet: true
+              no_log: true
+
+        - name: Push the new value through Terrakube
+          when: rotate_kv_target.push.kind == 'terrakube'
+          block:
+            - name: Read the Terrakube API token
+              ansible.builtin.uri:
+                url: >-
+                  {{ rotate_bao_addr }}/v1/{{ openbao_kv_rotation_terrakube_token.mount
+                     }}/data/{{ openbao_kv_rotation_terrakube_token.path }}
+                method: GET
+                headers:
+                  X-Vault-Token: "{{ rotate_login.json.auth.client_token }}"
+                status_code: 200
+              register: rotate_kv_terrakube_token_read
+              changed_when: false
+              no_log: true
+
+            - name: Resolve the Terrakube API token
+              ansible.builtin.set_fact:
+                rotate_kv_terrakube_token: >-
+                  {{ rotate_kv_terrakube_token_read.json.data.data[
+                     openbao_kv_rotation_terrakube_token.field] }}
+              no_log: true
+
+            - name: Require a non-empty Terrakube API token
+              ansible.builtin.assert:
+                that:
+                  - rotate_kv_terrakube_token is string
+                  - rotate_kv_terrakube_token | length > 0
+                fail_msg: KV target Terrakube token field is empty.
+                quiet: true
+              no_log: true
+
+            - name: Start the Terrakube apply job
+              ansible.builtin.uri:
+                url: >-
+                  {{ lookup('env', 'TERRAKUBE_URL') ~ '/api/v1/organization/'
+                     ~ rotate_kv_target.push.organization_id ~ '/job' }}
+                method: POST
+                headers:
+                  Authorization: "Bearer {{ rotate_kv_terrakube_token }}"
+                  Content-Type: application/vnd.api+json
+                body_format: json
+                body:
+                  data:
+                    type: job
+                    attributes:
+                      templateReference: Plan and apply
+                    relationships:
+                      workspace:
+                        data:
+                          type: workspace
+                          id: "{{ rotate_kv_target.push.workspace_id }}"
+                status_code: [200, 201, 202]
+                timeout: 5
+              register: rotate_kv_terrakube_job_create
+              no_log: true
+
+            - name: Wait for the Terrakube job to finish
+              ansible.builtin.uri:
+                url: >-
+                  {{ lookup('env', 'TERRAKUBE_URL') ~ '/api/v1/organization/'
+                     ~ rotate_kv_target.push.organization_id ~ '/job/'
+                     ~ rotate_kv_terrakube_job_create.json.data.id }}
+                method: GET
+                headers:
+                  Authorization: "Bearer {{ rotate_kv_terrakube_token }}"
+                status_code: 200
+              register: rotate_kv_terrakube_job_poll
+              until: >-
+                rotate_kv_terrakube_job_poll.json.data.attributes.status | lower
+                in ['completed', 'failed', 'rejected', 'cancelled']
+              retries: "{{ (openbao_kv_rotation_push_timeout_sec | int) // rotate_kv_push_poll_delay_sec }}"
+              delay: "{{ rotate_kv_push_poll_delay_sec }}"
+              timeout: 10
+              no_log: true
+
+            - name: Require Terrakube job completion
+              ansible.builtin.assert:
+                that:
+                  - rotate_kv_terrakube_job_poll.json.data.attributes.status | lower == 'completed'
+                fail_msg: KV target Terrakube push job did not complete successfully.
+                quiet: true
+              no_log: true
+
+        - name: Prepare the new-value probe request
+          ansible.builtin.set_fact:
+            rotate_kv_new_probe_headers: >-
+              {{ ((rotate_kv_target.probe.headers | default({}) | to_json)
+                  | replace('__VALUE__', rotate_kv_new_value | to_json
+                    | regex_replace('^"|"$', '')))
+                 | from_json }}
+            rotate_kv_new_probe_body_format: >-
+              {{ 'json' if (rotate_kv_target.probe.body | default({}) is mapping
+                            or (rotate_kv_target.probe.body | default({}) is sequence
+                                and rotate_kv_target.probe.body | default({}) is not string))
+                 else 'raw' }}
+            rotate_kv_new_probe_body: >-
+              {{ (((rotate_kv_target.probe.body | default({}) | to_json)
+                   | replace('__VALUE__', rotate_kv_new_value | to_json
+                     | regex_replace('^"|"$', '')))
+                  | from_json)
+                 if (rotate_kv_target.probe.body | default({}) is mapping
+                     or (rotate_kv_target.probe.body | default({}) is sequence
+                         and rotate_kv_target.probe.body | default({}) is not string))
+                 else (rotate_kv_target.probe.body | default('') | string
+                       | replace('__VALUE__', rotate_kv_new_value)) }}
+          no_log: true
+
+        - name: Probe the replacement value
+          ansible.builtin.uri:
+            url: "{{ rotate_kv_target.probe.url | replace('__VALUE__', rotate_kv_new_value | urlencode) }}"
+            method: "{{ rotate_kv_target.probe.method }}"
+            headers: "{{ rotate_kv_new_probe_headers }}"
+            body_format: "{{ rotate_kv_new_probe_body_format }}"
+            body: >-
+              {{ rotate_kv_new_probe_body
+                 if rotate_kv_target.probe.body is defined else omit }}
+            status_code: "{{ rotate_kv_target.probe.expect_status }}"
+          register: rotate_kv_new_probe
+          no_log: true
+
+        - name: Prepare the invalidation request body
+          ansible.builtin.set_fact:
+            rotate_kv_invalidate_body_format: >-
+              {{ 'json' if (rotate_kv_target.invalidate.body | default({}) is mapping
+                            or (rotate_kv_target.invalidate.body | default({}) is sequence
+                                and rotate_kv_target.invalidate.body | default({}) is not string))
+                 else 'raw' }}
+            rotate_kv_invalidate_body: >-
+              {{ (((rotate_kv_target.invalidate.body | default({}) | to_json)
+                   | replace('__OLD__', rotate_kv_old_value | to_json | regex_replace('^"|"$', ''))
+                   | replace('__NEW__', rotate_kv_new_value | to_json | regex_replace('^"|"$', '')))
+                  | from_json)
+                 if (rotate_kv_target.invalidate.body | default({}) is mapping
+                     or (rotate_kv_target.invalidate.body | default({}) is sequence
+                         and rotate_kv_target.invalidate.body | default({}) is not string))
+                 else (rotate_kv_target.invalidate.body | default('') | string
+                       | replace('__OLD__', rotate_kv_old_value)
+                       | replace('__NEW__', rotate_kv_new_value)) }}
+          when: rotate_kv_target.invalidate.kind == 'http'
+          no_log: true
+
+        - name: Invalidate the previous value
+          ansible.builtin.uri:
+            url: >-
+              {{ rotate_kv_target.invalidate.url
+                 | replace('__OLD__', rotate_kv_old_value | urlencode)
+                 | replace('__NEW__', rotate_kv_new_value | urlencode) }}
+            method: "{{ rotate_kv_target.invalidate.method }}"
+            headers: >-
+              {{ (rotate_kv_target.invalidate.headers | default({}) | to_json
+                  | replace('__OLD__', rotate_kv_old_value | to_json | regex_replace('^"|"$', ''))
+                  | replace('__NEW__', rotate_kv_new_value | to_json | regex_replace('^"|"$', '')))
+                 | from_json }}
+            body_format: "{{ rotate_kv_invalidate_body_format }}"
+            body: >-
+              {{ rotate_kv_invalidate_body
+                 if rotate_kv_target.invalidate.body is defined else omit }}
+            status_code: "{{ rotate_kv_target.invalidate.expect_status }}"
+          register: rotate_kv_invalidate
+          when: rotate_kv_target.invalidate.kind == 'http'
+          no_log: true
+
+        - name: Prepare the old-value probe request
+          ansible.builtin.set_fact:
+            rotate_kv_old_probe_headers: >-
+              {{ ((rotate_kv_target.probe.headers | default({}) | to_json)
+                  | replace('__VALUE__', rotate_kv_old_value | to_json
+                    | regex_replace('^"|"$', '')))
+                 | from_json }}
+            rotate_kv_old_probe_body_format: >-
+              {{ 'json' if (rotate_kv_target.probe.body | default({}) is mapping
+                            or (rotate_kv_target.probe.body | default({}) is sequence
+                                and rotate_kv_target.probe.body | default({}) is not string))
+                 else 'raw' }}
+            rotate_kv_old_probe_body: >-
+              {{ (((rotate_kv_target.probe.body | default({}) | to_json)
+                   | replace('__VALUE__', rotate_kv_old_value | to_json
+                     | regex_replace('^"|"$', '')))
+                  | from_json)
+                 if (rotate_kv_target.probe.body | default({}) is mapping
+                     or (rotate_kv_target.probe.body | default({}) is sequence
+                         and rotate_kv_target.probe.body | default({}) is not string))
+                 else (rotate_kv_target.probe.body | default('') | string
+                       | replace('__VALUE__', rotate_kv_old_value)) }}
+          when: rotate_kv_target.old_dead_status | default([]) | length > 0
+          no_log: true
+
+        - name: Probe that the previous value is dead
+          ansible.builtin.uri:
+            url: "{{ rotate_kv_target.probe.url | replace('__VALUE__', rotate_kv_old_value | urlencode) }}"
+            method: "{{ rotate_kv_target.probe.method }}"
+            headers: "{{ rotate_kv_old_probe_headers }}"
+            body_format: "{{ rotate_kv_old_probe_body_format }}"
+            body: >-
+              {{ rotate_kv_old_probe_body
+                 if rotate_kv_target.probe.body is defined else omit }}
+            status_code: "{{ rotate_kv_target.old_dead_status }}"
+          register: rotate_kv_old_probe
+          when: rotate_kv_target.old_dead_status | default([]) | length > 0
+          no_log: true
+
+  rescue:
+    - name: Record KV target failure without retaining a value
+      ansible.builtin.set_fact:
+        rotate_failed_kv_targets: >-
+          {{ (rotate_failed_kv_targets | default([]))
+             + [{'name': rotate_kv_target.name,
+                 'step': ansible_failed_task.name | default('unknown step')}] }}
+
+    - name: Build a value-free KV rotation failure notice
+      ansible.builtin.set_fact:
+        rotate_kv_failure_notice: >-
+          {{ ('<@' ~ (lookup('env', 'SLACK_MEMBER_ID') | trim) ~ '> '
+              if (lookup('env', 'SLACK_MEMBER_ID') | trim | length > 0) else '')
+             ~ 'KV rotation failed for ' ~ rotate_kv_target.name ~ ' at step '
+             ~ (ansible_failed_task.name | default('unknown step')) ~
+             '. The previous KV version remains available; nothing is automatically reverted.'
+             ~ (('\n' ~ lookup('env', 'SECRET_AGE_DASHBOARD_URL') | trim)
+                if (lookup('env', 'SECRET_AGE_DASHBOARD_URL') | trim | length > 0) else '') }}
+      when: not (ansible_check_mode | bool)
+      no_log: true
+
+    - name: Page once for the failed KV target
+      ansible.builtin.uri:
+        url: "{{ openbao_kv_rotation_ntfy_url }}"
+        method: POST
+        headers:
+          Title: OpenBao KV rotation failed
+          Priority: urgent
+          Tags: rotating_light,key
+        body: "{{ rotate_kv_failure_notice }}"
+        status_code: [200, 201, 202, 204]
+      register: rotate_kv_failure_notice_result
+      failed_when: false
+      when:
+        - not (ansible_check_mode | bool)
+        - openbao_kv_rotation_ntfy_url | length > 0
+      no_log: true
+
+    - name: Log the failed KV target when ntfy is not configured
+      ansible.builtin.debug:
+        msg: >-
+          KV rotation failed for {{ rotate_kv_target.name }} at step
+          {{ ansible_failed_task.name | default('unknown step') }}; no ntfy URL is configured.
+      when:
+        - not (ansible_check_mode | bool)
+        - openbao_kv_rotation_ntfy_url | length == 0
+
+    - name: Report failed KV metadata read in check mode
+      ansible.builtin.debug:
+        msg: >-
+          KV target {{ rotate_kv_target.name }} could not be checked at step
+          {{ ansible_failed_task.name | default('unknown step') }}.
+      when: ansible_check_mode | bool
