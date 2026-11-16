@@ -69,10 +69,11 @@ identity_providers:
       leantime_claims_policy:
         id_token:
           - email
-    # Device codes are bearer-equivalent until approved. Fifteen minutes bounds the
-    # window in which a code sent to the approval channel can be approved (default is 10).
+    # Device codes are bearer-equivalent until approved. One hour bounds the window in
+    # which a code sent to the approval channel can be approved (default is 10m); it
+    # matches the final one-hour approval link the unlock helper sends.
     lifespans:
-      device_code: 15m
+      device_code: 1h
 {% if authelia_bao_elevation_enabled %}
     # OpenBao login approval. Only the device-code clients below use this policy.
     # Deny by default; the one rule admits the operator, from the approval
