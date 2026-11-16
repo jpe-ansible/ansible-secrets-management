@@ -30,6 +30,12 @@
     _probe: >-
       {{ rotate_kv_target.get('probe', {})
          if rotate_kv_target.get('probe', {}) is mapping else {} }}
+    _probe_headers: >-
+      {{ _probe.get('headers', {})
+         if _probe.get('headers', {}) is mapping else {} }}
+    _basic_auth_enabled: >-
+      {{ _probe.get('basic_auth_username', '') is string
+         and _probe.get('basic_auth_username', '') | length > 0 }}
     _invalidate: >-
       {{ rotate_kv_target.get('invalidate', {})
          if rotate_kv_target.get('invalidate', {}) is mapping else {} }}
@@ -121,6 +127,25 @@
         _probe.get('expect_status') is not integer
         or (100 <= _probe.get('expect_status') <= 599)
       - _probe.get('headers', {}) is mapping
+      - >-
+        'basic_auth_username' not in _probe
+        or (
+          _probe.get('basic_auth_username') is string
+          and _probe.get('basic_auth_username') is match('^[A-Za-z0-9._@-]+$')
+        )
+      - >-
+        not _basic_auth_enabled
+        or '__VALUE__' not in (_probe.get('url', '') | string)
+      - >-
+        not _basic_auth_enabled
+        or (
+          _probe_headers.keys()
+          | map('string')
+          | map('lower')
+          | select('equalto', 'authorization')
+          | list
+          | length == 0
+        )
       - rotate_kv_target.get('invalidate') is mapping
       - _invalidate.get('kind', '') in ['none', 'http']
       - >-

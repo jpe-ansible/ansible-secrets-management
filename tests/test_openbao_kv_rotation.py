@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import subprocess
+import tempfile
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 import yaml
 from ansible.parsing.dataloader import DataLoader
@@ -246,6 +250,36 @@ def test_target_schema_assertions_accept_valid_row_and_reject_bad_rows():
         assert "KV rotation target" in output
 
 
+def test_basic_auth_validation_accepts_valid_username_and_rejects_bad_cases():
+    valid = _row("svc-a", "apps/svc-a")
+    valid["probe"]["url"] = "https://svc-a.example.invalid/check"
+    valid["probe"]["basic_auth_username"] = "mirror"
+    assert _run_validation([valid]).returncode == 0
+
+    for username in ("", "mirror:admin", "mirror user"):
+        bad = {**valid, "probe": {**valid["probe"], "basic_auth_username": username}}
+        _assert_target_rejected(bad)
+
+    value_in_url = {
+        **valid,
+        "probe": {
+            **valid["probe"],
+            "url": "https://svc-a.example.invalid/check?token=__VALUE__",
+        },
+    }
+    _assert_target_rejected(value_in_url)
+
+    for authorization_header in ("authorization", "aUtHoRiZaTiOn"):
+        bad_header = {
+            **valid,
+            "probe": {
+                **valid["probe"],
+                "headers": {authorization_header: "Bearer example"},
+            },
+        }
+        _assert_target_rejected(bad_header)
+
+
 def _assert_target_rejected(row: dict, **token_refs: dict) -> str:
     result = _run_validation([row], **token_refs)
     output = result.stdout + result.stderr
@@ -384,6 +418,143 @@ def _render_expression(expression: str, context: dict) -> object:
     templar = Templar(loader=DataLoader())
     templar.available_variables = context
     return templar.template(trust_as_template(expression))
+
+
+def test_probe_basic_auth_uri_arguments_are_omitted_or_use_rotation_values():
+    tasks = yaml.safe_load(ROTATION_TASKS.read_text(encoding="utf-8"))
+    cases = (
+        ("Probe the replacement value", "new-secret"),
+        ("Probe that the previous value is dead", "old-secret"),
+    )
+    arguments = ("url_username", "url_password", "force_basic_auth")
+    unauthenticated_targets = (
+        {"probe": {"url": "https://svc-a.example.invalid/check"}},
+        {"probe": {"url": "https://svc-a.example.invalid/check", "basic_auth_username": ""}},
+    )
+
+    for task_name, expected_password in cases:
+        uri = _find_task(tasks, task_name)["ansible.builtin.uri"]
+        assert all(argument in uri for argument in arguments)
+
+        for target in unauthenticated_targets:
+            context = {
+                "rotate_kv_target": target,
+                "rotate_kv_new_value": "new-secret",
+                "rotate_kv_old_value": "old-secret",
+                "omit": "OMIT",
+            }
+            for argument in arguments:
+                assert _render_expression(uri[argument], context) == "OMIT"
+
+        authenticated_context = {
+            "rotate_kv_target": {
+                "probe": {
+                    "url": "https://svc-a.example.invalid/check",
+                    "basic_auth_username": "mirror",
+                }
+            },
+            "rotate_kv_new_value": "new-secret",
+            "rotate_kv_old_value": "old-secret",
+            "omit": "OMIT",
+        }
+        assert _render_expression(uri["url_username"], authenticated_context) == "mirror"
+        assert _render_expression(uri["url_password"], authenticated_context) == expected_password
+        assert (
+            str(_render_expression(uri["force_basic_auth"], authenticated_context)).lower()
+            == "true"
+        )
+
+
+def _run_basic_auth_probe_tasks(
+    task_names: tuple[str, ...], probe_url: str
+) -> subprocess.CompletedProcess[str]:
+    tasks = yaml.safe_load(ROTATION_TASKS.read_text(encoding="utf-8"))
+    playbook = [
+        {
+            "hosts": "localhost",
+            "connection": "local",
+            "gather_facts": False,
+            "vars": {
+                "rotate_kv_target": {
+                    "name": "basic-auth",
+                    "probe": {
+                        "url": probe_url,
+                        "method": "GET",
+                        "headers": {},
+                        "basic_auth_username": "mirror",
+                        "expect_status": 200,
+                    },
+                    "old_dead_status": [401],
+                },
+                "rotate_kv_new_value": "new-secret",
+                "rotate_kv_old_value": "old-secret",
+            },
+            "tasks": [_find_task(tasks, name) for name in task_names],
+        }
+    ]
+    with tempfile.TemporaryDirectory(dir=VALIDATION_PLAY.parent) as temporary_directory:
+        playbook_path = Path(temporary_directory) / "probe.yml"
+        playbook_path.write_text(yaml.safe_dump(playbook, sort_keys=False), encoding="utf-8")
+        return subprocess.run(
+            ["ansible-playbook", "-i", "localhost,", "-c", "local", str(playbook_path)],
+            cwd=ROOT,
+            capture_output=True,
+            check=False,
+            text=True,
+        )
+
+
+def test_basic_auth_probes_pass_new_value_and_prove_old_value_dead():
+    class BasicAuthHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            accepted_headers = {
+                "Basic " + base64.b64encode(f"mirror:{value}".encode()).decode("ascii")
+                for value in self.server.accepted_passwords
+            }
+            if self.headers.get("Authorization") in accepted_headers:
+                self.send_response(200)
+                self.end_headers()
+                return
+
+            self.send_response(401)
+            self.send_header("WWW-Authenticate", 'Basic realm="rotation-probe"')
+            self.end_headers()
+
+        def log_message(self, format, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), BasicAuthHandler)
+    server.accepted_passwords = {"new-secret"}
+    server_thread = threading.Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    probe_url = f"http://127.0.0.1:{server.server_port}/check"
+    try:
+        successful_probes = _run_basic_auth_probe_tasks(
+            (
+                "Prepare the new-value probe request",
+                "Probe the replacement value",
+                "Prepare the old-value probe request",
+                "Probe that the previous value is dead",
+            ),
+            probe_url,
+        )
+        output = successful_probes.stdout + successful_probes.stderr
+        assert successful_probes.returncode == 0, output
+        assert "Probe the replacement value" in output
+        assert "Probe that the previous value is dead" in output
+
+        server.accepted_passwords.add("old-secret")
+        old_value_still_works = _run_basic_auth_probe_tasks(
+            ("Prepare the old-value probe request", "Probe that the previous value is dead"),
+            probe_url,
+        )
+        output = old_value_still_works.stdout + old_value_still_works.stderr
+        assert old_value_still_works.returncode != 0, output
+        assert "Probe that the previous value is dead" in output
+    finally:
+        server.shutdown()
+        server.server_close()
+        server_thread.join(timeout=5)
 
 
 def test_body_builders_allow_missing_optional_bodies_and_uri_omits_them():

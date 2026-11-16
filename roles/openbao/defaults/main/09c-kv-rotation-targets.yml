@@ -8,7 +8,7 @@
 #   push: {kind: none, consumer_reads_openbao?},
 #     {kind: semaphore, project_id, template_id, extra_args?}, or
 #     {kind: terrakube, organization_id, workspace_id}
-#   probe: {url, method, headers?, body?, expect_status}
+#   probe: {url, method, headers?, basic_auth_username?, body?, expect_status}
 #   invalidate: {kind: none} or
 #     {kind: http, url, method, headers?, body?, expect_status}
 #   old_dead_status: HTTP status list proving the prior value is dead.
@@ -20,6 +20,7 @@
 # replaced with the value being checked; invalidation __OLD__ and __NEW__ are
 # replaced with the previous and replacement values. URL substitutions are
 # URL-encoded; headers and bodies retain the raw values.
+# basic_auth_username sends both probe values through HTTP basic authentication.
 openbao_kv_rotation_targets_json: >-
   {{ lookup('env', 'OPENBAO_KV_ROTATION_TARGETS') | trim | default('[]', true) }}
 openbao_kv_rotation_targets: "{{ openbao_kv_rotation_targets_json | from_json }}"
