@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.121.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.120.2...v0.121.0) (2026-11-16)
+
+
+### Features
+
+* **openbao:** seed no gateway key for registry callers that declare none ([#779](https://github.com/jpe-ansible/ansible-secrets-management/issues/779)) ([eebbc19](https://github.com/jpe-ansible/ansible-secrets-management/commit/eebbc194573cefc5d07236bcfae4dea1d569ba25))
+
 ## [0.120.2](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.120.1...v0.120.2) (2026-11-16)
 
 
