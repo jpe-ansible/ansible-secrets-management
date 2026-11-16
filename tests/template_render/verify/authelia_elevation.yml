@@ -199,4 +199,4 @@
           Authelia elevation assertions passed:
           - all three OpenBao elevation clients are device-code only
           - the elevate policy is deny-by-default with one operator rule scoped to the approval networks
-          - the device-code lifespan is fifteen minutes
+          - the device-code lifespan is one hour
