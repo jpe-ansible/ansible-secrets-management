@@ -1,0 +1,9 @@
+{{ ansible_managed | comment }}
+# Read only the benchmark-lanes router key and the CI base URL.
+path "{{ openbao_kv_mount }}/data/apps/benchmark-lanes" {
+  capabilities = ["read"]
+}
+
+path "{{ openbao_config_mount }}/data/{{ openbao_ci_ai_review_config_path }}" {
+  capabilities = ["read"]
+}

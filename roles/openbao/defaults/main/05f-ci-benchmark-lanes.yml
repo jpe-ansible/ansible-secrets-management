@@ -1,0 +1,19 @@
+---
+# Optional scheduled benchmark identity. No repository or owner is declared in
+# this public role; operators supply the complete workflow identity via env.
+openbao_ci_benchmark_lanes_policy_name: ci-benchmark-lanes
+openbao_ci_benchmark_lanes_repository: >-
+  {{ lookup('env', 'OPENBAO_CI_BENCHMARK_LANES_REPOSITORY') | default('', true) | trim }}
+openbao_ci_benchmark_lanes_workflow_ref: >-
+  {{ lookup('env', 'OPENBAO_CI_BENCHMARK_LANES_WORKFLOW_REF') | default('', true) | trim }}
+openbao_ci_benchmark_lanes_ref: >-
+  {{ lookup('env', 'OPENBAO_CI_BENCHMARK_LANES_REF') | default('', true) | trim }}
+openbao_ci_benchmark_lanes_audience: openbao
+openbao_ci_benchmark_lanes_token_ttl: 5m
+openbao_ci_benchmark_lanes_token_max_ttl: 10m
+openbao_ci_benchmark_lanes_configured: >-
+  {{ openbao_ci_benchmark_lanes_repository | length > 0
+     and openbao_ci_benchmark_lanes_workflow_ref | length > 0
+     and openbao_ci_benchmark_lanes_ref | length > 0
+     and openbao_ci_benchmark_lanes_workflow_ref.startswith(
+       openbao_ci_benchmark_lanes_repository ~ '/.github/workflows/') }}
