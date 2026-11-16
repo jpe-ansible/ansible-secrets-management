@@ -93,6 +93,20 @@ def test_tofu_github_private_role_scope(rendered_defaults):
     assert parameters["token_bound_cidrs"] == values["openbao_workstation_cidrs"]
 
 
+def test_youtrack_window_grants_two_exact_read_leaves(rendered_defaults):
+    values, approles, policies = rendered_defaults
+    name = "window-youtrack"
+    role = next(role for role in approles if role["name"] == name)
+    assert role["token_type"] == "batch"
+    assert role["token_ttl"] == role["token_max_ttl"] == "15m"
+    policy = next(policy for policy in policies if policy["name"] == name)
+    stanzas = dict(_stanzas(render_policies([policy])[0]["value"]))
+    assert set(stanzas) == {"secret/data/apps/youtrack", "secret/data/platform/object-storage"}
+    assert all(_capabilities(body) == ["read"] for body in stanzas.values())
+    allowed = _allowed_parameters(dict(_stanzas(_render(GUARD, values)))["auth/token/create"])
+    assert [name] in allowed["policies"]
+
+
 def test_window_policy_and_role_are_outside_routine_reconcile(rendered_defaults):
     values, _, _ = rendered_defaults
     reconcile = dict(_stanzas(_render(RECONCILE, values)))
