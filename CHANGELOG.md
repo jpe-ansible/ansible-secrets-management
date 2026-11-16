@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.124.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.123.0...v0.124.0) (2026-11-16)
+
+
+### Features
+
+* **openbao:** read the postgres backup key from the pgBackRest bucket ([#789](https://github.com/jpe-ansible/ansible-secrets-management/issues/789)) ([372be73](https://github.com/jpe-ansible/ansible-secrets-management/commit/372be73cb5c6d0e0ac839166599f9b40dc5885fd))
+
 ## [0.123.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.122.0...v0.123.0) (2026-11-16)
 
 
