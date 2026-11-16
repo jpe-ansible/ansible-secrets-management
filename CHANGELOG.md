@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.120.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.119.0...v0.120.0) (2026-11-16)
+
+
+### Features
+
+* **openbao:** add the gateway identity that mints the OpenHands pilot token ([#762](https://github.com/jpe-ansible/ansible-secrets-management/issues/762)) ([c7fad5e](https://github.com/jpe-ansible/ansible-secrets-management/commit/c7fad5e317d3c0888a88a8b91f5d49bf878e901f))
+* **openbao:** basic authentication for the KV rotation probe ([#759](https://github.com/jpe-ansible/ansible-secrets-management/issues/759)) ([e7eb5d1](https://github.com/jpe-ansible/ansible-secrets-management/commit/e7eb5d13bb6dab31dc790383ec60beed98ae8309))
+* **openbao:** report AppRole bound and TTL drift in check mode ([#761](https://github.com/jpe-ansible/ansible-secrets-management/issues/761)) ([3fb4c42](https://github.com/jpe-ansible/ansible-secrets-management/commit/3fb4c423ffa6d1a3a7704169153ca1ee82b95349))
+* **openbao:** scope the generated-secret seed to named apps or absent fields ([#764](https://github.com/jpe-ansible/ansible-secrets-management/issues/764)) ([2ec7c34](https://github.com/jpe-ansible/ansible-secrets-management/commit/2ec7c34a05fc421badaad9d743587dca134a9cc7))
+* **openbao:** seed and grant the tracker-reporter profile router key ([#763](https://github.com/jpe-ansible/ansible-secrets-management/issues/763)) ([259be04](https://github.com/jpe-ansible/ansible-secrets-management/commit/259be04d4c63f4fbc2d9db3e2158a81dce7f4868))
+
+
+### Bug Fixes
+
+* **openbao:** scope the OpenHands pilot set to exactly one repository ([#769](https://github.com/jpe-ansible/ansible-secrets-management/issues/769)) ([22f7873](https://github.com/jpe-ansible/ansible-secrets-management/commit/22f7873e0c68a51531543ef1554d5fc08b66cb9f))
+
 ## [0.119.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.118.0...v0.119.0) (2026-11-16)
 
 
