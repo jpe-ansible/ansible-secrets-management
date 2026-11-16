@@ -47,17 +47,21 @@
       openbao_select | default({}) | length == 0
       or 'ci-resolver' in (openbao_github_permission_set_targets | map(attribute='tier', default='') | list)
 
-- name: Assert the OpenHands permission map is exactly its four permissions
+- name: Assert the OpenHands permission map is exactly its five permissions
   ansible.builtin.assert:
     that:
-      - openbao_github_openhands_permissions.keys() | list == ['checks', 'contents', 'metadata', 'pull_requests']
+      - >-
+        openbao_github_openhands_permissions.keys() | list
+        == ['actions', 'checks', 'contents', 'metadata', 'pull_requests']
+      - openbao_github_openhands_permissions.actions == 'read'
       - openbao_github_openhands_permissions.checks == 'read'
       - openbao_github_openhands_permissions.contents == 'write'
       - openbao_github_openhands_permissions.metadata == 'read'
       - openbao_github_openhands_permissions.pull_requests == 'write'
     fail_msg: >-
       openbao_github_openhands_permissions must be exactly
-      {checks: read, contents: write, metadata: read, pull_requests: write};
+      {actions: read, checks: read, contents: write, metadata: read,
+      pull_requests: write};
       add a new tier instead of widening this one.
   when:
     - openbao_bootstrap_token is defined

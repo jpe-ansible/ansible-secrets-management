@@ -39,6 +39,17 @@ def _render(value, variables):
     return templar.template(trust_as_template(value))
 
 
+def _seed_loop_variables(seeded):
+    # The seed loop reads its list through a default that is the unfiltered declaration.
+    default = yaml.safe_load(
+        (DEFAULTS.parent / "01b-app-secret-generation.yml").read_text(encoding="utf-8")
+    )["openbao_seed_apps_to_seed"]
+    return {
+        "openbao_seeded_generated_app_secrets": seeded,
+        "openbao_seed_apps_to_seed": trust_as_template(default),
+    }
+
+
 def _read_apps(router_catalog, promoted_app_secrets=None):
     return _render(
         READ_DATA["openbao_apps_read_apps"],
@@ -146,7 +157,7 @@ def test_pepper_router_key_is_in_the_reconcile_seed_set():
             "openbao_router_key_catalog": {},
         },
     )
-    generated = _render(_generation_loop(), {"openbao_seeded_generated_app_secrets": seeded})
+    generated = _render(_generation_loop(), _seed_loop_variables(seeded))
     assert [entry for entry in generated if entry["key"] == "pepper"] == [
         {"key": "pepper", "value": ["pepper_llm_router_key"]}
     ]
@@ -216,7 +227,7 @@ def test_router_catalog_entries_feed_generation_and_the_apps_read_paths():
             "openbao_router_key_catalog": catalog,
         },
     )
-    generated = _render(_generation_loop(), {"openbao_seeded_generated_app_secrets": seeded})
+    generated = _render(_generation_loop(), _seed_loop_variables(seeded))
     assert {entry["key"]: entry["value"] for entry in generated}["contract-fixture"] == catalog[
         "contract-fixture"
     ]

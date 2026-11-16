@@ -1,0 +1,10 @@
+{{ ansible_managed | comment }}
+# agentgateway-openhands-mint can mint only the OpenHands pilot GitHub App
+# permission set; it has no KV or other mount access.
+{% for permission_set in openbao_github_permission_sets
+   | selectattr('tier', 'equalto', 'openhands') %}
+path "{{ permission_set.mount }}/token/{{ permission_set.name }}" {
+  capabilities = ["create", "read", "update"]
+}
+
+{% endfor %}

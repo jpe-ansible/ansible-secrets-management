@@ -116,6 +116,20 @@
     - openbao_bootstrap_token is defined
     - openbao_openhands_secret_id_cidr | length > 0
 
+- name: >-
+    Assert the agentgateway OpenHands mint bind, when supplied, is one address as a /32
+  ansible.builtin.assert:
+    that:
+      - >-
+        openbao_agentgateway_openhands_mint_secret_id_cidr
+        is match('^[0-9]{1,3}([.][0-9]{1,3}){3}/32$')
+    fail_msg: >-
+      OPENBAO_AGENTGATEWAY_OPENHANDS_MINT_SECRET_ID_CIDR must be a single address as a /32.
+    quiet: true
+  when:
+    - openbao_bootstrap_token is defined
+    - openbao_agentgateway_openhands_mint_secret_id_cidr | length > 0
+
 - name: Assert the sandbox-agent CIDRs are configured
   ansible.builtin.assert:
     that:

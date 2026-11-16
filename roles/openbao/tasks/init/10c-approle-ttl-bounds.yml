@@ -12,8 +12,9 @@
 # during reconcile and are not retuned here BY DESIGN. Runs on
 # openbao_cli_host, like the existence check whose results it compares against.
 
-- name: Reconcile AppRole TTL and token bounds on existing AppRoles
-  vars:
+# The retune below is a command, which check mode skips; this reports the same drift by name and counts only.
+- name: Report AppRoles whose TTL or bounds would be retuned in check mode
+  vars: &approle_bounds_vars
     ansible_become: "{{ openbao_cli_become }}"
     approle_cli_parameters: "{{ openbao_approle_cli_parameters[item.0.name] }}"
     approle_cidr_class: "{{ openbao_approle_cidr_class_map[item.0.name] }}"
@@ -51,6 +52,42 @@
                | map('regex_replace', '/32$', '') | sort | list != desired_bound_cidrs_cmp)
               or (live.token_bound_cidrs | default([], true) | map('trim')
                   | map('regex_replace', '/32$', '') | sort | list != desired_bound_cidrs_cmp)) }}
+    ttl_or_uses_drift: >-
+      {{ (live.secret_id_ttl | default(0) | int != desired_secret_id_ttl_s | int)
+         or (live.secret_id_num_uses | default(0) | int
+             != approle_cli_parameters.secret_id_num_uses | int)
+         or (live.token_ttl | default(0) | int != desired_token_ttl_s | int)
+         or (live.token_max_ttl | default(0) | int != desired_token_max_ttl_s | int) }}
+    approle_bounds_drift: >-
+      {{ (ttl_or_uses_drift | bool)
+         or (token_explicit_max_ttl_drift | bool)
+         or (token_type_drift | bool)
+         or (cidr_drift | bool) }}
+  ansible.builtin.debug:
+    msg: >-
+      {{ item.0.name }},
+      live_secret_id_bound_entries={{ live.secret_id_bound_cidrs | default([], true) | length }},
+      live_token_bound_entries={{ live.token_bound_cidrs | default([], true) | length }},
+      declared_bound_entries={{ desired_bound_cidrs | length }},
+      ttl_or_uses={{ 'true' if (ttl_or_uses_drift | bool) else 'false' }},
+      token_type={{ 'true' if (token_type_drift | bool) else 'false' }},
+      token_explicit_max_ttl={{ 'true' if (token_explicit_max_ttl_drift | bool) else 'false' }},
+      bound_ranges={{ 'true' if (cidr_drift | bool) else 'false' }}
+  changed_when: true
+  loop: >-
+    {{ (openbao_approle_config_targets | default(openbao_manageable_approles))
+       | zip(openbao_approle_checks.results | default([])) | list }}
+  loop_control:
+    # Load-bearing: without this label, debug prints the full loop item, including the read's stdout.
+    label: "{{ item.0.name }}"
+  when:
+    - ansible_check_mode
+    - openbao_bootstrap_token is defined
+    - (item.1.rc | default(1)) == 0
+    - approle_bounds_drift | bool
+
+- name: Reconcile AppRole TTL and token bounds on existing AppRoles
+  vars: *approle_bounds_vars
   ansible.builtin.command:
     cmd: >-
       bao write auth/approle/role/{{ item.0.name }}
@@ -80,12 +117,4 @@
   when:
     - openbao_bootstrap_token is defined
     - (item.1.rc | default(1)) == 0
-    - >-
-      (live.secret_id_ttl | default(0) | int != desired_secret_id_ttl_s | int)
-      or (live.secret_id_num_uses | default(0) | int
-          != approle_cli_parameters.secret_id_num_uses | int)
-      or (live.token_ttl | default(0) | int != desired_token_ttl_s | int)
-      or (live.token_max_ttl | default(0) | int != desired_token_max_ttl_s | int)
-      or (token_explicit_max_ttl_drift | bool)
-      or (token_type_drift | bool)
-      or (cidr_drift | bool)
+    - approle_bounds_drift | bool

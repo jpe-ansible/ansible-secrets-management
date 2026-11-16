@@ -58,19 +58,20 @@
           data+metadata for opencode/raycast/codex/cursor and nothing else
           under apps/.
 
-    - name: Assert hermes grants exactly its four operating-profile apps paths
+    - name: Assert hermes grants exactly its five operating-profile apps paths
       ansible.builtin.assert:
         that:
-          - _hermes_apps_paths | length == 8
+          - _hermes_apps_paths | length == 10
           - _hermes_apps_paths | select('search', '/apps/hermes-default$') | list | length == 2
           - _hermes_apps_paths | select('search', '/apps/hermes-splunk-admin$') | list | length == 2
           - _hermes_apps_paths | select('search', '/apps/hermes-homelab-admin$') | list | length == 2
           - _hermes_apps_paths | select('search', '/apps/hermes-github-maint$') | list | length == 2
+          - _hermes_apps_paths | select('search', '/apps/hermes-tracker-reporter$') | list | length == 2
           - >-
             _hermes_apps_paths
             | select('search', '/apps/opencode$|/apps/raycast$|/apps/codex$|/apps/cursor$')
             | list | length == 0
         fail_msg: >-
           hermes grants {{ _hermes_apps_paths }}. It must grant exactly
-          data+metadata for its four operating profiles and nothing else
+          data+metadata for its five operating profiles and nothing else
           under apps/.
