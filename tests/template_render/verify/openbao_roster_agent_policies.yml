@@ -824,6 +824,17 @@
       ansible.builtin.include_role:
         name: dryvist.homelab.agent_callers
 
+    - name: Capture registry callers expected to receive a gateway key
+      ansible.builtin.set_fact:
+        _expected_gateway_key_caller_ids: >-
+          {%- set _ids = [] -%}
+          {%- for caller in agent_callers_registry.keys() | list | sort -%}
+          {%- if agent_callers_registry[caller].gateway_key | default(true) is not sameas false -%}
+          {%- set _ = _ids.append(caller) -%}
+          {%- endif -%}
+          {%- endfor -%}
+          {{ _ids }}
+
     - name: Clear the roster so only registry callers remain
       ansible.builtin.set_fact:
         openbao_ai_agents: {}
@@ -860,7 +871,11 @@
     - name: Assert registry caller seed and policy inputs cover only caller gateway leaves
       ansible.builtin.assert:
         that:
-          - openbao_agent_caller_ids == agent_callers_registry.keys() | list | sort
+          - openbao_agent_caller_ids == _expected_gateway_key_caller_ids
+          - >-
+            agent_callers_registry | dict2items
+            | selectattr('value.gateway_key', 'defined') | list == []
+          - openbao_agent_caller_ids == openbao_agent_caller_registry_ids
           - >-
             openbao_caller_gateway_generated_app_secrets.keys() | list | sort
             == openbao_agent_caller_ids | map('regex_replace', '$', '-gw') | list | sort
@@ -963,7 +978,7 @@
 
     - name: Set one registered caller as an invalid second owner
       ansible.builtin.set_fact:
-        openbao_ai_agents: "{{ dict(openbao_agent_caller_ids[:1] | zip([{}])) }}"
+        openbao_ai_agents: "{{ dict(openbao_agent_caller_registry_ids[:1] | zip([{}])) }}"
         _caller_roster_guard_refused: false
         _caller_roster_guard_message: ""
 
@@ -981,6 +996,93 @@
       ansible.builtin.assert:
         that:
           - _caller_roster_guard_refused | default(false) | bool
-          - openbao_agent_caller_roster_collisions == openbao_agent_caller_ids[:1]
+          - openbao_agent_caller_roster_collisions == openbao_agent_caller_registry_ids[:1]
           - "'exactly one owner' in _caller_roster_guard_message"
+        quiet: true
+
+    - name: Set example callers with and without gateway keys
+      ansible.builtin.set_fact:
+        agent_callers_registry:
+          example-public:
+            trust_tier: public
+            gateway_key: false
+          example-keyed:
+            trust_tier: internal
+            gateway_key: true
+        openbao_ai_agents: {}
+
+    - name: Assert only the opted-in example caller gets a gateway key
+      ansible.builtin.assert:
+        that:
+          - openbao_agent_caller_registry_ids == ['example-keyed', 'example-public']
+          - openbao_agent_caller_ids == ['example-keyed']
+          - "'example-public-gw' not in openbao_caller_gateway_generated_app_secrets"
+          - "'example-public-gw' not in openbao_caller_gateway_leaf_metadata"
+          - >-
+            openbao_caller_gateway_key_policies
+            | selectattr('caller', 'equalto', 'example-public') | list == []
+          - >-
+            openbao_policies
+            | selectattr('name', 'equalto', openbao_caller_gateway_key_policy_prefix ~ 'example-public')
+            | list == []
+          - >-
+            openbao_caller_gateway_generated_app_secrets['example-keyed-gw']
+            == ['example_keyed_agentgateway_key']
+          - >-
+            openbao_caller_gateway_leaf_metadata['example-keyed-gw']
+            == {'managed-by': 'agent-caller:example-keyed'}
+          - >-
+            openbao_caller_gateway_key_policies
+            | selectattr('caller', 'equalto', 'example-keyed') | list | length == 1
+          - >-
+            openbao_policies
+            | selectattr('name', 'equalto', openbao_caller_gateway_key_policy_prefix ~ 'example-keyed')
+            | list | length == 1
+        quiet: true
+
+    - name: Render the gateway reader for the example callers
+      ansible.builtin.template:
+        src: "{{ _template_dir }}/agentgateway-agent-keys-policy.hcl.j2"
+        dest: "{{ _fixture_dir }}/agentgateway-callers-fixture.hcl"
+        mode: "0644"
+
+    - name: Read the gateway reader policy for the example callers
+      ansible.builtin.slurp:
+        src: "{{ _fixture_dir }}/agentgateway-callers-fixture.hcl"
+      register: _fixture_caller_gateway_reader_policy
+
+    - name: Assert the shared gateway reader includes only the opted-in example caller
+      vars:
+        _fixture_gateway_reader_hcl: "{{ _fixture_caller_gateway_reader_policy.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'example-public-gw' not in _fixture_gateway_reader_hcl"
+          - "'example-keyed-gw' in _fixture_gateway_reader_hcl"
+        quiet: true
+
+    - name: Set an example caller whose gateway_key is a string, not a boolean
+      ansible.builtin.set_fact:
+        agent_callers_registry:
+          example-string:
+            trust_tier: public
+            gateway_key: "false"
+        _caller_gateway_key_type_refused: false
+        _caller_gateway_key_type_message: ""
+
+    - name: Catch the gateway_key type refusal
+      block:
+        - name: Render the gateway-key caller list
+          ansible.builtin.debug:
+            msg: "{{ openbao_agent_caller_ids }}"
+      rescue:
+        - name: Record the gateway_key type refusal
+          ansible.builtin.set_fact:
+            _caller_gateway_key_type_refused: true
+            _caller_gateway_key_type_message: "{{ ansible_failed_result.msg }}"
+
+    - name: Assert a non-boolean gateway_key fails closed
+      ansible.builtin.assert:
+        that:
+          - _caller_gateway_key_type_refused | bool
+          - "'gateway_key must be a boolean' in _caller_gateway_key_type_message"
         quiet: true

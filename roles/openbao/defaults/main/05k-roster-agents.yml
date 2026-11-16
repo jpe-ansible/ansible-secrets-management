@@ -51,11 +51,23 @@ openbao_roster_agent_valid_names: >-
 
 # Caller IDs come from the released homelab-contracts registry role. The
 # default keeps the role defaults renderable in isolated template tests.
-openbao_agent_caller_ids: "{{ (agent_callers_registry | default({})).keys() | list | sort }}"
+openbao_agent_caller_registry_ids: "{{ (agent_callers_registry | default({})).keys() | list | sort }}"
+openbao_agent_caller_ids: >-
+  {%- set _ids = [] -%}
+  {%- for caller in openbao_agent_caller_registry_ids -%}
+  {%- set _gateway_key = agent_callers_registry[caller].gateway_key | default(true) -%}
+  {%- if _gateway_key is not boolean -%}
+  {{ undef('agent_callers_registry.' ~ caller ~ '.gateway_key must be a boolean') }}
+  {%- elif _gateway_key is not sameas false -%}
+  {%- set _ = _ids.append(caller) -%}
+  {%- endif -%}
+  {%- endfor -%}
+  {{ _ids }}
 openbao_agent_caller_roster_collisions: >-
-  {{ openbao_agent_caller_ids
+  {{ openbao_agent_caller_registry_ids
      | select('in', openbao_ai_agents.keys() | list) | list | sort }}
 
+# A registry caller with gateway_key false holds no gateway key, so it has no -gw leaf and no policy.
 # Registry callers own only apps/<caller>-gw, with no AppRole or other leaf.
 openbao_caller_gateway_generated_app_secrets: >-
   {%- set _secrets = {} -%}
