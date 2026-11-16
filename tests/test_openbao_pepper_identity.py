@@ -276,6 +276,7 @@ def _configure_openhands_mount(monkeypatch, values, *, installation_id="303"):
         "OPENBAO_GITHUB_OPENHANDS_DRYVIST_INSTALLATION_ID"
     ] = installation_id
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS", "example-org")
+    monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_PILOT_REPOS", "fixture-repo")
 
 
 def _openhands_sets_and_mounts(values):
@@ -299,6 +300,7 @@ def test_openhands_mount_and_pilot_are_declared_without_a_private_key(
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_APP_ID", "fixture-app-id")
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_APP_PRIVATE_KEY", "")
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS", "example-org")
+    monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_PILOT_REPOS", "fixture-repo")
     pepper_defaults["openbao_platform_env"][
         "OPENBAO_GITHUB_OPENHANDS_DRYVIST_INSTALLATION_ID"
     ] = "303"
@@ -309,6 +311,7 @@ def test_openhands_mount_and_pilot_are_declared_without_a_private_key(
             "name": "openhands-pilot",
             "tier": "openhands",
             "installation_id": "303",
+            "repositories": ["fixture-repo"],
             "permissions": {
                 "actions": "read",
                 "checks": "read",
@@ -328,7 +331,7 @@ def test_openhands_mount_and_pilot_are_declared_without_a_private_key(
     assert mounts[0]["permission_sets"] == sets + write_sets
 
 
-def test_openhands_mount_has_one_installation_scoped_set_with_exact_permissions(
+def test_openhands_mount_has_one_repository_scoped_set_with_exact_permissions(
     pepper_defaults, monkeypatch
 ):
     _configure_openhands_mount(monkeypatch, pepper_defaults)
@@ -339,6 +342,7 @@ def test_openhands_mount_has_one_installation_scoped_set_with_exact_permissions(
             "name": "openhands-pilot",
             "tier": "openhands",
             "installation_id": "303",
+            "repositories": ["fixture-repo"],
             "permissions": {
                 "actions": "read",
                 "checks": "read",
