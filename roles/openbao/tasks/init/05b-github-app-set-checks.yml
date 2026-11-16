@@ -87,6 +87,7 @@
   ansible.builtin.assert:
     that:
       - _openhands_pilot_sets | length <= 1
+      - openbao_github_openhands_pilot_repos | length <= 1
       - >-
         openbao_github_openhands_pilot_repos
         | reject('match', '^[A-Za-z0-9_.-]+$') | list | length == 0
@@ -96,6 +97,7 @@
             and _openhands_set.tier == 'openhands'
             and _openhands_set.installation_id | string
                 == openbao_github_openhands_installation_id | string
+            and _openhands_set.repositories | default([]) | length == 1
             and _openhands_set.repositories | default([])
                 == openbao_github_openhands_pilot_repos
             and (_openhands_set.repositories | default([])
@@ -105,8 +107,8 @@
                 == {'actions': 'read', 'checks': 'read', 'contents': 'write',
                     'metadata': 'read', 'pull_requests': 'write'})
     fail_msg: >-
-      {{ gm.mount }} must declare its exact pilot set, when configured, and
-      no more than one pilot set.
+      {{ gm.mount }} must declare its exact pilot set, when configured, scoped
+      to exactly one repository, and no more than one pilot set.
     quiet: true
   vars:
     _openhands_pilot_sets: >-

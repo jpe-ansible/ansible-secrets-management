@@ -102,6 +102,7 @@
     openbao_github_openhands_app_id: fixture-app-id
     openbao_github_openhands_app_private_key: fixture-private-key
     openbao_github_openhands_installation_id: '303'
+    openbao_github_openhands_pilot_repos: [fixture-repo]
 
 - name: Pin the personal App installation to the configured case
   ansible.builtin.set_fact:
@@ -380,7 +381,7 @@
       - _ci_resolver_path not in _read_paths
     fail_msg: The CI resolver's stored write set must remain exclusive to its own policy.
 
-- name: Assert the OpenHands set is exact, installation-scoped, and the only token path
+- name: Assert the OpenHands set is exact, one-repository, and the only token path
   vars:
     _openhands_set: "{{ openbao_github_openhands_permission_sets | first }}"
     _openhands_mounts: >-
@@ -395,10 +396,7 @@
       - _openhands_set.name == openbao_github_openhands_set_name
       - _openhands_set.tier == 'openhands'
       - _openhands_set.installation_id == openbao_github_openhands_installation_id
-      - >-
-        (openbao_github_openhands_pilot_repos | length == 0
-         and _openhands_set.repositories is not defined)
-        or _openhands_set.repositories == openbao_github_openhands_pilot_repos
+      - _openhands_set.repositories == ['fixture-repo']
       - >-
         _openhands_set.permissions
         == {'actions': 'read', 'checks': 'read', 'contents': 'write',

@@ -177,15 +177,14 @@ def test_agentgateway_openhands_mint_policy_without_pilot_is_empty_and_unschedul
     assert POLICY_NAME in unscheduled
 
 
-def test_openhands_pilot_repository_input_is_optional_and_csv_parsed(
+def test_openhands_pilot_set_needs_a_repository_and_is_scoped_to_it(
     gateway_defaults, monkeypatch
 ):
     _configure_openhands_pilot(gateway_defaults, monkeypatch)
     sets = _render_value(
         gateway_defaults, "{{ openbao_github_openhands_permission_sets }}"
     )
-    assert len(sets) == 1
-    assert "repositories" not in sets[0]
+    assert sets == []
 
     monkeypatch.setenv(REPOSITORIES_KEY, " fixture-repo , ,")
     repos = _render_value(gateway_defaults, "{{ %s }}" % REPOSITORIES_VARIABLE)
@@ -193,7 +192,20 @@ def test_openhands_pilot_repository_input_is_optional_and_csv_parsed(
         gateway_defaults, "{{ openbao_github_openhands_permission_sets }}"
     )
     assert repos == ["fixture-repo"]
+    assert len(sets) == 1
     assert sets[0]["repositories"] == ["fixture-repo"]
+
+
+def test_two_openhands_pilot_repositories_fail_the_set_assertion(
+    gateway_defaults, monkeypatch
+):
+    _configure_openhands_pilot(
+        gateway_defaults, monkeypatch, repos="fixture-one,fixture-two"
+    )
+    task = _assert_task(APP_SET_CHECKS, "Assert the dedicated OpenHands pilot set")
+    predicate = "openbao_github_openhands_pilot_repos | length <= 1"
+    assert predicate in task["ansible.builtin.assert"]["that"]
+    assert not _render_value(gateway_defaults, "{{ " + predicate + " }}")
 
 
 def test_malformed_openhands_pilot_repository_fails_the_runtime_name_predicate(
