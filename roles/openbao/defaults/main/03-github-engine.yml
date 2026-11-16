@@ -231,8 +231,8 @@ openbao_unscheduled_empty_policy_names: >-
             and openbao_github_openhands_permission_sets
             | default([], true) | length == 0) else []) }}
 # OpenHands' runtime keeps one pilot set scoped to exactly one repository. With
-# no repository the set is omitted; an omitted repositories key would mean the
-# whole installation. The dedicated write tier below uses separate
+# no repository, or more than one, the set is omitted; an omitted repositories
+# key would mean the whole installation. The dedicated write tier below uses separate
 # org-name-scoped sets and an exact permission map.
 openbao_github_openhands_set_name: openhands-pilot
 openbao_github_openhands_permissions:
@@ -252,7 +252,7 @@ openbao_github_openhands_permission_sets: >-
         'permissions': openbao_github_openhands_permissions})]
      if (openbao_github_openhands_installation_id | length > 0
          and openbao_github_openhands_app_id | length > 0
-         and openbao_github_openhands_pilot_repos | length > 0) else [] }}
+         and openbao_github_openhands_pilot_repos | length == 1) else [] }}
 openbao_github_openhands_write_set_prefix: openhands-write
 openbao_github_claude_write_set_prefix: claude-write
 # These route permission profiles are the single literal source for the exact

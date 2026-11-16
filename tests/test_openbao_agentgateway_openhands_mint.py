@@ -206,6 +206,10 @@ def test_two_openhands_pilot_repositories_fail_the_set_assertion(
     predicate = "openbao_github_openhands_pilot_repos | length <= 1"
     assert predicate in task["ansible.builtin.assert"]["that"]
     assert not _render_value(gateway_defaults, "{{ " + predicate + " }}")
+    assert (
+        _render_value(gateway_defaults, "{{ openbao_github_openhands_permission_sets }}")
+        == []
+    )
 
 
 def test_malformed_openhands_pilot_repository_fails_the_runtime_name_predicate(
@@ -214,13 +218,13 @@ def test_malformed_openhands_pilot_repository_fails_the_runtime_name_predicate(
     _configure_openhands_pilot(
         gateway_defaults,
         monkeypatch,
-        repos="fixture-valid,fixture-invalid/name",
+        repos="fixture-invalid/name",
     )
     repos = _render_value(gateway_defaults, "{{ %s }}" % REPOSITORIES_VARIABLE)
     sets = _render_value(
         gateway_defaults, "{{ openbao_github_openhands_permission_sets }}"
     )
-    assert repos == ["fixture-valid", "fixture-invalid/name"]
+    assert repos == ["fixture-invalid/name"]
     assert sets[0]["repositories"] == repos
 
     task = _assert_task(APP_SET_CHECKS, "Assert the dedicated OpenHands pilot set")
