@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.123.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.122.0...v0.123.0) (2026-11-16)
+
+
+### Features
+
+* **authelia:** device codes stay valid for one hour ([#783](https://github.com/jpe-ansible/ansible-secrets-management/issues/783)) ([7fc47b6](https://github.com/jpe-ansible/ansible-secrets-management/commit/7fc47b6b88d3d1ba59c81fb7ca77e748487b7713))
+
 ## [0.122.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.121.0...v0.122.0) (2026-11-16)
 
 
