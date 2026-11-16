@@ -150,6 +150,16 @@
             | reject('equalto', '') | list)
     fail_msg: The CI resolver repository input must be comma-split, trimmed, and empty-safe.
 
+- name: Assert the OpenHands pilot repository input is split, trimmed, and empty-safe
+  ansible.builtin.assert:
+    that:
+      - >-
+        openbao_github_openhands_pilot_repos
+        == ((lookup('env', 'OPENBAO_GITHUB_OPENHANDS_PILOT_REPOS')
+             | default('', true)).split(',') | map('trim')
+            | reject('equalto', '') | list)
+    fail_msg: The OpenHands pilot repository input must be comma-split, trimmed, and empty-safe.
+
 - name: Render the general write policy
   ansible.builtin.template:
     src: "{{ _template_dir }}/github-write-policy.hcl.j2"

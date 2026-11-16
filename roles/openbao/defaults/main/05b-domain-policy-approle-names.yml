@@ -156,6 +156,9 @@ openbao_github_git_mirror_approle_name: git-mirror
 # openhands: the OpenHands service-runtime identity.
 openbao_openhands_policy_name: openhands
 openbao_openhands_approle_name: openhands
+# agentgateway-openhands-mint: the gateway guest can mint only OpenHands-tier sets.
+openbao_agentgateway_openhands_mint_policy_name: agentgateway-openhands-mint
+openbao_agentgateway_openhands_mint_approle_name: agentgateway-openhands-mint
 # GitHub Actions OIDC workload identity. The publish workflow presents the
 # token GitHub mints for its own job, so the runner stores no credential at
 # all; the role name is the policy name, as everywhere else here.

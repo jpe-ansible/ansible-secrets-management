@@ -29,6 +29,7 @@ openbao_platform_bind_keys:
   - OPENBAO_AI_RUNNER_SECRET_ID_CIDR
   - OPENBAO_AI_SANDBOX_SECRET_ID_CIDR
   - OPENBAO_OPENHANDS_SECRET_ID_CIDR
+  - OPENBAO_AGENTGATEWAY_OPENHANDS_MINT_SECRET_ID_CIDR
   - OPENBAO_DIFY_SECRET_ID_ISSUER_SECRET_ID_CIDR
 openbao_platform_bind_cidrs: >-
   {%- set _ns = namespace(binds={}) -%}

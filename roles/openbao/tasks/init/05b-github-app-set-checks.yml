@@ -88,14 +88,21 @@
     that:
       - _openhands_pilot_sets | length <= 1
       - >-
+        openbao_github_openhands_pilot_repos
+        | reject('match', '^[A-Za-z0-9_.-]+$') | list | length == 0
+      - >-
         _openhands_pilot_sets | length == 0
         or (_openhands_set.name == openbao_github_openhands_set_name
             and _openhands_set.tier == 'openhands'
             and _openhands_set.installation_id | string
                 == openbao_github_openhands_installation_id | string
-            and _openhands_set.repositories is not defined
+            and _openhands_set.repositories | default([])
+                == openbao_github_openhands_pilot_repos
+            and (_openhands_set.repositories | default([])
+                 | select('match', '^[A-Za-z0-9_.-]+$') | list | length)
+                == (_openhands_set.repositories | default([]) | length)
             and _openhands_set.permissions
-                == {'checks': 'read', 'contents': 'write',
+                == {'actions': 'read', 'checks': 'read', 'contents': 'write',
                     'metadata': 'read', 'pull_requests': 'write'})
     fail_msg: >-
       {{ gm.mount }} must declare its exact pilot set, when configured, and

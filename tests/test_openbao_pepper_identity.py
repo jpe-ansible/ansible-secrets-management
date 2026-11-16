@@ -310,6 +310,7 @@ def test_openhands_mount_and_pilot_are_declared_without_a_private_key(
             "tier": "openhands",
             "installation_id": "303",
             "permissions": {
+                "actions": "read",
                 "checks": "read",
                 "contents": "write",
                 "metadata": "read",
@@ -339,6 +340,7 @@ def test_openhands_mount_has_one_installation_scoped_set_with_exact_permissions(
             "tier": "openhands",
             "installation_id": "303",
             "permissions": {
+                "actions": "read",
                 "checks": "read",
                 "contents": "write",
                 "metadata": "read",
