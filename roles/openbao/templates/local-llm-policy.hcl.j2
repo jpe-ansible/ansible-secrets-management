@@ -28,6 +28,11 @@ path "secrets-external/data/ai/saas/qwencloud" {
   capabilities = ["read"]
 }
 
+# Z.ai's external leaf: the router sends its key only to the vendor's usage endpoint.
+path "secrets-external/data/ai/saas/zai" {
+  capabilities = ["read"]
+}
+
 # The ClickHouse credentials are read only through the clickhouse AppRole.
 path "{{ openbao_kv_mount }}/data/ai/clickhouse" {
   capabilities = ["deny"]
