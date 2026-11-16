@@ -3,7 +3,7 @@
 # admits every organization in the configured GitHub enterprise.
 openbao_ci_ai_review_policy_name: ci-ai-review
 openbao_ci_ai_review_job_workflow_ref: >-
-  JacobPEvans/.github-ai/.github/workflows/ai-review.yml@refs/tags/v1
+  JacobPEvans/.github-ai/.github/workflows/verdict.yml@refs/tags/v2
 openbao_ci_ai_review_enterprise_id: >-
   {{ openbao_platform_env['OPENBAO_GITHUB_ENTERPRISE_ID'] | default('', true) }}
 openbao_ci_ai_review_audience: openbao
