@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.120.2](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.120.1...v0.120.2) (2026-11-16)
+
+
+### Bug Fixes
+
+* **openbao:** bind the review workflow identity to the verdict workflow ([#775](https://github.com/jpe-ansible/ansible-secrets-management/issues/775)) ([4059cc9](https://github.com/jpe-ansible/ansible-secrets-management/commit/4059cc95aa350a0a88d188e9abe3501004a68b07))
+
 ## [0.120.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.120.0...v0.120.1) (2026-11-16)
 
 
