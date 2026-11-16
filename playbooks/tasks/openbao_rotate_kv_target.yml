@@ -450,6 +450,18 @@
             url: "{{ rotate_kv_target.probe.url | replace('__VALUE__', rotate_kv_new_value | urlencode) }}"
             method: "{{ rotate_kv_target.probe.method }}"
             headers: "{{ rotate_kv_new_probe_headers }}"
+            url_username: >-
+              {{ rotate_kv_target.probe.get('basic_auth_username', '')
+                 if (rotate_kv_target.probe.get('basic_auth_username', '')
+                     | default('', true) | length > 0) else omit }}
+            url_password: >-
+              {{ rotate_kv_new_value
+                 if (rotate_kv_target.probe.get('basic_auth_username', '')
+                     | default('', true) | length > 0) else omit }}
+            force_basic_auth: >-
+              {{ true
+                 if (rotate_kv_target.probe.get('basic_auth_username', '')
+                     | default('', true) | length > 0) else omit }}
             body_format: "{{ rotate_kv_new_probe_body_format }}"
             body: >-
               {{ rotate_kv_new_probe_body
@@ -530,6 +542,18 @@
             url: "{{ rotate_kv_target.probe.url | replace('__VALUE__', rotate_kv_old_value | urlencode) }}"
             method: "{{ rotate_kv_target.probe.method }}"
             headers: "{{ rotate_kv_old_probe_headers }}"
+            url_username: >-
+              {{ rotate_kv_target.probe.get('basic_auth_username', '')
+                 if (rotate_kv_target.probe.get('basic_auth_username', '')
+                     | default('', true) | length > 0) else omit }}
+            url_password: >-
+              {{ rotate_kv_old_value
+                 if (rotate_kv_target.probe.get('basic_auth_username', '')
+                     | default('', true) | length > 0) else omit }}
+            force_basic_auth: >-
+              {{ true
+                 if (rotate_kv_target.probe.get('basic_auth_username', '')
+                     | default('', true) | length > 0) else omit }}
             body_format: "{{ rotate_kv_old_probe_body_format }}"
             body: >-
               {{ rotate_kv_old_probe_body
