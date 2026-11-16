@@ -136,7 +136,9 @@ def test_local_llm_reads_only_the_declared_external_data_leaves():
         "secrets-external/data/ai/saas/qwencloud",
         "secrets-external/data/ai/saas/zai",
     ]
-    assert all(grants[path] == ["read"] for path in external_paths)
+    assert {path: grants[path] for path in external_paths} == {
+        path: ["read"] for path in external_paths
+    }
 
 
 def test_qwencloud_external_secret_promotes_only_the_known_verbatim_fields():
