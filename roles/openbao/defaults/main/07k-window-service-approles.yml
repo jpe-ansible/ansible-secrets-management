@@ -68,6 +68,18 @@ openbao_window_services:
         capabilities: [update]
       - path: auth/token/lookup-self
         capabilities: [read]
+  # youtrack: the productivity-apps YouTrack playbooks read the Hub token that
+  # mints their temporary API token, and the object-store credentials that load
+  # their declaration document. Read-only, exact data leaves.
+  - name: youtrack
+    credential_paths: []
+    scope: []
+    lifetime: 15m
+    grants:
+      - path: "{{ openbao_kv_mount }}/data/apps/youtrack"
+        capabilities: [read]
+      - path: "{{ openbao_kv_mount }}/data/platform/object-storage"
+        capabilities: [read]
 
 openbao_window_service_approles: >-
   {%- set _roles = [] -%}
