@@ -414,13 +414,14 @@ def test_postgres_backup_domain_reuses_apps_credentials_and_is_optional():
     ]
 
 
-def test_postgres_backup_path_has_one_exact_read_grant():
+def test_postgres_backup_paths_have_exact_read_grants():
     policy = _render_apps_policy(_read_apps(_yaml(NAMES_FILE)))
 
-    assert (
-        'path "secret/data/rustfs/dryvist-homelab-pgbackrest/rw" {\n'
-        '  capabilities = ["read"]\n}'
-    ) in policy
+    for bucket in ("dryvist-homelab-backups", "dryvist-homelab-pgbackrest"):
+        assert (
+            f'path "secret/data/rustfs/{bucket}/rw" {{\n'
+            '  capabilities = ["read"]\n}'
+        ) in policy
     assert 'path "secret/data/rustfs/*"' not in policy
 
 
