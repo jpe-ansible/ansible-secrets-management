@@ -42,6 +42,10 @@ path "{{ openbao_kv_mount }}/data/rustfs/dryvist-homelab-backups/rw" {
   capabilities = ["read"]
 }
 
+path "{{ openbao_kv_mount }}/data/rustfs/dryvist-homelab-pgbackrest/rw" {
+  capabilities = ["read"]
+}
+
 # Read-only access for the Homebox backup credential domain.
 path "{{ openbao_kv_mount }}/data/rustfs/dryvist-homebox-backups/rw" {
   capabilities = ["read"]
