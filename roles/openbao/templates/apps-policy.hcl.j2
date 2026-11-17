@@ -38,6 +38,10 @@ path "{{ openbao_kv_mount }}/metadata/homebox/main/rw" {
 }
 
 # Read-only access for the PostgreSQL backup credential domain.
+path "{{ openbao_kv_mount }}/data/rustfs/dryvist-homelab-backups/rw" {
+  capabilities = ["read"]
+}
+
 path "{{ openbao_kv_mount }}/data/rustfs/dryvist-homelab-pgbackrest/rw" {
   capabilities = ["read"]
 }
