@@ -560,10 +560,17 @@
     _github_write_route: >-
       {{ openbao_github_write_routes
          | selectattr('prefix', 'equalto', item.set.tier) | first }}
+    # A route may list its own ref suffixes; without them it uses the shared one.
     _github_write_role_claims:
       job_workflow_ref: >-
-        {{ _github_write_route.workflows
-           | map('regex_replace', '$', openbao_github_write_workflow_ref_suffix) | list }}
+        {%- set _refs = [] -%}
+        {%- for _workflow in _github_write_route.workflows -%}
+        {%- for _suffix in _github_write_route.workflow_ref_suffixes
+            | default([openbao_github_write_workflow_ref_suffix], true) -%}
+        {%- set _ = _refs.append(_workflow ~ _suffix) -%}
+        {%- endfor -%}
+        {%- endfor -%}
+        {{ _refs }}
       repository_owner: "{{ [item.org] }}"
     _github_write_role_live: >-
       {{ (openbao_github_oidc_write_roles_current.results[
