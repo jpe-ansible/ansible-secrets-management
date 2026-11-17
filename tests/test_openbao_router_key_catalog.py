@@ -150,7 +150,6 @@ def test_claude_code_launcher_keys_use_the_existing_router_key_reader_paths():
         "claude_llm_router_key",
         "claude_ocg_router_key",
         "claude_homelab_llm_router_key",
-        "claude_mac_local_key",
     ]
     assert DEFAULTS_DATA["openbao_generated_app_secrets"]["claude-code"] == fields
     assert "claude-code" in _read_apps({})
@@ -172,7 +171,7 @@ def test_claude_launcher_key_fields_use_the_shared_router_key_format():
         "openbao_seed_shared_fields": [],
     }
 
-    for field in ("claude_homelab_llm_router_key", "claude_mac_local_key"):
+    for field in ("claude_homelab_llm_router_key",):
         declaration = _render(expression, {**variables, "item": field})[0]
         assert declaration == {
             "name": field,
