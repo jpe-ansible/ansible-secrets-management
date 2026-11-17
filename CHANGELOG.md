@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.127.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.126.0...v0.127.0) (2026-11-17)
+
+
+### Features
+
+* **keys:** add the claude-homelab launcher key ([#798](https://github.com/jpe-ansible/ansible-secrets-management/issues/798)) ([c3043e8](https://github.com/jpe-ansible/ansible-secrets-management/commit/c3043e86107e9208cba7b53a0b908fefa948d1c0))
+* **openbao:** add the gate-checks write route for AI Merge Gate check runs ([#801](https://github.com/jpe-ansible/ansible-secrets-management/issues/801)) ([08e3cbf](https://github.com/jpe-ansible/ansible-secrets-management/commit/08e3cbf9c8d8a1aeb5c2befbdc81ab0b3b7237f9))
+
 ## [0.126.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.125.0...v0.126.0) (2026-11-17)
 
 
