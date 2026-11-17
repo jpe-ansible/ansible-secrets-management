@@ -13,7 +13,7 @@ openbao_approle_env_prefix_overrides:
   # Consumers read the donna domain's pair (OPENBAO_APPROLE_DONNA_*).
   ai-donna: donna
 # Router virtual keys for the Hermes operating profiles. Shared reader for
-# now (one AppRole, five leaves); a per-profile split is a later follow-up.
+# now (one AppRole, six leaves); a per-profile split is a later follow-up.
 # One secret/apps/<name> leaf each, read only — see
 # openbao_generated_app_secrets.
 openbao_hermes_router_key_apps:
@@ -22,6 +22,7 @@ openbao_hermes_router_key_apps:
   - hermes-homelab-admin
   - hermes-github-maint
   - hermes-tracker-reporter
+  - hermes-vikunja-pm
 openbao_hermes_write_policy_name: hermes-write
 openbao_hermes_write_approle_name: hermes-write
 # llm-router-write: single-purpose writer for the llm-router Redis credential
