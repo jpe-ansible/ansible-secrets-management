@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.125.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.124.1...v0.125.0) (2026-11-17)
+
+
+### Features
+
+* **openbao:** add the hermes-vikunja-pm router key leaf ([#795](https://github.com/jpe-ansible/ansible-secrets-management/issues/795)) ([0fb1f91](https://github.com/jpe-ansible/ansible-secrets-management/commit/0fb1f91cec8f379d55ec8f09d2486c7149755ccd))
+* **openbao:** seed and grant the vikunja-pm profile router key ([0fb1f91](https://github.com/jpe-ansible/ansible-secrets-management/commit/0fb1f91cec8f379d55ec8f09d2486c7149755ccd))
+
 ## [0.124.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.124.0...v0.124.1) (2026-11-17)
 
 
