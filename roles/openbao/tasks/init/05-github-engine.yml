@@ -250,12 +250,16 @@
     - openbao_github_engine_enabled | bool
     - openbao_github_runner_register_owners | length == 0
 
-- name: Warn when a runner registration owner has no installation ID
-  ansible.builtin.debug:
-    msg: >-
-      WARNING: skipping runner registration for owner '{{ item }}': no installation ID
-      is configured in openbao_github_org_secrets_installations.
-  loop: "{{ openbao_github_runner_register_missing_owners }}"
+- name: Require each runner registration owner in the organization catalog
+  ansible.builtin.assert:
+    that:
+      - >-
+        openbao_github_org_secrets_installations
+        | selectattr('name', 'equalto', item) | list | length == 1
+    fail_msg: >-
+      Runner registration owner '{{ item }}' must appear exactly once in
+      openbao_github_org_secrets_installations.
+  loop: "{{ openbao_github_runner_register_owners }}"
   when:
     - openbao_bootstrap_token is defined
     - openbao_github_engine_enabled | bool

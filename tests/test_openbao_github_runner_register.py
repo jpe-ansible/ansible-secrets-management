@@ -1,4 +1,4 @@
-"""Runner registration sets are limited to explicitly configured owners."""
+"""Runner registration sets are resolved by explicitly configured owner names."""
 
 from pathlib import Path
 import re
@@ -60,7 +60,6 @@ def _runner_defaults(owner_csv, installations, *, use_default_base=False):
     for name in (
         "openbao_github_runner_register_owners",
         "openbao_github_runner_register_permission_sets",
-        "openbao_github_runner_register_missing_owners",
     ):
         variables[name] = _render(defaults[name], variables)
     return variables
@@ -139,7 +138,7 @@ def _paths(rendered):
     return re.findall(r'(?m)^path "([^"]+)" \{', rendered)
 
 
-def _warning_tasks():
+def _engine_tasks():
     return yaml.safe_load(TASKS.read_text(encoding="utf-8"))
 
 
@@ -148,10 +147,9 @@ def test_empty_owner_list_adds_no_sets_and_warns_with_the_configuration_key():
         variables = _runner_defaults(owner_csv, [])
         assert variables["openbao_github_runner_register_owners"] == []
         assert variables["openbao_github_runner_register_permission_sets"] == []
-        assert variables["openbao_github_runner_register_missing_owners"] == []
         assert _admin_sets(variables) == [BASE_RUNNER_SET]
 
-    tasks = _warning_tasks()
+    tasks = _engine_tasks()
     empty_warning = next(
         task for task in tasks
         if task.get("name") == "Warn when runner registration owners are not configured"
@@ -173,13 +171,13 @@ def test_two_example_owners_generate_only_their_runner_policy_paths():
         {
             "name": "runner-register-example-org",
             "tier": "runner",
-            "installation_id": "101",
+            "org_name": "example-org",
             "permissions": {"organization_self_hosted_runners": "write"},
         },
         {
             "name": "runner-register-example-other",
             "tier": "runner",
-            "installation_id": "202",
+            "org_name": "example-other",
             "permissions": {"organization_self_hosted_runners": "write"},
         },
     ]
@@ -217,7 +215,7 @@ def test_two_example_owners_generate_only_their_runner_policy_paths():
     )
 
 
-def test_owner_without_installation_id_is_skipped_and_warned_by_owner():
+def test_owner_without_installation_id_still_gets_a_set_by_org_name():
     variables = _runner_defaults(
         "example-org,example-other",
         [
@@ -225,31 +223,43 @@ def test_owner_without_installation_id_is_skipped_and_warned_by_owner():
             {"name": "example-other", "installation_id": ""},
         ],
     )
-    assert variables["openbao_github_runner_register_permission_sets"] == [{
-        "name": "runner-register-example-org",
-        "tier": "runner",
-        "installation_id": "101",
-        "permissions": {"organization_self_hosted_runners": "write"},
-    }]
-    assert variables["openbao_github_runner_register_missing_owners"] == ["example-other"]
+    assert variables["openbao_github_runner_register_permission_sets"] == [
+        {
+            "name": "runner-register-example-org",
+            "tier": "runner",
+            "org_name": "example-org",
+            "permissions": {"organization_self_hosted_runners": "write"},
+        },
+        {
+            "name": "runner-register-example-other",
+            "tier": "runner",
+            "org_name": "example-other",
+            "permissions": {"organization_self_hosted_runners": "write"},
+        },
+    ]
     assert [permission_set["name"] for permission_set in _admin_sets(variables)] == [
         "runner-register-example-base",
         "runner-register-example-org",
+        "runner-register-example-other",
     ]
 
-    missing_warning = next(
-        task for task in _warning_tasks()
-        if task.get("name") == "Warn when a runner registration owner has no installation ID"
+    tasks = _engine_tasks()
+    assert not any(
+        task.get("name") == "Warn when a runner registration owner has no installation ID"
+        for task in tasks
     )
-    assert missing_warning["loop"] == "{{ openbao_github_runner_register_missing_owners }}"
-    assert "WARNING:" in missing_warning["ansible.builtin.debug"]["msg"]
-    assert "{{ item }}" in missing_warning["ansible.builtin.debug"]["msg"]
+    owner_check = next(
+        task for task in tasks
+        if task.get("name") == "Require each runner registration owner in the organization catalog"
+    )
+    assert owner_check["loop"] == "{{ openbao_github_runner_register_owners }}"
+    assert "{{ item }}" in owner_check["ansible.builtin.assert"]["fail_msg"]
 
 
 def test_owner_already_in_base_sets_is_not_duplicated():
     variables = _runner_defaults(
         "example-base",
-        [{"name": "example-base", "installation_id": "101"}],
+        [{"name": "example-base"}],
     )
     assert variables["openbao_github_runner_register_permission_sets"] == []
     assert _admin_sets(variables) == [BASE_RUNNER_SET]

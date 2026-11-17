@@ -31,8 +31,8 @@ def test_permission_set_profile_uses_the_declared_admin_mount_sets():
     }
     candidates = render(defaults["openbao_github_org_secrets_permission_sets"], {
         "openbao_github_org_secrets_installations": [
-            {"name": "jacobpevans-ai", "installation_id": 101},
-            {"name": "another", "installation_id": 102},
+            {"name": "jacobpevans-ai"},
+            {"name": "another"},
         ],
         "openbao_github_org_secrets_permissions": {"organization_secrets": "write"},
     })
@@ -89,13 +89,16 @@ def test_org_secrets_names_and_workspace_reads_match_each_requested_owner():
     ]
     assert [item["name"] for item in sets] == expected_names
     assert len({item["name"] for item in sets}) == len(sets)
+    assert [item["org_name"] for item in sets] == owners
+    assert len(sets) == len(installations)
+    assert all("installation_id" not in item for item in sets)
     assert all(item["tier"] == "org-secrets" for item in sets)
     assert all(item["permissions"] == {"organization_secrets": "write"} for item in sets)
     jpe_nix = [item for item in sets if item["name"] == "jpe-nix-org-secrets"]
     assert jpe_nix == [{
         "name": "jpe-nix-org-secrets",
         "tier": "org-secrets",
-        "installation_id": "105",
+        "org_name": "jpe-nix",
         "permissions": {"organization_secrets": "write"},
     }]
 
@@ -135,9 +138,9 @@ def test_org_variables_sets_mirror_the_org_secrets_installations():
     ]
     sets = render(defaults["openbao_github_org_variables_permission_sets"], {
         "openbao_github_org_secrets_installations": [
-            {"name": "jacobpevans-ai", "installation_id": "101"},
-            {"name": "unset", "installation_id": ""},
-            {"name": "jpe-nix", "installation_id": 105,
+            {"name": "jacobpevans-ai"},
+            {"name": "unset"},
+            {"name": "jpe-nix",
              "org_secrets_permission_set_name": "custom-org-secrets"},
         ],
         "openbao_github_org_variables_permissions": defaults[
@@ -146,10 +149,13 @@ def test_org_variables_sets_mirror_the_org_secrets_installations():
     })
     assert sets == [
         {"name": "jacobpevans-ai-org-variables", "tier": "org-variables",
-         "installation_id": "101",
+         "org_name": "jacobpevans-ai",
+         "permissions": {"organization_actions_variables": "write"}},
+        {"name": "unset-org-variables", "tier": "org-variables",
+         "org_name": "unset",
          "permissions": {"organization_actions_variables": "write"}},
         {"name": "jpe-nix-org-variables", "tier": "org-variables",
-         "installation_id": 105,
+         "org_name": "jpe-nix",
          "permissions": {"organization_actions_variables": "write"}},
     ]
 
@@ -381,8 +387,9 @@ def test_shared_permission_set_reconcile_is_available_through_the_rbac_tag():
 
 
 def test_permission_set_reads_and_writes_use_only_selected_objects_and_the_run_token():
-    desired = {"name": SELECTED_NAME, "installation_id": 101, "permissions": {"organization_secrets": "write"}}
-    unselected = {"name": "another-org-secrets", "installation_id": 102}
+    desired = {"name": SELECTED_NAME, "org_name": "jacobpevans-ai",
+               "permissions": {"organization_secrets": "write"}}
+    unselected = {"name": "another-org-secrets", "org_name": "another"}
     selector = task("Select GitHub permission set objects", PERMISSION_SETS)
     assert selector["ansible.builtin.import_tasks"] == "select-objects.yml"
     assert selector["vars"]["openbao_select_kind"] == KIND
@@ -421,11 +428,25 @@ def test_permission_set_reads_and_writes_use_only_selected_objects_and_the_run_t
     {"permissions": {"organization_secrets": "write"}},
     {"permissions": {"contents": "write"}, "repositories": ["selected-repository"]},
 ])
-def test_permission_set_write_preserves_the_declared_request_shape(optional_fields):
+def test_installation_id_permission_set_write_preserves_the_declared_request_shape(optional_fields):
     write = task("Reconcile the GitHub token permission sets", PERMISSION_SETS)
     assert render(write["ansible.builtin.uri"]["body"], {
         "item": {"name": SELECTED_NAME, "installation_id": "101", **optional_fields},
     }) == {"installation_id": 101, **optional_fields}
+
+
+def test_org_name_permission_set_write_uses_org_name_without_installation_id():
+    write = task("Reconcile the GitHub token permission sets", PERMISSION_SETS)
+    assert render(write["ansible.builtin.uri"]["body"], {
+        "item": {
+            "name": SELECTED_NAME,
+            "org_name": "jacobpevans-ai",
+            "permissions": {"organization_secrets": "write"},
+        },
+    }) == {
+        "org_name": "jacobpevans-ai",
+        "permissions": {"organization_secrets": "write"},
+    }
 
 
 @pytest.mark.parametrize("live_change", [
@@ -442,6 +463,18 @@ def test_permission_set_drift_in_each_stored_field_is_reported(live_change):
     assert changes([{"status": 200, "item": desired, "json": {"data": {**live, **live_change}}}]) == [desired]
 
 
+def test_org_name_permission_set_drift_is_reported():
+    desired = {
+        "name": "selected-set", "org_name": "expected-org",
+        "permissions": {"organization_secrets": "write"},
+    }
+    assert changes([{
+        "status": 200,
+        "item": desired,
+        "json": {"data": {"org_name": "another-org", "permissions": desired["permissions"]}},
+    }]) == [desired]
+
+
 def test_unchanged_permission_sets_are_absent_from_the_would_change_list():
     desired = {"name": SELECTED_NAME, "installation_id": "101"}
     assert changes([{
@@ -452,6 +485,26 @@ def test_unchanged_permission_sets_are_absent_from_the_would_change_list():
     assert render(report["ansible.builtin.debug"]["msg"], {
         "openbao_github_permission_set_changes": [],
     }) == "No GitHub permission set writes are needed."
+
+    org_desired = {"name": SELECTED_NAME, "org_name": "jacobpevans-ai"}
+    assert changes([{
+        "status": 200,
+        "item": org_desired,
+        "json": {"data": {"org_name": "jacobpevans-ai", "permissions": None, "repositories": None}},
+    }]) == []
+
+
+def test_every_catalog_org_must_yield_both_org_permission_sets():
+    require_sets = task(
+        "Require org-secrets and org-variables sets for each catalog organization",
+        PERMISSION_SETS,
+    )
+    assert require_sets["loop"] == "{{ openbao_github_org_secrets_installations }}"
+    assert "item.name | default('<unnamed>')" in require_sets["ansible.builtin.assert"]["fail_msg"]
+    conditions = " ".join(require_sets["ansible.builtin.assert"]["that"])
+    assert "openbao_github_org_secrets_permission_sets" in conditions
+    assert "openbao_github_org_variables_permission_sets" in conditions
+    assert "selectattr('org_name'" in conditions
 
 
 def test_check_mode_reports_the_single_missing_set_and_never_posts():

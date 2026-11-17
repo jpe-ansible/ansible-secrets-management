@@ -505,45 +505,31 @@ openbao_github_runner_register_permission_sets: >-
   {%- set _base_runner_names = openbao_github_base_permission_sets
        | selectattr('tier', 'equalto', 'runner') | map(attribute='name') | list -%}
   {%- for owner in openbao_github_runner_register_owners -%}
-  {%- set _installation = openbao_github_org_secrets_installations
+  {%- set _org = openbao_github_org_secrets_installations
        | selectattr('name', 'equalto', owner) | list | first | default({}) -%}
-  {%- if _installation.installation_id | default('', true) | string | length > 0
-        and ('runner-register-' ~ owner) not in _base_runner_names -%}
+  {%- if _org.name is defined and ('runner-register-' ~ owner) not in _base_runner_names -%}
   {%- set _ = _sets.append({'name': 'runner-register-' ~ owner,
-      'tier': 'runner', 'installation_id': _installation.installation_id,
+      'tier': 'runner', 'org_name': _org.name,
       'permissions': openbao_github_runner_permissions}) -%}
   {%- endif -%}
   {%- endfor -%}
   {{ _sets }}
-openbao_github_runner_register_missing_owners: >-
-  {%- set _missing = [] -%}
-  {%- for owner in openbao_github_runner_register_owners -%}
-  {%- set _installation = openbao_github_org_secrets_installations
-       | selectattr('name', 'equalto', owner) | list | first | default({}) -%}
-  {%- if _installation.installation_id | default('', true) | string | length == 0 -%}
-  {%- set _ = _missing.append(owner) -%}
-  {%- endif -%}
-  {%- endfor -%}
-  {{ _missing }}
 openbao_github_org_secrets_permission_sets: >-
   {%- set _sets = [] -%}
   {%- for org in openbao_github_org_secrets_installations -%}
-  {%- if org.installation_id | default('', true) | string | length > 0 -%}
-  {%- set _ = _sets.append({'name': org.org_secrets_permission_set_name | default(org.name ~ '-org-secrets'),
-      'tier': 'org-secrets', 'installation_id': org.installation_id,
+  {%- set _ = _sets.append({
+      'name': org.org_secrets_permission_set_name | default((org.name | default('')) ~ '-org-secrets'),
+      'tier': 'org-secrets', 'org_name': org.name | default(''),
       'permissions': openbao_github_org_secrets_permissions}) -%}
-  {%- endif -%}
   {%- endfor -%}
   {{ _sets }}
-# One org-variables set per org-secrets organization, same installation.
+# One org-variables set per org-secrets organization, resolved by org name.
 openbao_github_org_variables_permission_sets: >-
   {%- set _sets = [] -%}
   {%- for org in openbao_github_org_secrets_installations -%}
-  {%- if org.installation_id | default('', true) | string | length > 0 -%}
-  {%- set _ = _sets.append({'name': org.name ~ '-org-variables',
-      'tier': 'org-variables', 'installation_id': org.installation_id,
+  {%- set _ = _sets.append({'name': (org.name | default('')) ~ '-org-variables',
+      'tier': 'org-variables', 'org_name': org.name | default(''),
       'permissions': openbao_github_org_variables_permissions}) -%}
-  {%- endif -%}
   {%- endfor -%}
   {{ _sets }}
 # Full set list = the static base above plus repository-scoped tiers, which
