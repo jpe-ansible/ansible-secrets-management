@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.126.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.125.0...v0.126.0) (2026-11-17)
+
+
+### Features
+
+* **openbao:** resolve GitHub org permission sets by org name ([#799](https://github.com/jpe-ansible/ansible-secrets-management/issues/799)) ([945b492](https://github.com/jpe-ansible/ansible-secrets-management/commit/945b492eda20877606cfb89307ef06e59c3eb88e))
+
 ## [0.125.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.124.1...v0.125.0) (2026-11-17)
 
 
