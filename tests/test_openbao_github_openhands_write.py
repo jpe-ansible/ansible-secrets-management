@@ -391,6 +391,28 @@ def test_each_openhands_write_oidc_role_is_bound_to_one_org_and_compares_all_fie
     assert "openbao_github_write_role_index" in drift_guard
 
 
+def test_route_ref_suffixes_replace_the_shared_suffix_for_each_workflow():
+    claims = _find_task("Reconcile each GitHub write OIDC role")["vars"][
+        "_github_write_role_claims"
+    ]
+    workflows = [
+        "example-org/example-repo/.github/workflows/gate.yml",
+        "example-org/example-repo/.github/workflows/check.yml",
+    ]
+    route = {
+        "workflows": workflows,
+        "workflow_ref_suffixes": ["@refs/heads/main", "@refs/tags/v*"],
+    }
+    assert _render(
+        claims["job_workflow_ref"],
+        {"_github_write_route": route, "openbao_github_write_workflow_ref_suffix": "@*"},
+    ) == [
+        f"{workflow}{suffix}"
+        for workflow in workflows
+        for suffix in ("@refs/heads/main", "@refs/tags/v*")
+    ]
+
+
 def test_preexisting_oidc_tasks_are_gated_before_register_dependencies():
     tasks = yaml.safe_load(TASKS.read_text(encoding="utf-8"))
     first_openhands_task = next(

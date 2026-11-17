@@ -9,6 +9,38 @@
   ansible.builtin.set_fact:
     openbao_github_permission_set_targets: "{{ openbao_object_targets }}"
 
+- name: Require a selector for each GitHub permission set
+  ansible.builtin.assert:
+    that:
+      - (item.org_name is defined) != (item.installation_id is defined)
+    fail_msg: >-
+      GitHub permission set '{{ item.name }}' must declare exactly one of
+      org_name or installation_id.
+  loop: "{{ openbao_github_permission_set_targets }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: openbao_github_engine_enabled | bool
+
+- name: Require org-secrets and org-variables sets for each catalog organization
+  ansible.builtin.assert:
+    that:
+      - item.name | default('') | string | trim | length > 0
+      - >-
+        openbao_github_org_secrets_permission_sets
+        | selectattr('org_name', 'equalto', item.name | default('') | string)
+        | list | length == 1
+      - >-
+        openbao_github_org_variables_permission_sets
+        | selectattr('org_name', 'equalto', item.name | default('') | string)
+        | list | length == 1
+    fail_msg: >-
+      GitHub organization '{{ item.name | default('<unnamed>') }}' must produce
+      exactly one org-secrets and one org-variables permission set keyed by org_name.
+  loop: "{{ openbao_github_org_secrets_installations }}"
+  loop_control:
+    label: "{{ item.name | default('<unnamed>') }}"
+  when: openbao_github_engine_enabled | bool
+
 # Full runs validate every map; selective runs validate the selected tiers.
 - name: Assert the repo-create permission map is exactly administration:write
   ansible.builtin.assert:
@@ -93,6 +125,9 @@
         contents: read
         metadata: read
         pull_requests: write
+      gate-checks:
+        checks: write
+        metadata: read
   loop: "{{ openbao_github_write_routes }}"
   loop_control:
     label: "{{ item.prefix }}"
@@ -184,7 +219,10 @@
       {%- for result in openbao_github_permission_set_checks.results | default([]) -%}
       {%- set live = (result.json | default({})).get('data', {}) -%}
       {%- if result.status == 404
-         or (live.installation_id | int) != (result.item.installation_id | int)
+         or (result.item.org_name is defined
+             and (live.org_name | default('', true)) != result.item.org_name)
+         or (result.item.org_name is not defined
+             and (live.installation_id | int) != (result.item.installation_id | int))
          or (live.permissions | default({}, true)) != (result.item.permissions | default({}, true))
          or (live.repositories | default([], true)) != (result.item.repositories | default([], true)) -%}
       {%- set _ = changes.append(result.item) -%}
@@ -218,7 +256,9 @@
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
     body_format: json
     body: >-
-      {{ {'installation_id': item.installation_id | int}
+      {{ ({'org_name': item.org_name}
+          if item.org_name is defined else
+          {'installation_id': item.installation_id | int})
          | combine({'permissions': item.permissions}
                    if item.permissions is defined else {})
          | combine({'repositories': item.repositories}

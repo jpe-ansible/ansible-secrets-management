@@ -42,6 +42,9 @@ ROUTE_ENV = (
     "OPENBAO_GITHUB_CLAUDE_APP_PRIVATE_KEY",
     "OPENBAO_GITHUB_CLAUDE_WRITE_ORGS",
     "OPENBAO_GITHUB_CLAUDE_WRITE_WORKFLOWS",
+    "OPENBAO_GITHUB_EVERYDAY_APP_ID",
+    "OPENBAO_GITHUB_GATE_CHECKS_ORGS",
+    "OPENBAO_GITHUB_GATE_CHECKS_WORKFLOWS",
 )
 
 
@@ -135,6 +138,7 @@ def test_openhands_only_keeps_literal_existing_outputs_and_selection_candidates(
     assert [route["prefix"] for route in output["routes"]] == [
         "openhands-write",
         "claude-write",
+        "gate-checks",
     ]
 
     expected_set = {
@@ -273,6 +277,74 @@ def test_claude_route_creates_one_org_bound_set_policy_and_role_per_org(
         "claude-write-exampleorg",
         "claude-write-example-org",
     ]
+
+
+def test_gate_checks_route_binds_main_and_release_tags_on_the_everyday_mount(
+    write_route_defaults, monkeypatch,
+):
+    workflows = [
+        "example-org/example-repo/.github/workflows/gate.yml",
+        "example-org/example-repo/.github/workflows/check.yml",
+    ]
+    _set_inputs(
+        monkeypatch,
+        OPENBAO_GITHUB_EVERYDAY_APP_ID="12345",
+        OPENBAO_GITHUB_GATE_CHECKS_ORGS="ExampleOrg,example-org",
+        OPENBAO_GITHUB_GATE_CHECKS_WORKFLOWS=",".join(workflows),
+    )
+    defaults, _approles, _policies = write_route_defaults
+    output = _write_route_values(write_route_defaults)
+
+    route = next(item for item in output["routes"] if item["prefix"] == "gate-checks")
+    assert route == {
+        "prefix": "gate-checks",
+        "mount": "github",
+        "app_id": "12345",
+        "orgs": ["ExampleOrg", "example-org"],
+        "workflows": workflows,
+        "workflow_ref_suffixes": ["@refs/heads/main", "@refs/tags/v*"],
+        "permissions": {"checks": "write", "metadata": "read"},
+        "token_ttl": "15m",
+        "token_max_ttl": "15m",
+    }
+    gate_sets = [item for item in output["sets"] if item["tier"] == "gate-checks"]
+    assert [item["name"] for item in gate_sets] == [
+        "gate-checks-exampleorg",
+        "gate-checks-example-org",
+    ]
+    everyday = next(item for item in output["mounts"] if item["mount"] == "github")
+    assert everyday["permission_sets"] == (
+        _rendered(defaults, "{{ openbao_github_read_permission_sets }}") + gate_sets
+    )
+    for policy in (
+        item for item in output["policies"] if item["name"].startswith("gate-checks-")
+    ):
+        assert _route_policy_paths(_render_route_policy(defaults, policy)) == [
+            (f"github/token/{policy['name']}", '"create", "read", "update"')
+        ]
+    claims = next(
+        task
+        for task in yaml.safe_load(OIDC_TASKS.read_text(encoding="utf-8"))
+        if task.get("name") == "Reconcile each GitHub write OIDC role"
+    )["vars"]["_github_write_role_claims"]
+    assert _rendered(
+        defaults, claims["job_workflow_ref"], _github_write_route=route
+    ) == [
+        f"{workflow}{suffix}"
+        for workflow in workflows
+        for suffix in ("@refs/heads/main", "@refs/tags/v*")
+    ]
+    for template_name in ("ai-orchestrator-policy.hcl.j2", "openhands-policy.hcl.j2"):
+        rendered = render_template(
+            TEMPLATES / template_name,
+            dict(
+                defaults,
+                openbao_kv_mount="secret",
+                openbao_github_permission_sets=output["permission_sets"],
+                ansible_managed="test fixture",
+            ),
+        )
+        assert "gate-checks-" not in rendered
 
 
 @pytest.mark.parametrize(
