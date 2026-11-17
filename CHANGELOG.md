@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.124.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.124.0...v0.124.1) (2026-11-17)
+
+
+### Bug Fixes
+
+* **openbao:** grant the apps reader both postgres backup key paths ([9bcd19d](https://github.com/jpe-ansible/ansible-secrets-management/commit/9bcd19d1654ec868223daf9f70ee373ed0888c66))
+* **openbao:** render both postgres backup paths in the apps policy ([#791](https://github.com/jpe-ansible/ansible-secrets-management/issues/791)) ([9bcd19d](https://github.com/jpe-ansible/ansible-secrets-management/commit/9bcd19d1654ec868223daf9f70ee373ed0888c66))
+
 ## [0.124.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.123.0...v0.124.0) (2026-11-16)
 
 
