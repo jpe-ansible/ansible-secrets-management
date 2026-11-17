@@ -13,6 +13,8 @@ DEFAULTS = ROOT / "roles/openbao/defaults/main/01c-app-secrets-generated.yml"
 PATH_DEFAULTS = ROOT / "roles/openbao/defaults/main/01d-app-secret-paths.yml"
 PROMOTED_DEFAULTS = ROOT / "roles/openbao/defaults/main/01b-app-secrets.yml"
 OPENBAO_META = ROOT / "roles/openbao/meta/main.yml"
+SECRET_GENERATION_DEFAULTS = ROOT / "roles/openbao/defaults/main/01b-app-secret-generation.yml"
+SECRET_GENERATION_TASK = ROOT / "roles/openbao/tasks/seed_generated_app_secret.yml"
 READ_DEFAULTS = ROOT / "roles/openbao/defaults/main/05c-terrakube-and-remaining-domain-names.yml"
 EXCLUDED_DEFAULTS = ROOT / "roles/openbao/defaults/main/05h-cribl-edge-readers.yml"
 GENERATION = ROOT / "roles/openbao/tasks/init/03-kv-mounts-and-seed-secrets.yml"
@@ -140,6 +142,45 @@ def test_public_router_key_entries_remain_literal_and_allowlisted():
     policy = _render_apps_policy({})
     assert 'path "secret/data/apps/donna"' in policy
     assert 'path "secret/metadata/apps/donna"' in policy
+
+
+def test_claude_code_launcher_keys_use_the_existing_router_key_reader_paths():
+    fields = [
+        "claude_code_llm_router_key",
+        "claude_llm_router_key",
+        "claude_ocg_router_key",
+        "claude_homelab_llm_router_key",
+        "claude_mac_local_key",
+    ]
+    assert DEFAULTS_DATA["openbao_generated_app_secrets"]["claude-code"] == fields
+    assert "claude-code" in _read_apps({})
+
+    policy = _render_apps_policy({})
+    assert 'path "secret/data/apps/claude-code"' in policy
+    assert 'path "secret/metadata/apps/claude-code"' in policy
+    assert 'path "secret/data/apps/*"' not in policy
+    assert 'path "secret/metadata/apps/*"' not in policy
+
+
+def test_claude_launcher_key_fields_use_the_shared_router_key_format():
+    defaults = yaml.safe_load(SECRET_GENERATION_DEFAULTS.read_text(encoding="utf-8"))
+    tasks = yaml.safe_load(SECRET_GENERATION_TASK.read_text(encoding="utf-8"))
+    field_task = _find_task(tasks, "Add a shared declaration for each generated app-secret field")
+    expression = field_task["ansible.builtin.set_fact"]["openbao_seed_shared_fields"]
+    variables = {
+        **defaults,
+        "openbao_seed_shared_fields": [],
+    }
+
+    for field in ("claude_homelab_llm_router_key", "claude_mac_local_key"):
+        declaration = _render(expression, {**variables, "item": field})[0]
+        assert declaration == {
+            "name": field,
+            "length": defaults["openbao_app_secret_length"],
+            "charset": "alnum",
+            "prefix": defaults["openbao_app_secret_router_key_prefix"],
+            "valid_pattern": "^sk-",
+        }
 
 
 def test_glance_tile_key_is_generated_and_readable_by_the_apps_reader():
