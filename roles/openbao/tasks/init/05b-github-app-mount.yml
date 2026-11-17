@@ -204,6 +204,9 @@
         contents: read
         metadata: read
         pull_requests: write
+      gate-checks:
+        checks: write
+        metadata: read
     _write_route_sets: >-
       {{ openbao_github_write_permission_sets
          | selectattr('tier', 'equalto', openbao_github_write_route.prefix)

@@ -125,6 +125,9 @@
         contents: read
         metadata: read
         pull_requests: write
+      gate-checks:
+        checks: write
+        metadata: read
   loop: "{{ openbao_github_write_routes }}"
   loop_control:
     label: "{{ item.prefix }}"

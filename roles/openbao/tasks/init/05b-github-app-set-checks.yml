@@ -144,9 +144,13 @@
       {{ openbao_github_write_permission_sets
          | selectattr('tier', 'equalto', openbao_github_write_route.prefix)
          | list }}
+    # The base sets a write route's mount keeps beside the route's own sets.
     _write_route_pilot_sets: >-
       {{ openbao_github_openhands_permission_sets
-         if openbao_github_write_route.prefix == openbao_github_openhands_write_set_prefix else [] }}
+         if openbao_github_write_route.prefix == openbao_github_openhands_write_set_prefix
+         else openbao_github_read_permission_sets
+         if openbao_github_write_route.prefix == openbao_github_gate_checks_set_prefix
+         else [] }}
   loop: >-
     {{ openbao_github_write_routes
        | selectattr('mount', 'equalto', gm.mount) | list }}

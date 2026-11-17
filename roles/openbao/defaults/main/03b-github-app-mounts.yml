@@ -17,6 +17,8 @@
 #   github-enterprise       human-gated raw-token admin tier
 #   github-enterprise-owner human-gated stored owner token, readable by the admin tiers only
 openbao_github_everyday_mount: github
+openbao_github_everyday_app_id: >-
+  {{ lookup('env', 'OPENBAO_GITHUB_EVERYDAY_APP_ID') | default('', true) }}
 # Read tokens come from the raw endpoint by org name (github-read). The one
 # named set remains only for the execution plane's git credential helper until
 # that helper mints by org name; then this list becomes empty.
@@ -230,6 +232,10 @@ openbao_github_claude_write_orgs: >-
   {{ openbao_github_write_orgs_by_prefix[openbao_github_claude_write_set_prefix] }}
 openbao_github_claude_write_workflows: >-
   {{ openbao_github_write_workflows_by_prefix[openbao_github_claude_write_set_prefix] }}
+openbao_github_gate_checks_orgs: >-
+  {{ openbao_github_write_orgs_by_prefix[openbao_github_gate_checks_set_prefix] }}
+openbao_github_gate_checks_workflows: >-
+  {{ openbao_github_write_workflows_by_prefix[openbao_github_gate_checks_set_prefix] }}
 
 # This mount and set are declared only when every input is present.
 openbao_github_pepper_mount: github-pepper
@@ -287,9 +293,10 @@ openbao_github_runner_app_mounts: >-
 
 openbao_github_app_mounts_base:
   - mount: "{{ openbao_github_everyday_mount }}"
-    app_id: "{{ lookup('env', 'OPENBAO_GITHUB_EVERYDAY_APP_ID') | default('', true) }}"
+    app_id: "{{ openbao_github_everyday_app_id }}"
     private_key: "{{ lookup('env', 'OPENBAO_GITHUB_EVERYDAY_APP_PRIVATE_KEY') | default('', true) }}"
-    permission_sets: "{{ openbao_github_read_permission_sets }}"
+    permission_sets: >-
+      {{ openbao_github_read_permission_sets + openbao_github_gate_checks_permission_sets }}
   - mount: "{{ openbao_github_agents_mount }}"
     app_id: "{{ lookup('env', 'OPENBAO_GITHUB_AGENTS_APP_ID') | default('', true) }}"
     private_key: "{{ lookup('env', 'OPENBAO_GITHUB_AGENTS_APP_PRIVATE_KEY') | default('', true) }}"
