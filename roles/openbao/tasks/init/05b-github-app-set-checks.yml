@@ -120,9 +120,13 @@
 - name: "Assert each write route mount contains exactly its declared sets: {{ gm.mount }}"
   ansible.builtin.assert:
     that:
+      # Set order carries no meaning; compare by name, and refuse duplicate names.
       - >-
-        gm.permission_sets
-        == _write_route_base_sets + _write_route_mount_sets
+        gm.permission_sets | sort(attribute='name')
+        == (_write_route_base_sets + _write_route_mount_sets) | sort(attribute='name')
+      - >-
+        gm.permission_sets | map(attribute='name') | unique | list | length
+        == gm.permission_sets | length
       - >-
         _write_route_sets | length
         == (openbao_github_write_route.orgs | length
