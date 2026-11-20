@@ -196,7 +196,7 @@ def test_oidc_role_has_exact_claims_one_policy_short_batch_token_and_drift_guard
     assert "job_workflow_ref" not in write["vars"]["_pr_reconcile_role_claims"]
     assert "'bound_audiences': [openbao_github_pr_reconcile_audience]" in payload
     assert "'bound_claims_type': 'string'" in payload
-    assert "'token_policies': [openbao_github_pr_reconcile_policy_name]" in payload
+    assert "'token_policies': openbao_github_pr_reconcile_policy_name," in payload
     assert "'token_no_default_policy': true" in payload
     assert "'token_type': 'batch'" in payload
     assert "'token_ttl': openbao_github_pr_reconcile_token_ttl" in payload

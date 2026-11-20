@@ -66,7 +66,7 @@ def test_ci_evals_role_is_bound_to_the_repository_workflow_and_default_branch():
     assert "'bound_claims_type': 'string'" in payload
     assert "'user_claim': 'workflow_ref'" in payload
     assert "job_workflow_ref" not in payload
-    assert "'token_policies': [openbao_ci_evals_policy_name]" in payload
+    assert "'token_policies': openbao_ci_evals_policy_name," in payload
 
     read = _find_task(tasks, "Read the ci-evals OIDC role")
     assert read is not None

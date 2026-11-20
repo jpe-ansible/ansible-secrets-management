@@ -175,6 +175,15 @@ openbao_ai_admin_window_grant_policies: >-
   {{ openbao_ai_admin_window_human_gated_policies
      | selectattr('name', 'in', openbao_ai_admin_window_grant_policy_names)
      | list }}
+# The only policies an OIDC role written through the window may attach: each
+# declared OIDC role attaches exactly its own policy. Exact names only: OpenBao
+# splits a comma string into policies, so a glob value would admit
+# "<allowed>,<any policy>".
+openbao_ai_admin_window_oidc_role_policies: >-
+  {{ [openbao_ci_evals_policy_name, openbao_ci_ai_review_policy_name,
+      openbao_ci_benchmark_lanes_policy_name, openbao_github_pr_reconcile_policy_name,
+      openbao_github_docs_publisher_policy_name, openbao_uicheck_policy_name]
+     + (openbao_github_write_oidc_roles | map(attribute='name') | list) }}
 # Retain exact denies for named self-protecting roles even when their
 # per-call secret_id flow has no manage_secret_id:false marker.
 openbao_ai_admin_window_human_gated_approles: >-

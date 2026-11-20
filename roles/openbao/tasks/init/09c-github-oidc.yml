@@ -9,6 +9,10 @@
 #
 # Included from 09-auth-methods-and-terrakube-jwt.yml, which registers the auth
 # listing this file reads.
+#
+# Each role sends its one policy as a string, not a list: the admin window's
+# OIDC-role grant limits token_policies by string value, and OpenBao compares a
+# list value as a whole.
 
 - name: Enable the GitHub Actions OIDC auth method
   ansible.builtin.command:
@@ -129,7 +133,7 @@
             'bound_audiences': [openbao_github_oidc_audience],
             'bound_claims': _docs_role_claims,
             'bound_claims_type': 'string',
-            'token_policies': [openbao_github_docs_publisher_policy_name],
+            'token_policies': openbao_github_docs_publisher_policy_name,
             'token_ttl': openbao_github_oidc_docs_token_ttl,
             'token_max_ttl': openbao_github_oidc_docs_token_max_ttl} | to_json }}
   environment:
@@ -215,7 +219,7 @@
             'bound_audiences': [openbao_github_oidc_audience],
             'bound_claims': _uicheck_role_claims,
             'bound_claims_type': 'string',
-            'token_policies': [openbao_uicheck_policy_name],
+            'token_policies': openbao_uicheck_policy_name,
             'token_ttl': openbao_uicheck_token_ttl,
             'token_max_ttl': openbao_uicheck_token_max_ttl} | to_json }}
   environment:
@@ -305,7 +309,7 @@
             'bound_audiences': [openbao_ci_ai_review_audience],
             'bound_claims': _ci_ai_review_role_claims,
             'bound_claims_type': 'string',
-            'token_policies': [openbao_ci_ai_review_policy_name],
+            'token_policies': openbao_ci_ai_review_policy_name,
             'token_ttl': openbao_ci_ai_review_token_ttl,
             'token_max_ttl': openbao_ci_ai_review_token_max_ttl} | to_json }}
   environment:
@@ -401,7 +405,7 @@
             'bound_audiences': [openbao_ci_benchmark_lanes_audience],
             'bound_claims': _ci_benchmark_lanes_role_claims,
             'bound_claims_type': 'string',
-            'token_policies': [openbao_ci_benchmark_lanes_policy_name],
+            'token_policies': openbao_ci_benchmark_lanes_policy_name,
             'token_ttl': openbao_ci_benchmark_lanes_token_ttl,
             'token_max_ttl': openbao_ci_benchmark_lanes_token_max_ttl} | to_json }}
   environment:
@@ -485,7 +489,7 @@
             'bound_audiences': [openbao_ci_evals_audience],
             'bound_claims': _ci_evals_role_claims,
             'bound_claims_type': 'string',
-            'token_policies': [openbao_ci_evals_policy_name],
+            'token_policies': openbao_ci_evals_policy_name,
             'token_ttl': openbao_ci_evals_token_ttl,
             'token_max_ttl': openbao_ci_evals_token_max_ttl} | to_json }}
   environment:
@@ -574,7 +578,7 @@
             'bound_audiences': [openbao_github_pr_reconcile_audience],
             'bound_claims': _pr_reconcile_role_claims,
             'bound_claims_type': 'string',
-            'token_policies': [openbao_github_pr_reconcile_policy_name],
+            'token_policies': openbao_github_pr_reconcile_policy_name,
             'token_no_default_policy': true,
             'token_type': 'batch',
             'token_ttl': openbao_github_pr_reconcile_token_ttl,
@@ -707,7 +711,7 @@
             'bound_audiences': ['https://github.com/' ~ item.org],
             'bound_claims': _github_write_role_claims,
             'bound_claims_type': 'glob',
-            'token_policies': [item.name],
+            'token_policies': item.name,
             'token_no_default_policy': true,
             'token_type': 'batch',
             'token_ttl': _github_write_route.token_ttl,
