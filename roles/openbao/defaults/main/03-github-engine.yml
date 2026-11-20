@@ -256,6 +256,7 @@ openbao_github_openhands_permission_sets: >-
 openbao_github_openhands_write_set_prefix: openhands-write
 openbao_github_claude_write_set_prefix: claude-write
 openbao_github_gate_checks_set_prefix: gate-checks
+openbao_github_openhands_workflows_set_prefix: openhands-workflows
 # These route permission profiles are the single literal source for the exact
 # App permission ceiling. A new route adds its approved profile as data; the
 # route assertions compare each route against the profile selected by prefix.
@@ -274,12 +275,18 @@ openbao_github_write_permission_profiles:
   gate-checks:
     checks: write
     metadata: read
+  openhands-workflows:
+    contents: write
+    metadata: read
+    workflows: write
 openbao_github_openhands_write_permissions: >-
   {{ openbao_github_write_permission_profiles[openbao_github_openhands_write_set_prefix] }}
 openbao_github_claude_write_permissions: >-
   {{ openbao_github_write_permission_profiles[openbao_github_claude_write_set_prefix] }}
 openbao_github_gate_checks_permissions: >-
   {{ openbao_github_write_permission_profiles[openbao_github_gate_checks_set_prefix] }}
+openbao_github_openhands_workflows_permissions: >-
+  {{ openbao_github_write_permission_profiles[openbao_github_openhands_workflows_set_prefix] }}
 # A write route is one GitHub App's org-scoped token boundary. Keep this list
 # as the single input to write sets, policies, mount entries, and OIDC roles.
 openbao_github_write_routes:
@@ -291,6 +298,14 @@ openbao_github_write_routes:
     permissions: "{{ openbao_github_openhands_write_permissions }}"
     token_ttl: "{{ openbao_github_openhands_write_token_ttl }}"
     token_max_ttl: "{{ openbao_github_openhands_write_token_max_ttl }}"
+  - prefix: "{{ openbao_github_openhands_workflows_set_prefix }}"
+    mount: "{{ openbao_github_openhands_mount }}"
+    app_id: "{{ openbao_github_openhands_app_id }}"
+    orgs: "{{ openbao_github_openhands_workflows_orgs }}"
+    workflows: "{{ openbao_github_openhands_workflows_workflows }}"
+    permissions: "{{ openbao_github_openhands_workflows_permissions }}"
+    token_ttl: "{{ openbao_github_openhands_workflows_token_ttl }}"
+    token_max_ttl: "{{ openbao_github_openhands_workflows_token_max_ttl }}"
   - prefix: "{{ openbao_github_claude_write_set_prefix }}"
     mount: "{{ openbao_github_claude_mount }}"
     app_id: "{{ openbao_github_claude_app_id }}"
@@ -330,6 +345,9 @@ openbao_github_claude_write_permission_sets: >-
 openbao_github_gate_checks_permission_sets: >-
   {{ openbao_github_write_permission_sets
      | selectattr('tier', 'equalto', openbao_github_gate_checks_set_prefix) | list }}
+openbao_github_openhands_workflows_permission_sets: >-
+  {{ openbao_github_write_permission_sets
+     | selectattr('tier', 'equalto', openbao_github_openhands_workflows_set_prefix) | list }}
 openbao_github_write_permission_sets_with_mounts: >-
   {%- set _sets = [] -%}
   {%- for permission_set in openbao_github_write_permission_sets -%}

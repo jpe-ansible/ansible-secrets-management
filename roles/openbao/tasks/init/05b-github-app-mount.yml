@@ -207,6 +207,10 @@
       gate-checks:
         checks: write
         metadata: read
+      openhands-workflows:
+        contents: write
+        metadata: read
+        workflows: write
     _write_route_sets: >-
       {{ openbao_github_write_permission_sets
          | selectattr('tier', 'equalto', openbao_github_write_route.prefix)

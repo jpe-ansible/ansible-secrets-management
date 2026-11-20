@@ -56,6 +56,8 @@ openbao_github_gate_checks_token_max_ttl: 15m
 openbao_github_gate_checks_workflow_ref_suffixes:
   - "@refs/heads/main"
   - "@refs/tags/v*"
+openbao_github_openhands_workflows_token_ttl: 5m
+openbao_github_openhands_workflows_token_max_ttl: 10m
 openbao_github_write_oidc_roles: >-
   {%- set _roles = [] -%}
   {%- for route in openbao_github_write_routes -%}

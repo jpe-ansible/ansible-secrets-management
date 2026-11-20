@@ -18,6 +18,7 @@ from openbao_reconcile_bounds_helpers import (
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULTS = ROOT / "roles/openbao/defaults/main"
 OIDC_TASKS = ROOT / "roles/openbao/tasks/init/09c-github-oidc.yml"
+APP_SET_CHECKS_TASKS = ROOT / "roles/openbao/tasks/init/05b-github-app-set-checks.yml"
 
 OPENHANDS_PERMISSIONS = {
     "actions": "read",
@@ -32,6 +33,11 @@ CLAUDE_PERMISSIONS = {
     "metadata": "read",
     "pull_requests": "write",
 }
+OPENHANDS_WORKFLOWS_PERMISSIONS = {
+    "contents": "write",
+    "metadata": "read",
+    "workflows": "write",
+}
 
 ROUTE_ENV = (
     "OPENBAO_GITHUB_OPENHANDS_APP_ID",
@@ -45,6 +51,8 @@ ROUTE_ENV = (
     "OPENBAO_GITHUB_EVERYDAY_APP_ID",
     "OPENBAO_GITHUB_GATE_CHECKS_ORGS",
     "OPENBAO_GITHUB_GATE_CHECKS_WORKFLOWS",
+    "OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_ORGS",
+    "OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_WORKFLOWS",
     "OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY",
     "OPENBAO_GITHUB_PR_RECONCILE_OWNERS",
 )
@@ -90,18 +98,18 @@ def _policy_lines(policy_text):
     ]
 
 
-def _write_route_values(values):
+def _write_route_values(values, **overrides):
     defaults, _approles, _policies = values
     return {
-        "routes": _rendered(defaults, "{{ openbao_github_write_routes }}"),
+        "routes": _rendered(defaults, "{{ openbao_github_write_routes }}", **overrides),
         "sets": _rendered(
-            defaults, "{{ openbao_github_write_permission_sets }}"
+            defaults, "{{ openbao_github_write_permission_sets }}", **overrides
         ),
-        "policies": _rendered(defaults, "{{ openbao_github_write_policies }}"),
-        "roles": _rendered(defaults, "{{ openbao_github_write_oidc_roles }}"),
-        "mounts": _rendered(defaults, "{{ openbao_github_app_mounts }}"),
+        "policies": _rendered(defaults, "{{ openbao_github_write_policies }}", **overrides),
+        "roles": _rendered(defaults, "{{ openbao_github_write_oidc_roles }}", **overrides),
+        "mounts": _rendered(defaults, "{{ openbao_github_app_mounts }}", **overrides),
         "permission_sets": _rendered(
-            defaults, "{{ openbao_github_permission_sets }}"
+            defaults, "{{ openbao_github_permission_sets }}", **overrides
         ),
     }
 
@@ -139,6 +147,7 @@ def test_openhands_only_keeps_literal_existing_outputs_and_selection_candidates(
     }
     assert [route["prefix"] for route in output["routes"]] == [
         "openhands-write",
+        "openhands-workflows",
         "claude-write",
         "gate-checks",
     ]
@@ -348,6 +357,161 @@ def test_gate_checks_route_binds_main_and_release_tags_on_the_everyday_mount(
             ),
         )
         assert "gate-checks-" not in rendered
+
+
+def test_openhands_workflows_route_uses_the_shared_ref_suffix_fallback(
+    write_route_defaults, monkeypatch,
+):
+    workflows = [
+        "example-org/example-repo/.github/workflows/publish.yml",
+        "example-org/another-repo/.github/workflows/release.yml",
+    ]
+    orgs = ["ExampleOrg", "SecondOrg"]
+    _set_inputs(
+        monkeypatch,
+        OPENBAO_GITHUB_OPENHANDS_APP_ID="12345",
+        OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_ORGS=",".join(orgs),
+        OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_WORKFLOWS=",".join(workflows),
+    )
+    defaults, _approles, _policies = write_route_defaults
+    output = _write_route_values(write_route_defaults)
+
+    route = next(
+        item for item in output["routes"] if item["prefix"] == "openhands-workflows"
+    )
+    # Like openhands-write, the route carries no workflow_ref_suffixes key, so
+    # the write OIDC role falls back to the shared ref suffix.
+    assert "workflow_ref_suffixes" not in route
+    assert route == {
+        "prefix": "openhands-workflows",
+        "mount": "github-openhands",
+        "app_id": "12345",
+        "orgs": orgs,
+        "workflows": workflows,
+        "permissions": OPENHANDS_WORKFLOWS_PERMISSIONS,
+        "token_ttl": "5m",
+        "token_max_ttl": "10m",
+    }
+    workflow_sets = [
+        item for item in output["sets"] if item["tier"] == "openhands-workflows"
+    ]
+    assert [item["name"] for item in workflow_sets] == [
+        "openhands-workflows-exampleorg",
+        "openhands-workflows-secondorg",
+    ]
+    assert [item["org_name"] for item in workflow_sets] == orgs
+    assert all(item["permissions"] == OPENHANDS_WORKFLOWS_PERMISSIONS for item in workflow_sets)
+    workflow_roles = [
+        item for item in output["roles"] if item["set"]["tier"] == "openhands-workflows"
+    ]
+    assert [item["name"] for item in workflow_roles] == [
+        "openhands-workflows-exampleorg",
+        "openhands-workflows-secondorg",
+    ]
+    assert [item["org"] for item in workflow_roles] == orgs
+    claims = next(
+        task
+        for task in yaml.safe_load(OIDC_TASKS.read_text(encoding="utf-8"))
+        if task.get("name") == "Reconcile each GitHub write OIDC role"
+    )["vars"]["_github_write_role_claims"]
+    assert _rendered(
+        defaults, claims["job_workflow_ref"], _github_write_route=route
+    ) == [f"{workflow}@*" for workflow in workflows]
+    assert [
+        _rendered(defaults, claims["repository_owner"], item=role)
+        for role in workflow_roles
+    ] == [[org] for org in orgs]
+
+
+def test_openhands_mount_contains_pilot_and_every_write_route_set(
+    write_route_defaults, monkeypatch,
+):
+    _set_inputs(
+        monkeypatch,
+        OPENBAO_GITHUB_OPENHANDS_APP_ID="12345",
+        OPENBAO_GITHUB_OPENHANDS_PILOT_REPOS="pilot-repo",
+        OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS="FirstOrg",
+        OPENBAO_GITHUB_OPENHANDS_WRITE_WORKFLOWS=(
+            "example-org/example-repo/.github/workflows/write.yml"
+        ),
+        OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_ORGS="SecondOrg",
+        OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_WORKFLOWS=(
+            "example-org/example-repo/.github/workflows/publish.yml"
+        ),
+    )
+    defaults, _approles, _policies = write_route_defaults
+    overrides = {"openbao_github_openhands_installation_id": "67890"}
+    output = _write_route_values(write_route_defaults, **overrides)
+
+    openhands_mount = next(
+        item for item in output["mounts"] if item["mount"] == "github-openhands"
+    )
+    pilot_sets = _rendered(
+        defaults, "{{ openbao_github_openhands_permission_sets }}", **overrides
+    )
+    route_sets = [
+        permission_set
+        for route in output["routes"]
+        if route["mount"] == "github-openhands"
+        for permission_set in output["sets"]
+        if permission_set["tier"] == route["prefix"]
+    ]
+    assert [item["tier"] for item in route_sets] == [
+        "openhands-write",
+        "openhands-workflows",
+    ]
+    assert openhands_mount["permission_sets"] == pilot_sets + route_sets
+
+    tasks = yaml.safe_load(APP_SET_CHECKS_TASKS.read_text(encoding="utf-8"))
+    route_assertion = next(
+        task
+        for task in tasks
+        if task["name"].startswith(
+            "Assert each write route mount contains exactly its declared sets"
+        )
+    )
+    mount_expression = route_assertion["ansible.builtin.assert"]["that"][0]
+    context = {
+        **overrides,
+        "gm": openhands_mount,
+        "openbao_github_write_routes": output["routes"],
+        "openbao_github_write_permission_sets": output["sets"],
+    }
+    base_sets = _rendered(
+        defaults, route_assertion["vars"]["_write_route_base_sets"], **context
+    )
+    mount_route_sets = _rendered(
+        defaults, route_assertion["vars"]["_write_route_mount_sets"], **context
+    )
+    assertion_context = {
+        **context,
+        "_write_route_base_sets": base_sets,
+        "_write_route_mount_sets": mount_route_sets,
+    }
+    rendered_assertion = _rendered(
+        defaults, "{{ " + mount_expression.strip() + " }}", **assertion_context
+    )
+    assert base_sets == pilot_sets
+    assert mount_route_sets == route_sets
+    assert rendered_assertion is True
+
+    missing_route_mount = {
+        **openhands_mount,
+        "permission_sets": [
+            permission_set
+            for permission_set in openhands_mount["permission_sets"]
+            if permission_set["tier"] != "openhands-workflows"
+        ],
+    }
+    missing_route_context = {
+        **assertion_context,
+        "gm": missing_route_mount,
+    }
+    assert _rendered(
+        defaults,
+        "{{ " + mount_expression.strip() + " }}",
+        **missing_route_context,
+    ) is False
 
 
 @pytest.mark.parametrize(

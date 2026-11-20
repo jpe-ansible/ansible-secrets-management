@@ -346,7 +346,11 @@ def test_org_secrets_selection_checks_its_map_and_full_runs_check_every_map():
     )
     # Selection candidates are the admin-mount sets only, so a permission-set
     # selection never targets a write-route set; the App-mount assert covers that path.
-    for prefix in ("openhands-write", "claude-write"):
+    for prefix in (
+        "openhands-write",
+        "claude-write",
+        "openhands-workflows",
+    ):
         variables = {
             "openbao_select": SELECTION,
             "openbao_github_permission_set_targets": [{"name": SELECTED_NAME, "tier": "org-secrets"}],

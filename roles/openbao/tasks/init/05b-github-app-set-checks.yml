@@ -122,7 +122,7 @@
     that:
       - >-
         gm.permission_sets
-        == _write_route_pilot_sets + _write_route_sets
+        == _write_route_base_sets + _write_route_mount_sets
       - >-
         _write_route_sets | length
         == (openbao_github_write_route.orgs | length
@@ -144,13 +144,23 @@
       {{ openbao_github_write_permission_sets
          | selectattr('tier', 'equalto', openbao_github_write_route.prefix)
          | list }}
-    # The base sets a write route's mount keeps beside the route's own sets.
-    _write_route_pilot_sets: >-
+    # Each mount keeps its declared base sets beside all of its write routes.
+    _write_route_base_sets: >-
       {{ openbao_github_openhands_permission_sets
-         if openbao_github_write_route.prefix == openbao_github_openhands_write_set_prefix
+         if gm.mount == openbao_github_openhands_mount
          else openbao_github_read_permission_sets
-         if openbao_github_write_route.prefix == openbao_github_gate_checks_set_prefix
+         if gm.mount == openbao_github_everyday_mount
          else [] }}
+    _write_route_mount_sets: >-
+      {%- set _sets = [] -%}
+      {%- for _route in openbao_github_write_routes
+          | selectattr('mount', 'equalto', gm.mount) -%}
+      {%- for _set in openbao_github_write_permission_sets
+          | selectattr('tier', 'equalto', _route.prefix) -%}
+      {%- set _ = _sets.append(_set) -%}
+      {%- endfor -%}
+      {%- endfor -%}
+      {{ _sets }}
   loop: >-
     {{ openbao_github_write_routes
        | selectattr('mount', 'equalto', gm.mount) | list }}

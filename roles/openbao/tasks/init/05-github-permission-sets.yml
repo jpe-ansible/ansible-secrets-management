@@ -128,6 +128,10 @@
       gate-checks:
         checks: write
         metadata: read
+      openhands-workflows:
+        contents: write
+        metadata: read
+        workflows: write
   loop: "{{ openbao_github_write_routes }}"
   loop_control:
     label: "{{ item.prefix }}"
