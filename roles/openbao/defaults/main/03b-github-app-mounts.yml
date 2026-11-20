@@ -7,12 +7,12 @@
 # supplied private key is written on first configuration, or for a mount listed
 # in openbao_github_app_key_rotate_mounts.
 #
-#   github         everyday read/write
+#   github         everyday read/write, gate checks and the OpenHands write sets
 #   github-agents  untrusted-tier public read/write, scoped by its installation
 #   github-hermes  review split by visibility; allowlisted public authoring
 #   github-work    read and App-grant write over one installation, no sets
 #   github-pepper  one repository-scoped read set
-#   github-openhands one installation-scoped pilot set and org-scoped write sets
+#   github-openhands one installation-scoped pilot set
 #   github-enterprise-read  human-gated raw-token read tier
 #   github-enterprise       human-gated raw-token admin tier
 #   github-enterprise-owner human-gated stored owner token, readable by the admin tiers only
@@ -300,7 +300,9 @@ openbao_github_app_mounts_base:
     app_id: "{{ openbao_github_everyday_app_id }}"
     private_key: "{{ lookup('env', 'OPENBAO_GITHUB_EVERYDAY_APP_PRIVATE_KEY') | default('', true) }}"
     permission_sets: >-
-      {{ openbao_github_read_permission_sets + openbao_github_gate_checks_permission_sets }}
+      {{ openbao_github_read_permission_sets + openbao_github_gate_checks_permission_sets
+         + openbao_github_openhands_write_permission_sets
+         + openbao_github_openhands_workflows_permission_sets }}
   - mount: "{{ openbao_github_agents_mount }}"
     app_id: "{{ lookup('env', 'OPENBAO_GITHUB_AGENTS_APP_ID') | default('', true) }}"
     private_key: "{{ lookup('env', 'OPENBAO_GITHUB_AGENTS_APP_PRIVATE_KEY') | default('', true) }}"
@@ -334,13 +336,9 @@ openbao_github_app_mounts: >-
      + ([{'mount': openbao_github_openhands_mount,
           'app_id': openbao_github_openhands_app_id,
           'private_key': openbao_github_openhands_app_private_key,
-          'permission_sets': openbao_github_openhands_permission_sets
-                             + openbao_github_openhands_write_permission_sets
-                             + openbao_github_openhands_workflows_permission_sets}]
+          'permission_sets': openbao_github_openhands_permission_sets}]
         if openbao_github_openhands_app_id | length > 0
-           and (openbao_github_openhands_permission_sets
-                + openbao_github_openhands_write_permission_sets
-                + openbao_github_openhands_workflows_permission_sets) | length > 0 else [])
+           and openbao_github_openhands_permission_sets | length > 0 else [])
      + ([{'mount': openbao_github_claude_mount,
           'app_id': openbao_github_claude_app_id,
           'private_key': openbao_github_claude_app_private_key,
