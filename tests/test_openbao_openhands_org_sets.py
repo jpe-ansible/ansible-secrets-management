@@ -359,8 +359,15 @@ def test_openhands_write_permissions_have_a_fixed_five_permission_ceiling():
     )
 
 
+def _flatten_tasks(tasks):
+    for task in tasks:
+        yield task
+        for section in ("block", "rescue", "always"):
+            yield from _flatten_tasks(task.get(section, []))
+
+
 def test_unconfigured_and_check_mode_mount_paths_are_guarded():
-    tasks = yaml.safe_load(MOUNT_TASKS.read_text(encoding="utf-8"))
+    tasks = list(_flatten_tasks(yaml.safe_load(MOUNT_TASKS.read_text(encoding="utf-8"))))
     report = next(
         task for task in tasks
         if task["name"].startswith("Report the planned enable and configuration")
