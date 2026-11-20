@@ -37,4 +37,10 @@ path "auth/{{ openbao_github_oidc_auth_path }}/role/*" {
     "token_policies" = {{ openbao_ai_admin_window_oidc_role_policies | tojson }}
     "policies" = {{ openbao_ai_admin_window_oidc_role_policies | tojson }}
   }
+  # Group and alias-metadata claims would let a role reach identity groups or
+  # templated policies beyond its one declared policy.
+  denied_parameters = {
+    "groups_claim" = []
+    "claim_mappings" = []
+  }
 }

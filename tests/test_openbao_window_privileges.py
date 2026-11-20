@@ -1,6 +1,7 @@
 """Window service declarations render isolated, inert credential identities."""
 
 import fnmatch
+import re
 import pytest
 import time
 import yaml
@@ -673,6 +674,8 @@ def test_window_oidc_role_grant_limits_attachable_policies(rendered_defaults):
     templar = _templar(_trust(values))
     expected = templar.template(_trust(values["openbao_ai_admin_window_oidc_role_policies"]))
     assert allowed == {"*": [], "token_policies": expected, "policies": expected}
+    assert re.search(r'denied_parameters\s*=\s*\{\s*"groups_claim"\s*=\s*\[\]\s*'
+                     r'"claim_mappings"\s*=\s*\[\]\s*\}', body)
     protected = (templar.template(_trust(values["openbao_ai_admin_window_protected_policy_names"]))
                  + templar.template(_trust(values["openbao_ai_admin_window_guard_deny_policy_names"])))
     assert expected and protected
@@ -708,6 +711,9 @@ def test_native_window_writes_oidc_roles_only_with_declared_policies(window_serv
                  role(values["openbao_ci_evals_policy_name"]))[0] == 204
     admin = values["openbao_ai_admin_policy_name"]
     # A list is compared as a whole value, so no list matches the string limits.
+    for extra in ({"groups_claim": "groups"}, {"groups_claim": ""},
+                  {"claim_mappings": {"repository": "group"}}):
+        assert _call(base, parent, "POST", path, {**role(set_policy), **extra})[0] == 403, extra
     for body in (role(admin), role([admin]), role([set_policy]), role([set_policy, admin]),
                  role(admin, field="policies"), role(f"{set_policy},{admin}"),
                  role(f"{set_policy}, {admin}"), role(undeclared), role(f"{undeclared},{admin}")):
