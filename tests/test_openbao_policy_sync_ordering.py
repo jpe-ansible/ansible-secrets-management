@@ -30,6 +30,7 @@ INIT_DIR = ROOT / "roles" / "openbao" / "tasks" / "init"
 
 SYNC_TASK = "Sync the reconcile policy from the declared set (policy-sync)"
 ASK_TASK = "Ask whether this identity may sync the reconcile policy"
+ARRANGEMENT_READ_TASK = "Read the arrangement KV leaf"
 
 # Reconcile-grant consumers that write to a path keyed by a DECLARED NAME
 # (SSH role, AppRole) rather than a stable mount-level wildcard -- these are
@@ -100,6 +101,13 @@ class PolicySyncRunsBeforeItsGrantConsumers(unittest.TestCase):
     def test_ask_task_exists_exactly_once(self):
         order = _global_task_order()
         self.assertEqual(order.count(ASK_TASK), 1)
+
+    def test_arrangement_is_read_once_before_the_sync_render(self):
+        """The sync render reads openbao_policies, which carries the
+        arrangement policies only after the arrangement document is loaded."""
+        order = _global_task_order()
+        self.assertEqual(order.count(ARRANGEMENT_READ_TASK), 1)
+        self.assertLess(order.index(ARRANGEMENT_READ_TASK), order.index(SYNC_TASK))
 
     def test_sync_precedes_every_reconcile_grant_consumer(self):
         order = _global_task_order()

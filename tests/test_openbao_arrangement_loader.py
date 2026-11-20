@@ -17,6 +17,7 @@ from openbao_reconcile_bounds_helpers import (
 ROOT = Path(__file__).resolve().parents[1]
 LOADER = ROOT / "roles/openbao/tasks/init/07z-load-arrangement.yml"
 INIT = ROOT / "roles/openbao/tasks/init.yml"
+CLUSTER = ROOT / "roles/openbao/tasks/init/02-initialize-cluster.yml"
 
 
 def _when(task):
@@ -55,26 +56,26 @@ def test_arrangement_loader_reads_declared_leaf_safely():
     assert "openbao_bootstrap_token is defined" in str(_when(task))
 
 
-def test_arrangement_loader_is_imported_before_rbac_for_selected_runs():
-    tasks = yaml.safe_load(INIT.read_text(encoding="utf-8"))
-    imports = [
-        (index, task, _include_details(task))
+def test_arrangement_loader_is_imported_before_policy_sync_for_every_run():
+    tasks = yaml.safe_load(CLUSTER.read_text(encoding="utf-8"))
+    imports = {
+        _include_details(task)[1]["file"]: (index, task, _include_details(task))
         for index, task in enumerate(tasks)
         if _include_details(task) is not None
-    ]
-    loader_index, loader, loader_details = next(
-        row for row in imports
-        if row[2][1]["file"] == "init/07z-load-arrangement.yml"
-    )
-    rbac_index = next(
-        index for index, task in enumerate(tasks)
-        if task.get("name") == "Render and reconcile the RBAC policies"
+    }
+    loader_index, loader, loader_details = imports["07z-load-arrangement.yml"]
+    sync_index = imports["02b-policy-sync.yml"][0]
+    cluster = next(
+        task for task in yaml.safe_load(INIT.read_text(encoding="utf-8"))
+        if (_include_details(task) or (None, {}))[1].get("file")
+        == "init/02-initialize-cluster.yml"
     )
 
-    assert loader_index < rbac_index
-    assert "openbao_rbac" in loader.get("tags", [])
+    assert loader_index < sync_index
     assert loader_details[0] == "import_tasks"
     assert "when" not in loader
+    assert "always" in cluster.get("tags", [])
+    assert "07z-load-arrangement.yml" not in INIT.read_text(encoding="utf-8")
 
 
 def test_arrangement_loader_resets_and_warns_on_unusable_documents():
