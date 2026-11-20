@@ -300,6 +300,7 @@ def test_openhands_mount_and_pilot_are_declared_without_a_private_key(
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_APP_ID", "fixture-app-id")
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_APP_PRIVATE_KEY", "")
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS", "example-org")
+    monkeypatch.setenv("OPENBAO_GITHUB_EVERYDAY_APP_ID", "fixture-everyday-app-id")
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_PILOT_REPOS", "fixture-repo")
     pepper_defaults["openbao_platform_env"][
         "OPENBAO_GITHUB_OPENHANDS_DRYVIST_INSTALLATION_ID"
@@ -328,7 +329,8 @@ def test_openhands_mount_and_pilot_are_declared_without_a_private_key(
     assert len(mounts) == 1
     assert mounts[0]["app_id"] == "fixture-app-id"
     assert mounts[0]["private_key"] == ""
-    assert mounts[0]["permission_sets"] == sets + write_sets
+    # The OpenHands write sets mint from the everyday App, not this mount.
+    assert mounts[0]["permission_sets"] == sets
 
 
 def test_openhands_mount_has_one_repository_scoped_set_with_exact_permissions(
