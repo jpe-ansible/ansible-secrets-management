@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.132.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.132.0...v0.132.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **openbao:** run the GitHub App mount repository reads in check mode ([#829](https://github.com/jpe-ansible/ansible-secrets-management/issues/829)) ([d77f736](https://github.com/jpe-ansible/ansible-secrets-management/commit/d77f73690512fa4fc56591bd2c023dc17b5aba4c))
+
 ## [0.132.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.131.0...v0.132.0) (2026-11-20)
 
 

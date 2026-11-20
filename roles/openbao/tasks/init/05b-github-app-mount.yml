@@ -251,131 +251,141 @@
     label: "{{ item.name }}"
   when: openbao_github_app_mount_ready | bool
 
-- name: "Mint a metadata-only token for sets that are public-only on mount {{ gm.mount }}"
-  ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
-    method: POST
-    headers:
-      X-Vault-Token: "{{ openbao_bootstrap_token }}"
-    body_format: json
-    body:
-      org_name: "{{ item.public_repos_of }}"
-      permissions:
-        metadata: read
-  delegate_to: "{{ openbao_cli_host }}"
-  become: "{{ openbao_cli_become }}"
-  vars:
-    ansible_become: "{{ openbao_cli_become }}"
-  loop: "{{ gm.permission_sets | selectattr('public_repos_of', 'defined') | list }}"
-  loop_control:
-    label: "{{ item.name }}"
-  register: openbao_github_app_mount_public_tokens
-  no_log: true
-  when: openbao_github_app_mount_ready | bool
+- name: "Resolve public repository lists on mount {{ gm.mount }}"
+  block:
+    - name: "Mint a metadata-only token for sets that are public-only on mount {{ gm.mount }}"
+      ansible.builtin.uri:
+        url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ openbao_bootstrap_token }}"
+        body_format: json
+        body:
+          org_name: "{{ item.public_repos_of }}"
+          permissions:
+            metadata: read
+      delegate_to: "{{ openbao_cli_host }}"
+      become: "{{ openbao_cli_become }}"
+      vars:
+        ansible_become: "{{ openbao_cli_become }}"
+      loop: "{{ gm.permission_sets | selectattr('public_repos_of', 'defined') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: openbao_github_app_mount_public_tokens
+      check_mode: false
+      no_log: true
+      when: openbao_github_app_mount_ready | bool
 
-- name: "Read the public repositories for sets that are public-only on mount {{ gm.mount }}"
-  ansible.builtin.uri:
-    url: >-
-      https://api.github.com/orgs/{{ item.public_repos_of }}/repos?type=public&per_page=100
-    headers:
-      Accept: application/vnd.github+json
-      Authorization: >-
-        Bearer {{ (openbao_github_app_mount_public_tokens.results
-        | selectattr('item.name', 'equalto', item.name) | first).json.data.token }}
-    return_content: true
-  loop: "{{ gm.permission_sets | selectattr('public_repos_of', 'defined') | list }}"
-  loop_control:
-    label: "{{ item.name }}"
-  register: openbao_github_app_mount_public_repos
-  no_log: true
-  when: openbao_github_app_mount_ready | bool
-
-- name: "Revoke the metadata-only tokens for public repositories on mount {{ gm.mount }}"
-  ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
-    method: PUT
-    headers:
-      X-Vault-Token: "{{ openbao_bootstrap_token }}"
-    body_format: json
-    body:
-      lease_id: "{{ item.json.lease_id }}"
-    status_code:
-      - 200
-      - 204
-  delegate_to: "{{ openbao_cli_host }}"
-  become: "{{ openbao_cli_become }}"
-  vars:
-    ansible_become: "{{ openbao_cli_become }}"
-  loop: "{{ openbao_github_app_mount_public_tokens.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  no_log: true
-  when:
-    - openbao_github_app_mount_ready | bool
-    - item.json.lease_id | default('', true) | length > 0
+    - name: "Read the public repositories for sets that are public-only on mount {{ gm.mount }}"
+      ansible.builtin.uri:
+        url: >-
+          https://api.github.com/orgs/{{ item.public_repos_of }}/repos?type=public&per_page=100
+        headers:
+          Accept: application/vnd.github+json
+          Authorization: >-
+            Bearer {{ (openbao_github_app_mount_public_tokens.results
+            | selectattr('item.name', 'equalto', item.name) | first).json.data.token }}
+        return_content: true
+      loop: "{{ gm.permission_sets | selectattr('public_repos_of', 'defined') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: openbao_github_app_mount_public_repos
+      check_mode: false
+      no_log: true
+      when: openbao_github_app_mount_ready | bool
+  always:
+    - name: "Revoke the metadata-only tokens for public repositories on mount {{ gm.mount }}"
+      ansible.builtin.uri:
+        url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
+        method: PUT
+        headers:
+          X-Vault-Token: "{{ openbao_bootstrap_token }}"
+        body_format: json
+        body:
+          lease_id: "{{ item.json.lease_id }}"
+        status_code:
+          - 200
+          - 204
+      delegate_to: "{{ openbao_cli_host }}"
+      become: "{{ openbao_cli_become }}"
+      vars:
+        ansible_become: "{{ openbao_cli_become }}"
+      loop: "{{ openbao_github_app_mount_public_tokens.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      check_mode: false
+      no_log: true
+      when:
+        - openbao_github_app_mount_ready | bool
+        - item.json.lease_id | default('', true) | length > 0
 
 # `private_repos_of`: the set's repository list is the named organization's
 # private repositories the mount's own App installation can see, read with a
 # metadata-only token minted from this mount and revoked straight after.
-- name: "Mint a metadata-only token for sets that are private-only on mount {{ gm.mount }}"
-  ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
-    method: POST
-    headers:
-      X-Vault-Token: "{{ openbao_bootstrap_token }}"
-    body_format: json
-    body:
-      installation_id: "{{ item.installation_id | int | string }}"
-      permissions:
-        metadata: read
-  delegate_to: "{{ openbao_cli_host }}"
-  become: "{{ openbao_cli_become }}"
-  vars:
-    ansible_become: "{{ openbao_cli_become }}"
-  loop: "{{ gm.permission_sets | selectattr('private_repos_of', 'defined') | list }}"
-  loop_control:
-    label: "{{ item.name }}"
-  register: openbao_github_app_mount_private_tokens
-  no_log: true
-  when: openbao_github_app_mount_ready | bool
+- name: "Resolve private repository lists on mount {{ gm.mount }}"
+  block:
+    - name: "Mint a metadata-only token for sets that are private-only on mount {{ gm.mount }}"
+      ansible.builtin.uri:
+        url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ openbao_bootstrap_token }}"
+        body_format: json
+        body:
+          installation_id: "{{ item.installation_id | int | string }}"
+          permissions:
+            metadata: read
+      delegate_to: "{{ openbao_cli_host }}"
+      become: "{{ openbao_cli_become }}"
+      vars:
+        ansible_become: "{{ openbao_cli_become }}"
+      loop: "{{ gm.permission_sets | selectattr('private_repos_of', 'defined') | list }}"
+      loop_control:
+        label: "{{ item.name }}"
+      register: openbao_github_app_mount_private_tokens
+      check_mode: false
+      no_log: true
+      when: openbao_github_app_mount_ready | bool
 
-- name: "Read the installation repositories for sets that are private-only on mount {{ gm.mount }}"
-  ansible.builtin.uri:
-    url: https://api.github.com/installation/repositories?per_page=100
-    headers:
-      Accept: application/vnd.github+json
-      Authorization: "Bearer {{ item.json.data.token }}"
-    return_content: true
-  loop: "{{ openbao_github_app_mount_private_tokens.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  register: openbao_github_app_mount_private_repos
-  no_log: true
-  when: openbao_github_app_mount_ready | bool
-
-- name: "Revoke the metadata-only tokens on mount {{ gm.mount }}"
-  ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
-    method: PUT
-    headers:
-      X-Vault-Token: "{{ openbao_bootstrap_token }}"
-    body_format: json
-    body:
-      lease_id: "{{ item.json.lease_id }}"
-    status_code:
-      - 200
-      - 204
-  delegate_to: "{{ openbao_cli_host }}"
-  become: "{{ openbao_cli_become }}"
-  vars:
-    ansible_become: "{{ openbao_cli_become }}"
-  loop: "{{ openbao_github_app_mount_private_tokens.results | default([]) }}"
-  loop_control:
-    label: "{{ item.item.name }}"
-  no_log: true
-  when:
-    - openbao_github_app_mount_ready | bool
-    - item.json.lease_id | default('', true) | length > 0
+    - name: "Read the installation repositories for sets that are private-only on mount {{ gm.mount }}"
+      ansible.builtin.uri:
+        url: https://api.github.com/installation/repositories?per_page=100
+        headers:
+          Accept: application/vnd.github+json
+          Authorization: "Bearer {{ item.json.data.token }}"
+        return_content: true
+      loop: "{{ openbao_github_app_mount_private_tokens.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      register: openbao_github_app_mount_private_repos
+      check_mode: false
+      no_log: true
+      when: openbao_github_app_mount_ready | bool
+  always:
+    - name: "Revoke the metadata-only tokens on mount {{ gm.mount }}"
+      ansible.builtin.uri:
+        url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
+        method: PUT
+        headers:
+          X-Vault-Token: "{{ openbao_bootstrap_token }}"
+        body_format: json
+        body:
+          lease_id: "{{ item.json.lease_id }}"
+        status_code:
+          - 200
+          - 204
+      delegate_to: "{{ openbao_cli_host }}"
+      become: "{{ openbao_cli_become }}"
+      vars:
+        ansible_become: "{{ openbao_cli_become }}"
+      loop: "{{ openbao_github_app_mount_private_tokens.results | default([]) }}"
+      loop_control:
+        label: "{{ item.item.name }}"
+      check_mode: false
+      no_log: true
+      when:
+        - openbao_github_app_mount_ready | bool
+        - item.json.lease_id | default('', true) | length > 0
 
 - name: "Check the set maps and resolve the repository lists on mount {{ gm.mount }}"
   ansible.builtin.include_tasks: 05b-github-app-set-checks.yml
@@ -385,46 +395,50 @@
 # the permissions its installation actually grants, which GitHub's token
 # response names. A set path ignores request bodies, so a read mint is always
 # read. The token minted to look is revoked at once.
-- name: "Mint a token to read the installation's grant on mount {{ gm.mount }}"
-  ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
-    method: POST
-    headers:
-      X-Vault-Token: "{{ openbao_bootstrap_token }}"
-    body_format: json
-    body:
-      installation_id: "{{ gm.installation_id | int | string }}"
-  delegate_to: "{{ openbao_cli_host }}"
-  become: "{{ openbao_cli_become }}"
-  vars:
-    ansible_become: "{{ openbao_cli_become }}"
-  register: openbao_github_app_mount_grant
-  no_log: true
-  when:
-    - openbao_github_app_mount_ready | bool
-    - gm.derive_read | default(false)
-
-- name: "Revoke the grant-reading token on mount {{ gm.mount }}"
-  ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
-    method: PUT
-    headers:
-      X-Vault-Token: "{{ openbao_bootstrap_token }}"
-    body_format: json
-    body:
-      lease_id: "{{ openbao_github_app_mount_grant.json.lease_id }}"
-    status_code:
-      - 200
-      - 204
-  delegate_to: "{{ openbao_cli_host }}"
-  become: "{{ openbao_cli_become }}"
-  vars:
-    ansible_become: "{{ openbao_cli_become }}"
-  no_log: true
-  when:
-    - openbao_github_app_mount_ready | bool
-    - gm.derive_read | default(false)
-    - openbao_github_app_mount_grant.json.lease_id | default('', true) | length > 0
+- name: "Read the installation's grant on mount {{ gm.mount }}"
+  block:
+    - name: "Mint a token to read the installation's grant on mount {{ gm.mount }}"
+      ansible.builtin.uri:
+        url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
+        method: POST
+        headers:
+          X-Vault-Token: "{{ openbao_bootstrap_token }}"
+        body_format: json
+        body:
+          installation_id: "{{ gm.installation_id | int | string }}"
+      delegate_to: "{{ openbao_cli_host }}"
+      become: "{{ openbao_cli_become }}"
+      vars:
+        ansible_become: "{{ openbao_cli_become }}"
+      register: openbao_github_app_mount_grant
+      check_mode: false
+      no_log: true
+      when:
+        - openbao_github_app_mount_ready | bool
+        - gm.derive_read | default(false)
+  always:
+    - name: "Revoke the grant-reading token on mount {{ gm.mount }}"
+      ansible.builtin.uri:
+        url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
+        method: PUT
+        headers:
+          X-Vault-Token: "{{ openbao_bootstrap_token }}"
+        body_format: json
+        body:
+          lease_id: "{{ openbao_github_app_mount_grant.json.lease_id }}"
+        status_code:
+          - 200
+          - 204
+      delegate_to: "{{ openbao_cli_host }}"
+      become: "{{ openbao_cli_become }}"
+      vars:
+        ansible_become: "{{ openbao_cli_become }}"
+      check_mode: false
+      no_log: true
+      when:
+        - openbao_github_app_mount_ready | bool
+        - gm.derive_read | default(false)
+        - openbao_github_app_mount_grant.json.lease_id | default('', true) | length > 0
 
 - name: "Assert the derived read set is read-only and inside the standard list on mount {{ gm.mount }}"
   ansible.builtin.assert:

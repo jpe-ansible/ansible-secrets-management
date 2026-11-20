@@ -309,8 +309,15 @@ def test_mount_task_touches_only_declared_permission_set_names():
     assert "bao delete {{ gm.mount }}/permissionset/{{ item }}" in commands
 
 
+def _flatten_tasks(tasks):
+    for task in tasks:
+        yield task
+        for section in ("block", "rescue", "always"):
+            yield from _flatten_tasks(task.get(section, []))
+
+
 def test_mount_task_sends_numeric_github_ids_as_strings():
-    tasks = yaml.safe_load(MOUNT_TASK.read_text(encoding="utf-8"))
+    tasks = list(_flatten_tasks(yaml.safe_load(MOUNT_TASK.read_text(encoding="utf-8"))))
     config = yaml.safe_load(CONFIG_WRITE_TASK.read_text(encoding="utf-8"))[0]
     private_token = next(
         task for task in tasks if "private-only on mount" in task.get("name", "")
