@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.128.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.127.1...v0.128.0) (2026-11-20)
+
+
+### Features
+
+* **openbao:** add an optional second CI workflow identity for benchmark lanes ([#767](https://github.com/jpe-ansible/ansible-secrets-management/issues/767)) ([d2221a6](https://github.com/jpe-ansible/ansible-secrets-management/commit/d2221a66ca22ba1cbe7e18d5a58f844aa1679fab))
+* **openbao:** declare the tracker-metrics generated app leaf ([#809](https://github.com/jpe-ansible/ansible-secrets-management/issues/809)) ([7380741](https://github.com/jpe-ansible/ansible-secrets-management/commit/73807411dff20da83786a19615e0822b26647d9e))
+* **openbao:** let a selected run reconcile the CI OIDC roles by name ([#807](https://github.com/jpe-ansible/ansible-secrets-management/issues/807)) ([c765cde](https://github.com/jpe-ansible/ansible-secrets-management/commit/c765cde2d77d0dd2cc76b8ecf65f663fcf5904fa))
+* **openbao:** let the PR reconcile sweep dispatch CI fixes and read checks ([#808](https://github.com/jpe-ansible/ansible-secrets-management/issues/808)) ([fc25004](https://github.com/jpe-ansible/ansible-secrets-management/commit/fc250047605f613c3250b15a8b5e34a3cb26521d))
+
+
+### Bug Fixes
+
+* **openbao:** bind each GitHub write role to its own org's audience ([94c5878](https://github.com/jpe-ansible/ansible-secrets-management/commit/94c58788ee0d54a622c0328a30c303329205c6cb))
+* **openbao:** set the audience of each GitHub write role from its org ([#810](https://github.com/jpe-ansible/ansible-secrets-management/issues/810)) ([94c5878](https://github.com/jpe-ansible/ansible-secrets-management/commit/94c58788ee0d54a622c0328a30c303329205c6cb))
+
 ## [0.127.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.127.0...v0.127.1) (2026-11-20)
 
 
