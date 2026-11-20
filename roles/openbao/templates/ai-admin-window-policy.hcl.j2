@@ -2,7 +2,8 @@
 # Finite exact-name grants used by the selected ai-admin-session RBAC path.
 # Policy contents and AppRole parameters are not pinned.
 # This policy is paired with ai-admin-guard; neither it nor the token has a
-# wildcard policy or AppRole write path.
+# wildcard policy or AppRole write path. Its one wildcard path is the GitHub
+# Actions OIDC role path, limited by the policies a role may attach.
 
 path "sys/capabilities-self" {
   capabilities = ["create", "update"]
@@ -25,3 +26,15 @@ path "auth/approle/role/{{ _approle.name }}/policies" {
   capabilities = ["create", "update"]
 }
 {% endfor %}
+
+# GitHub Actions OIDC roles. Each role may attach only one declared OIDC-role
+# policy, by exact name, so no role can carry a guarded or self-protecting
+# policy. Delete stays denied.
+path "auth/{{ openbao_github_oidc_auth_path }}/role/*" {
+  capabilities = ["create", "read", "update"]
+  allowed_parameters = {
+    "*" = []
+    "token_policies" = {{ openbao_ai_admin_window_oidc_role_policies | tojson }}
+    "policies" = {{ openbao_ai_admin_window_oidc_role_policies | tojson }}
+  }
+}

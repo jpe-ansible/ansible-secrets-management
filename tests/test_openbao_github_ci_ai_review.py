@@ -63,7 +63,7 @@ def test_ci_ai_review_role_uses_the_required_bounds_and_enterprise_claim():
     assert "'bound_audiences': [openbao_ci_ai_review_audience]" in payload
     assert "'bound_claims_type': 'string'" in payload
     assert "'user_claim': 'job_workflow_ref'" in payload
-    assert "'token_policies': [openbao_ci_ai_review_policy_name]" in payload
+    assert "'token_policies': openbao_ci_ai_review_policy_name," in payload
 
     read = _find_task(tasks, "Read the ci-ai-review OIDC role")
     skip = _find_task(
