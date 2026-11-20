@@ -40,7 +40,7 @@ DENIED_PATHS = [
     "auth/token/roles/fixture", "auth/token/revoke-orphan",
     "auth/approle/role/window-github", "auth/approle/role/window-github/secret-id",
     "auth/approle/role/ordinary/secret-id", "auth/approle/role/ordinary/custom-secret-id",
-    "auth/approle/role/ordinary", "auth/jwt/role/fixture",
+    "auth/approle/role/ordinary/role-id", "auth/jwt/role/fixture",
 ] + [f"identity/{family}{suffix}"
      for family in IDENTITY_FAMILIES
      for suffix in ("", "/id/fixture", "/name/fixture", "/id/fixture/nested", "-fixture")]
@@ -236,7 +236,28 @@ def test_window_grant_is_exact_and_matches_only_eligible_protected_objects(rende
     text = _render(WINDOW_GRANT, values)
     stanzas = dict(_stanzas(text))
     oidc_path = f"auth/{values['openbao_github_oidc_auth_path']}/role/*"
-    assert [path for path in stanzas if "*" in path or "+" in path] == [oidc_path]
+    agent_tier = values["openbao_agent_tier_mount"]
+    read_only_wildcards = {
+        "sys/policies/acl/*": ["read"],
+        f"sys/policies/acl/{values['openbao_human_unlock_policy_name']}*": ["deny"],
+        "auth/approle/role/+": ["read"],
+        f"{agent_tier}/metadata/*": ["read", "list"],
+        f"{agent_tier}/subkeys/*": ["read"],
+        f"sys/internal/ui/mounts/{agent_tier}/*": ["read"],
+    }
+    assert [path for path in stanzas if "*" in path or "+" in path] == [
+        "sys/policies/acl/*",
+        f"sys/policies/acl/{values['openbao_human_unlock_policy_name']}*",
+        "auth/approle/role/+",
+        f"{agent_tier}/metadata/*",
+        f"{agent_tier}/subkeys/*",
+        f"sys/internal/ui/mounts/{agent_tier}/*",
+        oidc_path,
+    ]
+    for path, capabilities in read_only_wildcards.items():
+        assert _capabilities(stanzas.pop(path)) == capabilities
+    guard_path = f"sys/policies/acl/{values['openbao_ai_admin_guard_policy_name']}"
+    assert _capabilities(stanzas.pop(guard_path)) == ["deny"]
     stanzas.pop(oidc_path)
     expected_policy_paths = {
         f"sys/policies/acl/{policy['name']}"
@@ -270,8 +291,14 @@ def test_window_grant_is_exact_and_matches_only_eligible_protected_objects(rende
         if line.lstrip().startswith('path "')
     ]
     assert not any("secret-id" in path for path in path_declarations)
-    assert [path for path in path_declarations if "*" in path] == [
-        "auth/{{ openbao_github_oidc_auth_path }}/role/*"
+    assert [path for path in path_declarations if "*" in path or "+" in path] == [
+        "sys/policies/acl/*",
+        "sys/policies/acl/{{ openbao_human_unlock_policy_name }}*",
+        "auth/approle/role/+",
+        "{{ openbao_agent_tier_mount }}/metadata/*",
+        "{{ openbao_agent_tier_mount }}/subkeys/*",
+        "sys/internal/ui/mounts/{{ openbao_agent_tier_mount }}/*",
+        "auth/{{ openbao_github_oidc_auth_path }}/role/*",
     ]
 
 
@@ -494,9 +521,15 @@ def test_native_composition_denies_dangerous_and_protected_paths(window_server):
         for name in protected_policies
         for suffix in ("", "/nested", "/nested/descendant")
     ]
+    paths += [f"sys/policies/acl/{values['openbao_human_unlock_policy_name']}",
+              f"sys/policies/acl/{values['openbao_ai_admin_guard_policy_name']}"]
     status, result = _call(base, "root", "POST", "sys/capabilities", {"token": parent, "paths": paths})
     assert status == 200
     assert {path: result[path] for path in paths} == dict.fromkeys(paths, ["deny"])
+    status, result = _call(base, "root", "POST", "sys/capabilities",
+                           {"token": parent, "paths": ["auth/approle/role/ordinary"]})
+    assert status == 200
+    assert result["auth/approle/role/ordinary"] == ["read"]
     status, result = _call(base, parent, "GET", "auth/token/lookup-self")
     assert status == 200, result if status != 200 else ""
     assert _call(base, parent, "POST", "auth/token/renew-self", {})[0] == 200
