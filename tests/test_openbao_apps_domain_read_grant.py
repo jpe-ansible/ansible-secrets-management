@@ -133,6 +133,7 @@ def test_every_apps_domain_path_is_granted_to_the_apps_reader():
     ("langflow", "langflow_llm_router_key"),
     ("grafana-llm", "grafana_llm_router_key"),
     ("crawl4ai", "crawl4ai_api_token"),
+    ("next-ai-drawio", "next_ai_drawio_llm_router_key"),
 ])
 def test_generated_apps_have_exact_read_only_grants(app, field):
     names = _yaml(NAMES_FILE)
