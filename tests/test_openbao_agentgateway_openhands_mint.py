@@ -38,6 +38,8 @@ def gateway_defaults(monkeypatch):
         APP_PRIVATE_KEY_KEY,
         "OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS",
         "OPENBAO_GITHUB_OPENHANDS_WRITE_WORKFLOWS",
+        "OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_ORGS",
+        "OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_WORKFLOWS",
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("OPENBAO_TERRAKUBE_NETWORK_WORKSPACE", "fixture-network")
