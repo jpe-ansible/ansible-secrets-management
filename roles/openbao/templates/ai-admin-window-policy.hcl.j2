@@ -11,6 +11,26 @@ path "sys/capabilities-self" {
 path "sys/policies/acl" {
   capabilities = ["list"]
 }
+# Policy text for the before/after diff of a selected run. The operator's
+# unlock policies and the guard stay unreadable.
+path "sys/policies/acl/*" {
+  capabilities = ["read"]
+}
+path "sys/policies/acl/{{ openbao_human_unlock_policy_name }}*" {
+  capabilities = ["deny"]
+}
+path "sys/policies/acl/{{ openbao_ai_admin_guard_policy_name }}" {
+  capabilities = ["deny"]
+}
+
+# AppRole configuration readback at depth one: role-id and secret-id subpaths
+# stay under the guard's deny.
+path "auth/approle/role" {
+  capabilities = ["list"]
+}
+path "auth/approle/role/+" {
+  capabilities = ["read"]
+}
 
 {% for _policy in openbao_ai_admin_window_grant_policies %}
 path "sys/policies/acl/{{ _policy.name }}" {
@@ -43,4 +63,7 @@ path "auth/{{ openbao_github_oidc_auth_path }}/role/*" {
     "groups_claim" = []
     "claim_mappings" = []
   }
+}
+path "auth/{{ openbao_github_oidc_auth_path }}/role" {
+  capabilities = ["list"]
 }

@@ -107,6 +107,7 @@ def test_rendered_agent_workstation_policy_contains_only_its_exact_reads():
         ("secret/data/ai/mcp/zammad", '["read"]'),
         ("secret/data/ai/mcp/vikunja", '["read"]'),
         ("secret/data/ai/youtrack", '["read"]'),
+        ("secret/data/ai/dify/agent-mcp/vikunja-clerk", '["read"]'),
         ("secret/data/ai/dify/agent-apps/*", '["read"]'),
         ("secrets-external/data/slack/claude-reader/ro", '["read"]'),
     ]
