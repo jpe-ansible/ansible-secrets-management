@@ -68,7 +68,7 @@ def test_source_class_and_taxonomy_match_the_nautobot_publisher():
     assert "'hatchet-token-publisher': 'operator-admin'," in taxonomy
 
 
-def test_apps_domain_reads_the_leaf_and_tolerates_its_absence():
+def test_apps_domain_grants_the_leaf_without_prefetching_it():
     published = _defaults("05c-terrakube-and-remaining-domain-names.yml")[
         "openbao_apps_read_published_apps"
     ]
@@ -76,4 +76,5 @@ def test_apps_domain_reads_the_leaf_and_tolerates_its_absence():
 
     domains = yaml.safe_load(CATALOG.read_text(encoding="utf-8"))["openbao_secrets_domains"]
     apps_paths = next(domain for domain in domains if domain["name"] == "apps")["paths"]
-    assert {"path": LEAF, "optional": True} in apps_paths
+    declared = [item["path"] if isinstance(item, dict) else item for item in apps_paths]
+    assert LEAF not in declared
