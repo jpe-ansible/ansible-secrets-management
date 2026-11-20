@@ -187,11 +187,6 @@
     - etcd_pki
   when: openbao_select | default({}) | length == 0
 
-- name: Load the arrangement document before rendering RBAC policies
-  ansible.builtin.import_tasks: init/07z-load-arrangement.yml
-  tags:
-    - openbao_rbac
-
 - name: Render and reconcile the RBAC policies
   ansible.builtin.import_tasks: init/08-rbac-policies.yml
   tags:

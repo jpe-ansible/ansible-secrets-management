@@ -2,6 +2,7 @@
 - name: Initialize the arrangement as empty for this run
   ansible.builtin.set_fact:
     openbao_arrangement: {}
+    openbao_arrangement_loaded: false
     _openbao_arrangement_transport_failed: false
     _openbao_arrangement_parse_failed: false
     _openbao_arrangement_document_present: false
@@ -127,6 +128,7 @@
 - name: Accept the parsed arrangement mapping
   ansible.builtin.set_fact:
     openbao_arrangement: "{{ _openbao_arrangement_parsed }}"
+    openbao_arrangement_loaded: true
   changed_when: false
   no_log: true
   when:

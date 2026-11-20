@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.133.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.133.0...v0.133.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **openbao:** load the arrangement before policy-sync and fail closed without it ([#840](https://github.com/jpe-ansible/ansible-secrets-management/issues/840)) ([f35bf01](https://github.com/jpe-ansible/ansible-secrets-management/commit/f35bf010e56f804bafec1c03ef4a58b62af31ca7))
+
 ## [0.133.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.132.1...v0.133.0) (2026-11-20)
 
 
