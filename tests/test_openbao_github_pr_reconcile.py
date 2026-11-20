@@ -86,7 +86,6 @@ def test_inputs_enable_reconcile_and_build_workflow_ref():
         "actions": "write",
         "checks": "read",
         "contents": "write",
-        "issues": "write",
         "pull_requests": "write",
         "statuses": "write",
     }
@@ -147,7 +146,7 @@ def test_policy_pins_owner_names_and_permission_map_on_the_raw_endpoint():
     owners = ", ".join(f'"{owner}"' for owner in defaults["openbao_pr_reconcile_owners"])
     assert f'"org_name" = [{owners}]' in rendered
     assert (
-        '"permissions" = [{ "actions" = "write", "checks" = "read", "contents" = "write", "issues" = "write", '
+        '"permissions" = [{ "actions" = "write", "checks" = "read", "contents" = "write", '
         '"pull_requests" = "write", "statuses" = "write" }]'
     ) in rendered
     assert '"installation_id" = []' in rendered
