@@ -24,11 +24,11 @@ openbao_github_pr_reconcile_enabled: >-
   {{ openbao_github_pr_reconcile_repository | length > 0 and openbao_pr_reconcile_owners | length > 0 }}
 
 # actions: write dispatches the CI-fix workflow; checks: read lists check runs before a fix or merge.
+# PR labels and comments use pull_requests: write, so issues is not requested.
 openbao_github_pr_reconcile_permissions:
   actions: write
   checks: read
   contents: write
-  issues: write
   pull_requests: write
   statuses: write
 
