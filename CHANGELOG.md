@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.132.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.131.0...v0.132.0) (2026-11-20)
+
+
+### Features
+
+* **openbao:** add Next AI Draw.io app catalog entry ([#825](https://github.com/jpe-ansible/ansible-secrets-management/issues/825)) ([37f35df](https://github.com/jpe-ansible/ansible-secrets-management/commit/37f35df2e9ce8199195e8e8ad856584fce367619))
+* **openbao:** declare Next AI Draw.io consumer key ([37f35df](https://github.com/jpe-ansible/ansible-secrets-management/commit/37f35df2e9ce8199195e8e8ad856584fce367619))
+* **openbao:** deny group and claim-mapping fields on window OIDC role writes ([#822](https://github.com/jpe-ansible/ansible-secrets-management/issues/822)) ([cf41310](https://github.com/jpe-ansible/ansible-secrets-management/commit/cf413105ea59010fce776f81294417de7fb486cf))
+
+
+### Bug Fixes
+
+* **openbao:** drop four unused optional reads from the apps domain catalog ([#823](https://github.com/jpe-ansible/ansible-secrets-management/issues/823)) ([fcbf579](https://github.com/jpe-ansible/ansible-secrets-management/commit/fcbf579c5e831e95ebe78f670bcd653a7e7edd75))
+* **openbao:** show the agent-tier legacy-field migration in check mode ([ab2992c](https://github.com/jpe-ansible/ansible-secrets-management/commit/ab2992c0b86fa06da0a7c41e0ad2b50a1c217cdb))
+* **openbao:** show the agent-tier migration in check mode ([#824](https://github.com/jpe-ansible/ansible-secrets-management/issues/824)) ([ab2992c](https://github.com/jpe-ansible/ansible-secrets-management/commit/ab2992c0b86fa06da0a7c41e0ad2b50a1c217cdb))
+
 ## [0.131.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.130.0...v0.131.0) (2026-11-20)
 
 
