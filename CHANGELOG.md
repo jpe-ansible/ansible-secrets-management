@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.130.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.129.0...v0.130.0) (2026-11-20)
+
+
+### Features
+
+* **openbao:** let agent-workstation read the Vikunja MCP leaf ([#816](https://github.com/jpe-ansible/ansible-secrets-management/issues/816)) ([5b14494](https://github.com/jpe-ansible/ansible-secrets-management/commit/5b1449499bc3a196a065f99274dcc157c505773c))
+
 ## [0.129.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.128.0...v0.129.0) (2026-11-20)
 
 
