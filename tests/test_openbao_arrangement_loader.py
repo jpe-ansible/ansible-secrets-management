@@ -139,3 +139,16 @@ def test_reconcile_policy_reads_only_the_exact_arrangement_leaf(rendered_default
 
     assert len(leaf_stanzas) == 1
     assert _capabilities(leaf_stanzas[0]) == ["read"]
+
+
+def test_arrangement_loaded_flag_is_set_only_on_an_accepted_mapping():
+    tasks = _task_file(LOADER)
+    setters = {
+        task["name"]: task["ansible.builtin.set_fact"]["openbao_arrangement_loaded"]
+        for task in tasks
+        if "openbao_arrangement_loaded" in task.get("ansible.builtin.set_fact", {})
+    }
+    assert setters == {
+        "Initialize the arrangement as empty for this run": False,
+        "Accept the parsed arrangement mapping": True,
+    }

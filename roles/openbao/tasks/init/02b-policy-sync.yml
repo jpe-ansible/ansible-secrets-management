@@ -229,6 +229,29 @@
     - openbao_bootstrap_token is defined
     - openbao_bounded_rbac_mode | default(false) | bool
 
+# A reconcile policy rendered without the arrangement drops every
+# arrangement-* grant, so the sync refuses to write it.
+- name: Refuse the policy-sync write when the arrangement did not load
+  ansible.builtin.assert:
+    that:
+      - openbao_arrangement_loaded | default(false) | bool
+    fail_msg: >-
+      The arrangement document at KV {{ openbao_arrangement_kv_mount }}/{{
+      openbao_arrangement_kv_path }} did not load, so the
+      {{ openbao_reconcile_policy_name }} policy would be written without its
+      arrangement grants. The policy-sync write is refused; fix the arrangement
+      read and run again.
+    quiet: true
+  when:
+    - openbao_reconcile_policy_selected_for_sync | bool
+    - openbao_bootstrap_token is defined
+    - openbao_bounded_rbac_mode | default(false) | bool
+    - (openbao_policy_sync_caps.rc | default(1)) == 0
+    - >-
+      'update' in ((openbao_policy_sync_caps.stdout | from_json).get('data', {})
+      | combine(openbao_policy_sync_caps.stdout | from_json))
+      .get('sys/policies/acl/' ~ openbao_reconcile_policy_name, [])
+
 - name: Preview reconcile policy changes in check mode
   ansible.builtin.import_tasks: 02c-policy-sync-preview.yml
   when:

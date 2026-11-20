@@ -31,6 +31,7 @@ INIT_DIR = ROOT / "roles" / "openbao" / "tasks" / "init"
 SYNC_TASK = "Sync the reconcile policy from the declared set (policy-sync)"
 ASK_TASK = "Ask whether this identity may sync the reconcile policy"
 ARRANGEMENT_READ_TASK = "Read the arrangement KV leaf"
+ARRANGEMENT_GUARD_TASK = "Refuse the policy-sync write when the arrangement did not load"
 
 # Reconcile-grant consumers that write to a path keyed by a DECLARED NAME
 # (SSH role, AppRole) rather than a stable mount-level wildcard -- these are
@@ -108,6 +109,20 @@ class PolicySyncRunsBeforeItsGrantConsumers(unittest.TestCase):
         order = _global_task_order()
         self.assertEqual(order.count(ARRANGEMENT_READ_TASK), 1)
         self.assertLess(order.index(ARRANGEMENT_READ_TASK), order.index(SYNC_TASK))
+
+    def test_sync_fails_closed_when_the_arrangement_did_not_load(self):
+        order = _global_task_order()
+        self.assertEqual(order.count(ARRANGEMENT_GUARD_TASK), 1)
+        self.assertLess(order.index(ARRANGEMENT_READ_TASK), order.index(ARRANGEMENT_GUARD_TASK))
+        self.assertLess(order.index(ARRANGEMENT_GUARD_TASK), order.index(SYNC_TASK))
+        tasks = yaml.safe_load((INIT_DIR / "02b-policy-sync.yml").read_text(encoding="utf-8"))
+        guard = next(t for t in tasks if t.get("name") == ARRANGEMENT_GUARD_TASK)
+        sync = next(t for t in tasks if t.get("name") == SYNC_TASK)
+        self.assertEqual(
+            guard["ansible.builtin.assert"]["that"],
+            ["openbao_arrangement_loaded | default(false) | bool"],
+        )
+        self.assertEqual(guard["when"], sync["when"])
 
     def test_sync_precedes_every_reconcile_grant_consumer(self):
         order = _global_task_order()
