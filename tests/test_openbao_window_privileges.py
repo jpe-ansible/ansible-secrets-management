@@ -1,5 +1,7 @@
 """Window service declarations render isolated, inert credential identities."""
 
+import fnmatch
+import re
 import pytest
 import time
 import yaml
@@ -233,7 +235,9 @@ def test_window_grant_is_exact_and_matches_only_eligible_protected_objects(rende
     values, _, _ = rendered_defaults
     text = _render(WINDOW_GRANT, values)
     stanzas = dict(_stanzas(text))
-    assert all("*" not in path and "+" not in path for path in stanzas)
+    oidc_path = f"auth/{values['openbao_github_oidc_auth_path']}/role/*"
+    assert [path for path in stanzas if "*" in path or "+" in path] == [oidc_path]
+    stanzas.pop(oidc_path)
     expected_policy_paths = {
         f"sys/policies/acl/{policy['name']}"
         for policy in values["openbao_ai_admin_window_manageable_policies"]
@@ -265,12 +269,17 @@ def test_window_grant_is_exact_and_matches_only_eligible_protected_objects(rende
         for line in WINDOW_GRANT.read_text(encoding="utf-8").splitlines()
         if line.lstrip().startswith('path "')
     ]
-    assert not any("secret-id" in path or "*" in path for path in path_declarations)
+    assert not any("secret-id" in path for path in path_declarations)
+    assert [path for path in path_declarations if "*" in path] == [
+        "auth/{{ openbao_github_oidc_auth_path }}/role/*"
+    ]
 
 
 def test_window_grant_does_not_pin_policy_contents_or_approle_parameters(rendered_defaults):
     values, _, _ = rendered_defaults
     for path, body in _stanzas(_render(WINDOW_GRANT, values)):
+        if path == f"auth/{values['openbao_github_oidc_auth_path']}/role/*":
+            continue
         assert "allowed_parameters" not in body, path
         assert "required_parameters" not in body, path
 
@@ -654,3 +663,75 @@ def test_native_issuance_rejects_policy_lifetime_and_orphan_overrides(window_ser
         request = _request()
         del request[parameter]
         assert _call(base, parent, "POST", "auth/token/create", request)[0] == 403
+
+
+def test_window_oidc_role_grant_limits_attachable_policies(rendered_defaults):
+    values, _, _ = rendered_defaults
+    oidc_path = f"auth/{values['openbao_github_oidc_auth_path']}/role/*"
+    body = dict(_stanzas(_render(WINDOW_GRANT, values)))[oidc_path]
+    assert _capabilities(body) == ["create", "read", "update"]
+    allowed = _allowed_parameters(body)
+    templar = _templar(_trust(values))
+    expected = templar.template(_trust(values["openbao_ai_admin_window_oidc_role_policies"]))
+    assert allowed == {"*": [], "token_policies": expected, "policies": expected}
+    assert re.search(r'denied_parameters\s*=\s*\{\s*"groups_claim"\s*=\s*\[\]\s*'
+                     r'"claim_mappings"\s*=\s*\[\]\s*\}', body)
+    protected = (templar.template(_trust(values["openbao_ai_admin_window_protected_policy_names"]))
+                 + templar.template(_trust(values["openbao_ai_admin_window_guard_deny_policy_names"])))
+    assert expected and protected
+    assert not [name for name in protected for allowed_name in expected
+                if fnmatch.fnmatchcase(name, allowed_name)]
+    guard = dict(_stanzas(_render(GUARD, values)))
+    admin_roles = (f"auth/{values['openbao_github_oidc_auth_path']}/role/"
+                   f"{values['openbao_ai_admin_approle_name']}*")
+    assert _capabilities(guard[admin_roles]) == ["deny"]
+    assert all(_capabilities(guard[path]) == ["deny"]
+               for path in ("auth/*", "auth/approle/role/*", "auth/token/*", "sys/seal", "sys/raw*"))
+
+
+def test_native_window_writes_oidc_roles_only_with_declared_policies(window_server):
+    base, values, _ = window_server
+    mount = values["openbao_github_oidc_auth_path"]
+    assert _call(base, "root", "POST", f"sys/auth/{mount}", {"type": "jwt"})[0] == 204
+    assert _call(base, "root", "POST", "sys/auth/approle", {"type": "approle"})[0] == 204
+    parent = _parent(base, values)
+    set_policy = values["openbao_github_pr_reconcile_policy_name"]
+    undeclared = f"{values['openbao_github_gate_checks_set_prefix']}-undeclared"
+
+    def role(policies, field="token_policies"):
+        return {"role_type": "jwt", "user_claim": "sub",
+                "bound_audiences": ["https://github.com/ExampleOrg"],
+                "bound_claims": {"repository": "ExampleOrg/example"}, field: policies}
+
+    path = f"auth/{mount}/role/{set_policy}"
+    # The converge sends each role's one policy as a string (09c-github-oidc.yml).
+    assert _call(base, parent, "POST", path, role(set_policy))[0] == 204
+    assert _call(base, parent, "GET", path)[0] == 200
+    assert _call(base, parent, "POST", f"auth/{mount}/role/{values['openbao_ci_evals_policy_name']}",
+                 role(values["openbao_ci_evals_policy_name"]))[0] == 204
+    admin = values["openbao_ai_admin_policy_name"]
+    # A list is compared as a whole value, so no list matches the string limits.
+    for extra in ({"groups_claim": "groups"}, {"groups_claim": ""},
+                  {"claim_mappings": {"repository": "group"}}):
+        assert _call(base, parent, "POST", path, {**role(set_policy), **extra})[0] == 403, extra
+    for body in (role(admin), role([admin]), role([set_policy]), role([set_policy, admin]),
+                 role(admin, field="policies"), role(f"{set_policy},{admin}"),
+                 role(f"{set_policy}, {admin}"), role(undeclared), role(f"{undeclared},{admin}")):
+        assert _call(base, parent, "POST", path, body)[0] == 403, body
+    assert _call(base, parent, "DELETE", path)[0] == 403
+    for name in (values["openbao_ai_admin_approle_name"],
+                 values["openbao_ai_admin_session_approle_name"]):
+        for admin_path in (f"auth/{mount}/role/{name}", f"auth/approle/role/{name}"):
+            assert _call(base, parent, "POST", admin_path, role(set_policy))[0] == 403, admin_path
+    status, live = _call(base, "root", "GET", path)
+    assert status == 200 and live["data"]["token_policies"] == [set_policy]
+
+
+def test_window_oidc_role_policies_are_exact_declared_names(rendered_defaults):
+    values, _, _ = rendered_defaults
+    write_role = {"name": "gate-checks-exampleorg"}
+    rendered = _templar(_trust(dict(values, openbao_github_write_oidc_roles=[write_role]))).template(
+        _trust(values["openbao_ai_admin_window_oidc_role_policies"]))
+    assert "gate-checks-exampleorg" in rendered
+    assert values["openbao_ci_evals_policy_name"] in rendered
+    assert not [name for name in rendered if "*" in name or "," in name]

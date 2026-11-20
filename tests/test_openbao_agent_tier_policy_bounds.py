@@ -296,3 +296,19 @@ def test_legacy_login_password_mismatch_fails_before_any_write_or_delete():
             "openbao_agent_tier_login_migrate_conflicts"
         ]},
     ) == "True"
+
+
+def test_check_mode_reads_the_leaves_and_reports_each_skipped_write():
+    tasks = yaml.safe_load(
+        (ROOT / "roles/openbao/tasks/remove_app_agent_legacy_fields.yml").read_text(encoding="utf-8")
+    )
+    reads = [task for task in tasks if task.get("ansible.builtin.uri", {}).get("method") == "GET"]
+    writes = [index for index, task in enumerate(tasks) if task.get("ansible.builtin.uri", {}).get("method") == "POST"]
+    assert len(reads) == 6
+    assert all(task["check_mode"] is False for task in reads)
+    assert len(writes) == 3
+    for index in writes:
+        report = tasks[index - 1]
+        assert report["when"] == ["ansible_check_mode"] + tasks[index]["when"]
+        assert "_data" not in report["ansible.builtin.debug"]["msg"]
+        assert "no_log" not in report

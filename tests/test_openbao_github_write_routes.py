@@ -748,7 +748,7 @@ def test_generic_oidc_role_task_inputs_preserve_openhands_payload_and_add_claude
             "bound_claims": expected_claims,
             "bound_claims_type": "glob",
             "user_claim": "job_workflow_ref",
-            "token_policies": [role["name"]],
+            "token_policies": role["name"],
             "token_no_default_policy": True,
             "token_type": "batch",
             "token_ttl": expected_ttl,

@@ -145,7 +145,7 @@ def test_configured_role_claims_and_ttls_match_the_fixture(benchmark_defaults):
         "workflow_ref": EXAMPLE_INPUTS[ENV_NAMES[1]],
         "ref": EXAMPLE_INPUTS[ENV_NAMES[2]],
     }
-    assert payload["token_policies"] == ["ci-benchmark-lanes"]
+    assert payload["token_policies"] == "ci-benchmark-lanes"
     assert payload["token_ttl"] == evals_defaults["openbao_ci_evals_token_ttl"]
     assert payload["token_max_ttl"] == evals_defaults["openbao_ci_evals_token_max_ttl"]
     assert policy_names.count("ci-benchmark-lanes") == 1

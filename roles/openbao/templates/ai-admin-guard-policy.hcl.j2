@@ -47,6 +47,13 @@ path "{{ path }}" {
 }
 {% endfor %}
 
+# The window's auth/<oidc>/role/* grant is more specific than auth/*, so it is
+# the one auth path the window may write. No OIDC role may take an admin
+# identity's name.
+path "auth/{{ openbao_github_oidc_auth_path }}/role/{{ openbao_ai_admin_approle_name }}*" {
+  capabilities = ["deny"]
+}
+
 # Native batch children stop working with their parent; their leases belong to it.
 # https://openbao.org/docs/concepts/tokens/#service-vs-batch-token-lease-handling
 # Accessed 2026-11-06, version 2.7.x.

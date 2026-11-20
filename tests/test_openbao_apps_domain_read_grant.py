@@ -133,6 +133,7 @@ def test_every_apps_domain_path_is_granted_to_the_apps_reader():
     ("langflow", "langflow_llm_router_key"),
     ("grafana-llm", "grafana_llm_router_key"),
     ("crawl4ai", "crawl4ai_api_token"),
+    ("next-ai-drawio", "next_ai_drawio_llm_router_key"),
 ])
 def test_generated_apps_have_exact_read_only_grants(app, field):
     names = _yaml(NAMES_FILE)
@@ -269,18 +270,14 @@ def test_zammad_agent_write_token_is_generated_with_the_app_credentials():
     assert "zammad_agent_write_api_token" not in promoted.get("zammad", {})
 
 
-def test_idrac_console_user_paths_are_optional_and_have_exact_reads():
+def test_idrac_console_user_paths_are_not_prefetched_and_have_exact_reads():
     paths = _domain("apps")["paths"]
     console_paths = {
         item["path"] if isinstance(item, dict) else item: item
         for item in paths
         if (item["path"] if isinstance(item, dict) else item).startswith("apps/idrac-kvm-")
     }
-    assert set(console_paths) == {"apps/idrac-kvm-r410", "apps/idrac-kvm-r710"}
-    assert console_paths == {
-        "apps/idrac-kvm-r410": {"path": "apps/idrac-kvm-r410", "optional": True},
-        "apps/idrac-kvm-r710": {"path": "apps/idrac-kvm-r710", "optional": True},
-    }
+    assert console_paths == {}
 
     promoted_apps = _yaml(PROMOTED_FILE)["openbao_promoted_app_secrets"]
     assert not {"idrac-kvm-r410", "idrac-kvm-r710"} & set(promoted_apps)

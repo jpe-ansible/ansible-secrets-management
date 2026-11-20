@@ -349,7 +349,7 @@ def test_each_openhands_write_oidc_role_is_bound_to_one_org_and_compares_all_fie
     assert "'role_type': 'jwt'" in payload
     assert "'user_claim': 'job_workflow_ref'" in payload
     assert "'bound_claims_type': 'glob'" in payload
-    assert "'token_policies': [item.name]" in payload
+    assert "'token_policies': item.name," in payload
     assert "'token_no_default_policy': true" in payload
     assert "'token_type': 'batch'" in payload
     assert "'bound_audiences': ['https://github.com/' ~ item.org]" in payload
