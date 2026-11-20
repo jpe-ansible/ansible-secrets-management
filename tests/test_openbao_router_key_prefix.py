@@ -42,6 +42,7 @@ class RouterKeyPrefixRegeneration(unittest.TestCase):
     def test_namespaced_router_field_requires_prefix(self):
         for name in (
             "open_webui_llm_router_key",
+            "next_ai_drawio_llm_router_key",
             "langflow_llm_router_key",
             "grafana_llm_router_key",
             "openhands_llm_router_key",
