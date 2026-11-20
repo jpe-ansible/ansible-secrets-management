@@ -577,7 +577,7 @@ def test_generic_oidc_role_task_inputs_preserve_openhands_payload_and_add_claude
         payload = json.loads(rendered_payload)
         assert payload == {
             "role_type": "jwt",
-            "bound_audiences": [defaults["openbao_github_oidc_audience"]],
+            "bound_audiences": [f"https://github.com/{role['org']}"],
             "bound_claims": expected_claims,
             "bound_claims_type": "glob",
             "user_claim": "job_workflow_ref",

@@ -78,14 +78,11 @@ def _oidc_defaults(orgs, workflows, app_id="12345"):
         "openbao_github_write_permission_sets": _write_sets(orgs, app_id),
         "openbao_github_write_workflow_ref_suffix": "@*",
         "openbao_github_openhands_write_set_prefix": "openhands-write",
-        "openbao_github_oidc_audience": "openbao",
     }
     values["openbao_github_write_oidc_roles"] = _render(
         defaults["openbao_github_write_oidc_roles"], values
     )
     for name in (
-        "openbao_github_openhands_write_audience",
-        "openbao_github_write_audience",
         "openbao_github_openhands_write_token_ttl",
         "openbao_github_openhands_write_token_max_ttl",
         "openbao_github_openhands_write_oidc_roles",
@@ -278,9 +275,6 @@ def test_openhands_write_oidc_roles_are_declared_only_with_all_inputs():
         ("openhands-write-example-org", "example-org", "openhands-write-example-org"),
     ]
     assert values["openbao_github_openhands_write_workflow_ref_suffix"] == "@*"
-    assert values["openbao_github_write_audience"] == values[
-        "openbao_github_openhands_write_audience"
-    ]
     assert unset_orgs["openbao_github_openhands_write_token_ttl"] == "5m"
     assert unset_orgs["openbao_github_openhands_write_token_max_ttl"] == "10m"
 
@@ -358,7 +352,7 @@ def test_each_openhands_write_oidc_role_is_bound_to_one_org_and_compares_all_fie
     assert "'token_policies': [item.name]" in payload
     assert "'token_no_default_policy': true" in payload
     assert "'token_type': 'batch'" in payload
-    assert "openbao_github_write_audience" in payload
+    assert "'bound_audiences': ['https://github.com/' ~ item.org]" in payload
     assert "_github_write_route.token_ttl" in payload
     assert "_github_write_route.token_max_ttl" in payload
 
