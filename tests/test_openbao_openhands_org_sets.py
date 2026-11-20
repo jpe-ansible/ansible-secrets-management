@@ -31,6 +31,8 @@ def openhands_defaults(monkeypatch):
         "OPENBAO_GITHUB_CLAUDE_APP_PRIVATE_KEY",
         "OPENBAO_GITHUB_CLAUDE_WRITE_ORGS",
         "OPENBAO_GITHUB_CLAUDE_WRITE_WORKFLOWS",
+        "OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_ORGS",
+        "OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_WORKFLOWS",
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -120,7 +122,11 @@ def test_openhands_org_write_set_and_policy_use_org_name(
     assert '"installation_id"' not in stanzas[set_path]
 
 
-ROUTE_PREFIXES = ["openhands-write", "claude-write"]
+ROUTE_PREFIXES = [
+    "openhands-write",
+    "claude-write",
+    "openhands-workflows",
+]
 
 
 @pytest.mark.parametrize("prefix", ROUTE_PREFIXES)
@@ -197,6 +203,7 @@ def test_openhands_workflow_validator_rejects_globs_refs_and_wrong_prefix(
     [
         ("openhands-write", {"administration": "write"}),
         ("claude-write", {"contents": "write"}),
+        ("openhands-workflows", {"pull_requests": "write"}),
     ],
 )
 def test_mount_route_assert_pins_each_route_to_its_literal_map(

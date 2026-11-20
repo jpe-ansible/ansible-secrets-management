@@ -236,6 +236,10 @@ openbao_github_gate_checks_orgs: >-
   {{ openbao_github_write_orgs_by_prefix[openbao_github_gate_checks_set_prefix] }}
 openbao_github_gate_checks_workflows: >-
   {{ openbao_github_write_workflows_by_prefix[openbao_github_gate_checks_set_prefix] }}
+openbao_github_openhands_workflows_orgs: >-
+  {{ openbao_github_write_orgs_by_prefix[openbao_github_openhands_workflows_set_prefix] }}
+openbao_github_openhands_workflows_workflows: >-
+  {{ openbao_github_write_workflows_by_prefix[openbao_github_openhands_workflows_set_prefix] }}
 
 # This mount and set are declared only when every input is present.
 openbao_github_pepper_mount: github-pepper
@@ -331,10 +335,12 @@ openbao_github_app_mounts: >-
           'app_id': openbao_github_openhands_app_id,
           'private_key': openbao_github_openhands_app_private_key,
           'permission_sets': openbao_github_openhands_permission_sets
-                             + openbao_github_openhands_write_permission_sets}]
+                             + openbao_github_openhands_write_permission_sets
+                             + openbao_github_openhands_workflows_permission_sets}]
         if openbao_github_openhands_app_id | length > 0
            and (openbao_github_openhands_permission_sets
-                + openbao_github_openhands_write_permission_sets) | length > 0 else [])
+                + openbao_github_openhands_write_permission_sets
+                + openbao_github_openhands_workflows_permission_sets) | length > 0 else [])
      + ([{'mount': openbao_github_claude_mount,
           'app_id': openbao_github_claude_app_id,
           'private_key': openbao_github_claude_app_private_key,

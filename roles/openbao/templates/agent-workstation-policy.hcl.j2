@@ -10,6 +10,10 @@ path "{{ openbao_kv_mount }}/data/ai/mcp" {
 path "{{ openbao_kv_mount }}/data/ai/mcp/zammad" {
   capabilities = ["read"]
 }
+# Vikunja MCP token and URL for workstation sessions.
+path "{{ openbao_kv_mount }}/data/ai/mcp/vikunja" {
+  capabilities = ["read"]
+}
 # YouTrack service API token for agent use.
 path "{{ openbao_kv_mount }}/data/ai/youtrack" {
   capabilities = ["read"]
