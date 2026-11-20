@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.129.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.128.0...v0.129.0) (2026-11-20)
+
+
+### Features
+
+* **openbao:** add the openhands-workflows write route ([#814](https://github.com/jpe-ansible/ansible-secrets-management/issues/814)) ([af7b5b3](https://github.com/jpe-ansible/ansible-secrets-management/commit/af7b5b3519a18b7d67c02e67a46c0bb017bfe66c))
+
 ## [0.128.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.127.1...v0.128.0) (2026-11-20)
 
 
