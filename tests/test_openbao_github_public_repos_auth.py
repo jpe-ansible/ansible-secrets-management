@@ -9,8 +9,15 @@ ROOT = Path(__file__).resolve().parents[1]
 TASK_FILE = ROOT / "roles/openbao/tasks/init/05b-github-app-mount.yml"
 
 
+def _flatten(tasks):
+    for task in tasks:
+        yield task
+        for section in ("block", "rescue", "always"):
+            yield from _flatten(task.get(section, []))
+
+
 def test_public_repository_reads_are_authenticated_and_tokens_are_revoked():
-    tasks = yaml.safe_load(TASK_FILE.read_text(encoding="utf-8"))
+    tasks = list(_flatten(yaml.safe_load(TASK_FILE.read_text(encoding="utf-8"))))
     mint = next(task for task in tasks if task.get("name", "").startswith(
         "Mint a metadata-only token for sets that are public-only"
     ))
