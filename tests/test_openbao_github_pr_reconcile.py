@@ -24,12 +24,13 @@ def _defaults(name):
 
 def _render_defaults(env):
     environment = NativeEnvironment()
-    environment.globals["lookup"] = lambda plugin, key: env.get(key, "")
+    # A process environment value must not reach the role: inputs come only from the platform env document.
+    environment.globals["lookup"] = lambda plugin, key: "process-env-must-be-ignored"
     environment.filters["bool"] = bool
     defaults = _defaults("05f-pr-reconcile.yml")
     for name, value in defaults.items():
         if isinstance(value, str) and "{{" in value:
-            defaults[name] = environment.from_string(value).render(**defaults)
+            defaults[name] = environment.from_string(value).render(**defaults, openbao_platform_env=env)
     return defaults
 
 

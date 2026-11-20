@@ -1,10 +1,11 @@
 ---
 # The fleet PR reconcile workflow authenticates through GitHub Actions OIDC;
-# it carries no stored runner credential.
+# it carries no stored runner credential. Its repository and owner list are read
+# from the platform environment document.
 openbao_github_pr_reconcile_policy_name: pr-reconcile-sweep
 openbao_github_pr_reconcile_audience: openbao
 openbao_github_pr_reconcile_repository: >-
-  {{ lookup('env', 'OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY') | default('', true) | trim }}
+  {{ openbao_platform_env['OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY'] | default('', true) | trim }}
 openbao_github_pr_reconcile_workflow_file: .github/workflows/pr-reconcile-sweep.yml
 openbao_github_pr_reconcile_ref: refs/heads/main
 openbao_github_pr_reconcile_workflow_ref: >-
@@ -17,7 +18,7 @@ openbao_github_pr_reconcile_token_max_ttl: 10m
 
 # Owners whose everyday-App installation the sweep may mint for, by name.
 openbao_pr_reconcile_owners: >-
-  {{ (lookup('env', 'OPENBAO_GITHUB_PR_RECONCILE_OWNERS') | default('', true)).split(',')
+  {{ (openbao_platform_env['OPENBAO_GITHUB_PR_RECONCILE_OWNERS'] | default('', true)).split(',')
      | map('trim') | reject('equalto', '') | list }}
 openbao_github_pr_reconcile_enabled: >-
   {{ openbao_github_pr_reconcile_repository | length > 0 and openbao_pr_reconcile_owners | length > 0 }}
