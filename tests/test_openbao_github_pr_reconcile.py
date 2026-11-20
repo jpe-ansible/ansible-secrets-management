@@ -83,6 +83,8 @@ def test_inputs_enable_reconcile_and_build_workflow_ref():
     ]
     assert defaults["openbao_github_pr_reconcile_policy_name"] not in _retired(defaults)
     assert defaults["openbao_github_pr_reconcile_permissions"] == {
+        "actions": "write",
+        "checks": "read",
         "contents": "write",
         "issues": "write",
         "pull_requests": "write",
@@ -143,7 +145,7 @@ def test_policy_pins_owner_names_and_permission_map_on_the_raw_endpoint():
     owners = ", ".join(f'"{owner}"' for owner in defaults["openbao_pr_reconcile_owners"])
     assert f'"org_name" = [{owners}]' in rendered
     assert (
-        '"permissions" = [{ "contents" = "write", "issues" = "write", '
+        '"permissions" = [{ "actions" = "write", "checks" = "read", "contents" = "write", "issues" = "write", '
         '"pull_requests" = "write", "statuses" = "write" }]'
     ) in rendered
     assert '"installation_id" = []' in rendered
