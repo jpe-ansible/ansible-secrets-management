@@ -15,6 +15,7 @@
     ansible_become: "{{ openbao_cli_become }}"
   register: openbao_agent_tier_login_existing
   changed_when: false
+  check_mode: false
   no_log: true
   when: openbao_agent_tier_reader.login_path is defined
 
@@ -31,6 +32,7 @@
     ansible_become: "{{ openbao_cli_become }}"
   register: openbao_agent_tier_token_migration_source
   changed_when: false
+  check_mode: false
   no_log: true
   when: openbao_agent_tier_reader.login_path is defined
 
@@ -47,6 +49,7 @@
     ansible_become: "{{ openbao_cli_become }}"
   register: openbao_agent_tier_legacy_migration_source
   changed_when: false
+  check_mode: false
   no_log: true
   when: openbao_agent_tier_reader.login_path is defined
 
@@ -112,6 +115,21 @@
       Resolve the conflict before writing or removing either source field.
   when: openbao_agent_tier_login_migrate_conflicts | default([]) | length > 0
 
+# uri has no check mode, so each write below is skipped there; these report it.
+- name: Report the login-leaf fields a real run would write
+  ansible.builtin.debug:
+    msg: >-
+      Would write {{ openbao_agent_tier_login_migrate_fields | list | sort | join(', ') }}
+      to {{ openbao_agent_tier_mount }}/{{ openbao_agent_tier_reader.login_path }}
+  when:
+    - ansible_check_mode
+    - openbao_agent_tier_reader.login_path is defined
+    - openbao_agent_tier_login_existing.status | default(0) in [200, 404]
+    - >-
+      openbao_agent_tier_token_migration_source.status | default(0) == 200 or
+      openbao_agent_tier_legacy_migration_source.status | default(0) == 200
+    - openbao_agent_tier_login_migrate_fields | default({}) | length > 0
+
 - name: Preserve an existing tier password in its new login leaf with a check-and-set write
   ansible.builtin.uri:
     url: "{{ openbao_cli_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.login_path }}"
@@ -153,6 +171,7 @@
     ansible_become: "{{ openbao_cli_become }}"
   register: openbao_agent_tier_current
   changed_when: false
+  check_mode: false
   no_log: true
 
 - name: Read the legacy shared app leaf when the dedicated leaf exists
@@ -168,6 +187,7 @@
     ansible_become: "{{ openbao_cli_become }}"
   register: openbao_agent_tier_legacy_current
   changed_when: false
+  check_mode: false
   no_log: true
   when: openbao_agent_tier_current.status | default(0) == 200
 
@@ -203,6 +223,17 @@
   when:
     - openbao_agent_tier_current.status | default(0) == 200
     - openbao_agent_tier_legacy_current.status | default(0) == 200
+
+- name: Report the legacy-leaf fields a real run would remove
+  ansible.builtin.debug:
+    msg: >-
+      Would remove {{ openbao_agent_tier_legacy_remove_fields | sort | join(', ') }}
+      from {{ openbao_kv_mount }}/{{ openbao_agent_tier_reader.legacy_app_path }}
+  when:
+    - ansible_check_mode
+    - openbao_agent_tier_current.status | default(0) == 200
+    - openbao_agent_tier_legacy_current.status | default(0) == 200
+    - openbao_agent_tier_legacy_remove_fields | default([]) | length > 0
 
 - name: Remove migrated fields from the legacy leaf with a check-and-set write
   ansible.builtin.uri:
@@ -240,6 +271,7 @@
     ansible_become: "{{ openbao_cli_become }}"
   register: openbao_agent_tier_token_current
   changed_when: false
+  check_mode: false
   no_log: true
   when: openbao_agent_tier_reader.login_path is defined
 
@@ -275,6 +307,18 @@
     - openbao_agent_tier_reader.login_path is defined
     - openbao_agent_tier_current.status | default(0) == 200
     - openbao_agent_tier_token_current.status | default(0) == 200
+
+- name: Report the token-leaf fields a real run would remove
+  ansible.builtin.debug:
+    msg: >-
+      Would remove {{ openbao_agent_tier_token_remove_fields | sort | join(', ') }}
+      from {{ openbao_agent_tier_mount }}/{{ openbao_agent_tier_reader.tier }}
+  when:
+    - ansible_check_mode
+    - openbao_agent_tier_reader.login_path is defined
+    - openbao_agent_tier_current.status | default(0) == 200
+    - openbao_agent_tier_token_current.status | default(0) == 200
+    - openbao_agent_tier_token_remove_fields | default([]) | length > 0
 
 - name: Remove the migrated password from the token leaf with a check-and-set write
   ansible.builtin.uri:
