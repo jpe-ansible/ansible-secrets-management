@@ -14,3 +14,16 @@ path "{{ openbao_github_everyday_mount }}/token" {
     "installation_id" = []
   }
 }
+{% if openbao_github_personal_installation_id | length > 0 %}
+
+# The user-owned App's one installation, at the same pinned read map.
+path "{{ openbao_github_personal_mount }}/token" {
+  capabilities = ["create", "update"]
+  required_parameters = ["installation_id", "permissions"]
+  allowed_parameters = {
+    "installation_id" = ["{{ openbao_github_personal_installation_id }}"]
+    "repositories" = []
+    "permissions" = [{ {% for name, level in openbao_github_read_permissions | dictsort %}"{{ name }}" = "{{ level }}"{{ ", " if not loop.last else "" }}{% endfor %} }]
+  }
+}
+{% endif %}

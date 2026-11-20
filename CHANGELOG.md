@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.133.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.132.1...v0.133.0) (2026-11-20)
+
+
+### Features
+
+* **openbao:** add the approved readback and personal read grants ([#834](https://github.com/jpe-ansible/ansible-secrets-management/issues/834)) ([4c6bf8c](https://github.com/jpe-ansible/ansible-secrets-management/commit/4c6bf8caa1edba461bae9ea6e1961ca526c8f012))
+
+
+### Bug Fixes
+
+* **openbao:** drop issues write from the pr-reconcile sweep permission map ([#833](https://github.com/jpe-ansible/ansible-secrets-management/issues/833)) ([5d79fb3](https://github.com/jpe-ansible/ansible-secrets-management/commit/5d79fb3b708df77e742217d891e049dd26262e38))
+
 ## [0.132.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.132.0...v0.132.1) (2026-11-20)
 
 

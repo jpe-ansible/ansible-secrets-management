@@ -18,6 +18,10 @@ path "{{ openbao_kv_mount }}/data/ai/mcp/vikunja" {
 path "{{ openbao_kv_mount }}/data/ai/youtrack" {
   capabilities = ["read"]
 }
+# The Vikunja clerk's MCP URL, this one leaf only.
+path "{{ openbao_kv_mount }}/data/ai/dify/agent-mcp/vikunja-clerk" {
+  capabilities = ["read"]
+}
 # Dify agent app API keys.
 path "{{ openbao_kv_mount }}/data/ai/dify/agent-apps/*" {
   capabilities = ["read"]
