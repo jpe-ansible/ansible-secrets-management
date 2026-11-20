@@ -274,7 +274,11 @@
   check_mode: false
   failed_when: false
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_ci_ai_review_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
     - openbao_ci_ai_review_enterprise_id | length > 0
 
@@ -312,7 +316,11 @@
   no_log: true
   changed_when: true
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_ci_ai_review_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
     - openbao_ci_ai_review_enterprise_id | length > 0
     - >-
@@ -355,7 +363,11 @@
   check_mode: false
   failed_when: false
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_ci_evals_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
 
 - name: Reconcile the ci-evals OIDC role
@@ -392,7 +404,11 @@
   no_log: true
   changed_when: true
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_ci_evals_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
     - >-
       (openbao_github_oidc_ci_evals_role_current.rc | default(1)) != 0
@@ -433,7 +449,11 @@
   check_mode: false
   failed_when: false
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_github_pr_reconcile_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
 
 - name: Reconcile the pr-reconcile-sweep OIDC role
@@ -475,7 +495,11 @@
   no_log: true
   changed_when: true
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_github_pr_reconcile_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
     - openbao_github_pr_reconcile_enabled | bool
     - >-

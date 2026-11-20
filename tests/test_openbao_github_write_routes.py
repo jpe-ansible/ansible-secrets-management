@@ -45,6 +45,8 @@ ROUTE_ENV = (
     "OPENBAO_GITHUB_EVERYDAY_APP_ID",
     "OPENBAO_GITHUB_GATE_CHECKS_ORGS",
     "OPENBAO_GITHUB_GATE_CHECKS_WORKFLOWS",
+    "OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY",
+    "OPENBAO_GITHUB_PR_RECONCILE_OWNERS",
 )
 
 
@@ -176,7 +178,7 @@ def test_openhands_only_keeps_literal_existing_outputs_and_selection_candidates(
     profile = yaml.safe_load((DEFAULTS / "00-selection.yml").read_text())[
         "openbao_select_profiles"
     ]["github_oidc_roles"]
-    assert _rendered(defaults, profile["candidates"]) == [expected_role]
+    assert _rendered(defaults, profile["candidates"]) == [expected_role, {"name": "ci-evals"}]
     assert [
         item["name"]
         for item in output["permission_sets"]
@@ -276,6 +278,7 @@ def test_claude_route_creates_one_org_bound_set_policy_and_role_per_org(
     assert [item["name"] for item in candidates] == [
         "claude-write-exampleorg",
         "claude-write-example-org",
+        "ci-evals",
     ]
 
 

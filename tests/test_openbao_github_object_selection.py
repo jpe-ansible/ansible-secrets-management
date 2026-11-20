@@ -1,20 +1,60 @@
-"""Declared GitHub App mounts and OpenHands OIDC roles are selectable."""
+"""Declared GitHub App mounts and workload OIDC roles are selectable."""
 
+import pytest
 import yaml
 
-from test_openbao_select import ROLE, condition, render, resolve
+from test_openbao_select import ROLE, condition, render, resolve, task
 
 
 INIT = ROLE / "tasks/init.yml"
 INITIALIZE = ROLE / "tasks/init/02-initialize-cluster.yml"
 POLICY_SYNC = ROLE / "tasks/init/02b-policy-sync.yml"
 PROFILES = ROLE / "defaults/main/00-selection.yml"
+OIDC_TASKS = ROLE / "tasks/init/09c-github-oidc.yml"
 APP_MOUNTS = "github_app_mounts"
 OIDC_ROLES = "github_oidc_roles"
 WRITE_ROLE_NAMES = [
     "openhands-write-exampleorg",
     "openhands-write-example-org",
 ]
+CI_ROLES = [
+    ("ci-evals", "openbao_ci_evals_policy_name", "05f-ci-evals.yml"),
+    ("ci-ai-review", "openbao_ci_ai_review_policy_name", "05f-ci-ai-review.yml"),
+    ("pr-reconcile-sweep", "openbao_github_pr_reconcile_policy_name", "05f-pr-reconcile.yml"),
+]
+
+
+def _oidc_variables():
+    variables = {
+        "openbao_github_write_oidc_roles": [
+            {"name": name, "org": "exampleorg", "set": {"tier": "openhands-write"}}
+            for name in WRITE_ROLE_NAMES
+        ],
+        "openbao_ci_ai_review_enterprise_id": "12345",
+        "openbao_github_pr_reconcile_enabled": True,
+        "openbao_bootstrap_token": "test-token",
+    }
+    for _, policy_name, filename in CI_ROLES:
+        defaults = yaml.safe_load((ROLE / "defaults/main" / filename).read_text(encoding="utf-8"))
+        variables[policy_name] = defaults[policy_name]
+    return variables
+
+
+def _oidc_candidates(variables):
+    profiles = yaml.safe_load(PROFILES.read_text(encoding="utf-8"))["openbao_select_profiles"]
+    return render(profiles[OIDC_ROLES]["candidates"], variables)
+
+
+def _with_oidc_selection(variables, names):
+    selection = {OIDC_ROLES: names} if names else {}
+    _, targets = resolve(selection, OIDC_ROLES,
+                         names=[candidate["name"] for candidate in _oidc_candidates(variables)])
+    return {
+        **variables,
+        "openbao_select": selection,
+        "openbao_selected_objects": {OIDC_ROLES: targets},
+        "openbao_github_oidc_role_targets": targets,
+    }
 
 
 def _when(task_node):
@@ -36,7 +76,7 @@ def _import_target(task_node):
     return None
 
 
-def test_profiles_use_only_declared_mounts_and_generic_write_oidc_roles():
+def test_profiles_use_declared_mounts_and_oidc_role_paths():
     profiles = yaml.safe_load(PROFILES.read_text(encoding="utf-8"))["openbao_select_profiles"]
     mounts = profiles[APP_MOUNTS]
     roles = profiles[OIDC_ROLES]
@@ -48,10 +88,142 @@ def test_profiles_use_only_declared_mounts_and_generic_write_oidc_roles():
     assert mounts["prefix"] == "sys/mounts/"
     assert mounts["suffixes"] == [""]
     assert mounts["capability"] == "update"
-    assert roles["candidates"] == "{{ openbao_github_write_oidc_roles | default([]) }}"
     assert roles["prefix"] == "auth/{{ openbao_github_oidc_auth_path }}/role/"
     assert roles["suffixes"] == [""]
     assert roles["capability"] == "update"
+
+
+@pytest.mark.parametrize("enterprise_id", ["", "12345"])
+@pytest.mark.parametrize("enabled", [False, True, "false", "true"])
+@pytest.mark.parametrize("name_suffix", ["", "-custom"])
+def test_oidc_candidates_preserve_write_roles_and_gate_named_ci_roles(
+    enterprise_id, enabled, name_suffix
+):
+    variables = _oidc_variables()
+    variables["openbao_ci_ai_review_enterprise_id"] = enterprise_id
+    variables["openbao_github_pr_reconcile_enabled"] = enabled
+    for _, policy_name, _ in CI_ROLES:
+        variables[policy_name] += name_suffix
+
+    candidates = _oidc_candidates(variables)
+    expected = list(variables["openbao_github_write_oidc_roles"])
+    expected.append({"name": variables["openbao_ci_evals_policy_name"]})
+    if enterprise_id:
+        expected.append({"name": variables["openbao_ci_ai_review_policy_name"]})
+    if enabled in (True, "true"):
+        expected.append({"name": variables["openbao_github_pr_reconcile_policy_name"]})
+    assert sorted(candidates, key=lambda item: item["name"]) == sorted(
+        expected, key=lambda item: item["name"]
+    )
+
+    del variables["openbao_github_write_oidc_roles"]
+    assert _oidc_candidates(variables) == [
+        candidate for candidate in candidates if candidate["name"] not in WRITE_ROLE_NAMES
+    ]
+
+
+@pytest.mark.parametrize(("role_name", "policy_name", "filename"), CI_ROLES)
+def test_ci_oidc_names_resolve_through_the_real_selector(role_name, policy_name, filename):
+    variables = _oidc_variables()
+    assert variables[policy_name] == role_name
+    name = variables[policy_name]
+    selected = _with_oidc_selection(variables, [name])
+    assert selected["openbao_selected_objects"][OIDC_ROLES] == [{"name": name}]
+
+
+@pytest.mark.parametrize("name", ["ci-ai-review", "pr-reconcile-sweep", "unknown-role"])
+def test_unavailable_ci_oidc_roles_fail_the_selector_match_guard(name):
+    variables = _oidc_variables()
+    variables["openbao_ci_ai_review_enterprise_id"] = ""
+    variables["openbao_github_pr_reconcile_enabled"] = False
+    matches, targets = resolve(
+        {OIDC_ROLES: [name]}, OIDC_ROLES,
+        names=[candidate["name"] for candidate in _oidc_candidates(variables)],
+    )
+    guard = task("Require every OpenBao selector to match a declared object")["ansible.builtin.assert"]
+    assert targets == []
+    assert not condition(guard["that"][0], {"item": matches[0]})
+    assert name in render(guard["fail_msg"], {"item": matches[0], "openbao_select_kind": OIDC_ROLES})
+
+
+@pytest.mark.parametrize("action", ["Read", "Reconcile"])
+@pytest.mark.parametrize(("role_name", "policy_name", "filename"), CI_ROLES)
+def test_ci_oidc_tasks_admit_only_their_resolved_selection_and_keep_token_gates(
+    action, role_name, policy_name, filename
+):
+    node = task(f"{action} the {role_name} OIDC role", OIDC_TASKS)
+    variables = _oidc_variables()
+    own_name = variables[policy_name]
+    assert _runs(node, _with_oidc_selection(variables, [own_name]))
+    for other_name in WRITE_ROLE_NAMES + [
+        variables[other_policy] for _, other_policy, _ in CI_ROLES if other_policy != policy_name
+    ]:
+        assert not _runs(node, _with_oidc_selection(variables, [other_name]))
+    assert not _runs(node, {
+        **variables,
+        "openbao_select": {APP_MOUNTS: ["github-openhands"]},
+        "openbao_selected_objects": {},
+        "openbao_github_oidc_role_targets": [],
+    })
+    assert _runs(node, _with_oidc_selection(variables, []))
+    del variables["openbao_bootstrap_token"]
+    assert not _runs(node, _with_oidc_selection(variables, [own_name]))
+    assert not _runs(node, _with_oidc_selection(variables, []))
+
+
+@pytest.mark.parametrize("action", ["Read", "Reconcile"])
+def test_ci_oidc_full_runs_keep_input_gates_and_pr_cleanup_read(action):
+    variables = _oidc_variables()
+    variables["openbao_ci_ai_review_enterprise_id"] = ""
+    variables["openbao_github_pr_reconcile_enabled"] = "false"
+    full_run = _with_oidc_selection(variables, [])
+    assert not _runs(task(f"{action} the ci-ai-review OIDC role", OIDC_TASKS), full_run)
+    assert _runs(task(f"{action} the ci-evals OIDC role", OIDC_TASKS), full_run)
+    assert _runs(task(f"{action} the pr-reconcile-sweep OIDC role", OIDC_TASKS), full_run) == (
+        action == "Read"
+    )
+
+
+def test_skip_and_remove_oidc_tasks_remain_full_only():
+    skip = task("Skip the ci-ai-review OIDC role without an enterprise ID", OIDC_TASKS)
+    remove = task("Remove the pr-reconcile-sweep OIDC role while its inputs are unset", OIDC_TASKS)
+    variables = _oidc_variables()
+    variables.update({
+        "openbao_ci_ai_review_enterprise_id": "",
+        "openbao_github_pr_reconcile_enabled": False,
+        "openbao_github_oidc_pr_reconcile_role_current": {"rc": 0},
+    })
+    full_run = _with_oidc_selection(variables, [])
+    assert _runs(skip, full_run)
+    assert _runs(remove, full_run)
+    for name in [variables["openbao_ci_evals_policy_name"], *WRITE_ROLE_NAMES]:
+        selected = _with_oidc_selection(variables, [name])
+        assert not _runs(skip, selected)
+        assert not _runs(remove, selected)
+    assert not _runs(skip, {**full_run, "openbao_ci_ai_review_enterprise_id": "12345"})
+    assert not _runs(remove, {**full_run, "openbao_github_pr_reconcile_enabled": True})
+    assert not _runs(remove, {
+        **full_run, "openbao_github_oidc_pr_reconcile_role_current": {"rc": 1},
+    })
+    del full_run["openbao_bootstrap_token"]
+    assert not _runs(remove, full_run)
+
+
+@pytest.mark.parametrize("action", ["Read", "Reconcile"])
+def test_ci_evals_selection_does_not_enter_the_generic_write_role_loop(action):
+    node = task(f"{action} each GitHub write OIDC role", OIDC_TASKS)
+    variables = _oidc_variables()
+    selected = _with_oidc_selection(variables, [variables["openbao_ci_evals_policy_name"]])
+    loop_items = render(node["loop"], selected)
+    assert loop_items == variables["openbao_github_write_oidc_roles"]
+    for index, item in enumerate(loop_items):
+        assert not _runs(node, {**selected, "item": item})
+        assert _runs(node, {
+            **_with_oidc_selection(variables, [item["name"]]),
+            "item": item,
+            "openbao_github_write_role_index": index,
+            "openbao_github_oidc_write_roles_current": {"results": [{"rc": 1}] * len(loop_items)},
+        })
 
 
 def test_mount_and_oidc_selections_resolve_only_declared_candidates():
