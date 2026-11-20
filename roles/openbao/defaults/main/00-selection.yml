@@ -43,7 +43,13 @@ openbao_select_profiles:
     suffixes: [""]
     capability: update
   github_oidc_roles:
-    candidates: "{{ openbao_github_write_oidc_roles | default([]) }}"
+    candidates: >-
+      {{ (openbao_github_write_oidc_roles | default([]))
+         + [{'name': openbao_ci_evals_policy_name}]
+         + ([{'name': openbao_ci_ai_review_policy_name}]
+            if openbao_ci_ai_review_enterprise_id | length > 0 else [])
+         + ([{'name': openbao_github_pr_reconcile_policy_name}]
+            if openbao_github_pr_reconcile_enabled | bool else []) }}
     prefix: "auth/{{ openbao_github_oidc_auth_path }}/role/"
     suffixes: [""]
     capability: update

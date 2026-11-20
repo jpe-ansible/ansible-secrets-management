@@ -24,12 +24,13 @@ def _defaults(name):
 
 def _render_defaults(env):
     environment = NativeEnvironment()
-    environment.globals["lookup"] = lambda plugin, key: env.get(key, "")
+    # A process environment value must not reach the role: inputs come only from the platform env document.
+    environment.globals["lookup"] = lambda plugin, key: "process-env-must-be-ignored"
     environment.filters["bool"] = bool
     defaults = _defaults("05f-pr-reconcile.yml")
     for name, value in defaults.items():
         if isinstance(value, str) and "{{" in value:
-            defaults[name] = environment.from_string(value).render(**defaults)
+            defaults[name] = environment.from_string(value).render(**defaults, openbao_platform_env=env)
     return defaults
 
 
@@ -82,6 +83,8 @@ def test_inputs_enable_reconcile_and_build_workflow_ref():
     ]
     assert defaults["openbao_github_pr_reconcile_policy_name"] not in _retired(defaults)
     assert defaults["openbao_github_pr_reconcile_permissions"] == {
+        "actions": "write",
+        "checks": "read",
         "contents": "write",
         "issues": "write",
         "pull_requests": "write",
@@ -116,7 +119,9 @@ def test_missing_inputs_disable_reconcile_and_warn():
     assert "(openbao_github_oidc_pr_reconcile_role_current.rc | default(1)) == 0" in remove["when"]
     read = _find_task(tasks, "Read the pr-reconcile-sweep OIDC role")
     assert read["when"] == [
-        "openbao_select | default({}) | length == 0",
+        "openbao_select | default({}) | length == 0 or openbao_github_pr_reconcile_policy_name\n"
+        "   in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])\n"
+        "       | map(attribute='name') | list)",
         "openbao_bootstrap_token is defined",
     ]
 
@@ -142,7 +147,7 @@ def test_policy_pins_owner_names_and_permission_map_on_the_raw_endpoint():
     owners = ", ".join(f'"{owner}"' for owner in defaults["openbao_pr_reconcile_owners"])
     assert f'"org_name" = [{owners}]' in rendered
     assert (
-        '"permissions" = [{ "contents" = "write", "issues" = "write", '
+        '"permissions" = [{ "actions" = "write", "checks" = "read", "contents" = "write", "issues" = "write", '
         '"pull_requests" = "write", "statuses" = "write" }]'
     ) in rendered
     assert '"installation_id" = []' in rendered

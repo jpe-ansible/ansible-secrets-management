@@ -1,10 +1,11 @@
 ---
 # The fleet PR reconcile workflow authenticates through GitHub Actions OIDC;
-# it carries no stored runner credential.
+# it carries no stored runner credential. Its repository and owner list are read
+# from the platform environment document.
 openbao_github_pr_reconcile_policy_name: pr-reconcile-sweep
 openbao_github_pr_reconcile_audience: openbao
 openbao_github_pr_reconcile_repository: >-
-  {{ lookup('env', 'OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY') | default('', true) | trim }}
+  {{ openbao_platform_env['OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY'] | default('', true) | trim }}
 openbao_github_pr_reconcile_workflow_file: .github/workflows/pr-reconcile-sweep.yml
 openbao_github_pr_reconcile_ref: refs/heads/main
 openbao_github_pr_reconcile_workflow_ref: >-
@@ -17,12 +18,15 @@ openbao_github_pr_reconcile_token_max_ttl: 10m
 
 # Owners whose everyday-App installation the sweep may mint for, by name.
 openbao_pr_reconcile_owners: >-
-  {{ (lookup('env', 'OPENBAO_GITHUB_PR_RECONCILE_OWNERS') | default('', true)).split(',')
+  {{ (openbao_platform_env['OPENBAO_GITHUB_PR_RECONCILE_OWNERS'] | default('', true)).split(',')
      | map('trim') | reject('equalto', '') | list }}
 openbao_github_pr_reconcile_enabled: >-
   {{ openbao_github_pr_reconcile_repository | length > 0 and openbao_pr_reconcile_owners | length > 0 }}
 
+# actions: write dispatches the CI-fix workflow; checks: read lists check runs before a fix or merge.
 openbao_github_pr_reconcile_permissions:
+  actions: write
+  checks: read
   contents: write
   issues: write
   pull_requests: write
@@ -37,9 +41,8 @@ openbao_pr_reconcile_policies: >-
      if openbao_github_pr_reconcile_enabled | bool else [] }}
 
 # GitHub write jobs authenticate using their GitHub Actions reusable workflow
-# identity. The audience and workflow-ref suffix are shared by every route.
-openbao_github_openhands_write_audience: "{{ openbao_github_oidc_audience }}"
-openbao_github_write_audience: "{{ openbao_github_openhands_write_audience }}"
+# identity. Each per-org role binds that org's own audience; the workflow-ref
+# suffix is shared by every route.
 openbao_github_openhands_write_token_ttl: "{{ openbao_github_pr_reconcile_token_ttl }}"
 openbao_github_openhands_write_token_max_ttl: "{{ openbao_github_pr_reconcile_token_max_ttl }}"
 openbao_github_openhands_write_workflow_ref_suffix: "@*"

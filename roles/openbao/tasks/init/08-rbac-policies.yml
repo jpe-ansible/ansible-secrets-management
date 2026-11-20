@@ -249,7 +249,8 @@
   ansible.builtin.debug:
     msg: >-
       The pr-reconcile-sweep role and policy are not declared until both
-      OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY and OPENBAO_GITHUB_PR_RECONCILE_OWNERS are set;
+      OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY and OPENBAO_GITHUB_PR_RECONCILE_OWNERS are set
+      in the platform environment document;
       an existing role and policy of that name are removed by this converge.
   when:
     - openbao_bootstrap_token is defined

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.127.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.127.0...v0.127.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **openbao:** read the PR reconcile inputs from the platform environment ([#805](https://github.com/jpe-ansible/ansible-secrets-management/issues/805)) ([416798f](https://github.com/jpe-ansible/ansible-secrets-management/commit/416798f35bf25591c9d99dce1c80846683177514))
+
 ## [0.127.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.126.0...v0.127.0) (2026-11-17)
 
 

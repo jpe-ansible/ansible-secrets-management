@@ -71,7 +71,9 @@ def test_ci_evals_role_is_bound_to_the_repository_workflow_and_default_branch():
     read = _find_task(tasks, "Read the ci-evals OIDC role")
     assert read is not None
     assert read["when"] == [
-        "openbao_select | default({}) | length == 0",
+        "openbao_select | default({}) | length == 0 or openbao_ci_evals_policy_name\n"
+        "   in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])\n"
+        "       | map(attribute='name') | list)",
         "openbao_bootstrap_token is defined",
     ]
     assert "openbao_bootstrap_token is defined" in write["when"]

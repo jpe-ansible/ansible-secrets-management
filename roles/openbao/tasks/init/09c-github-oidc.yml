@@ -274,7 +274,11 @@
   check_mode: false
   failed_when: false
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_ci_ai_review_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
     - openbao_ci_ai_review_enterprise_id | length > 0
 
@@ -312,7 +316,11 @@
   no_log: true
   changed_when: true
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_ci_ai_review_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
     - openbao_ci_ai_review_enterprise_id | length > 0
     - >-
@@ -331,6 +339,98 @@
          != (_ci_ai_review_token_ttl_s | int)
       or (_ci_ai_review_role_live.token_max_ttl | default(0) | int)
          != (_ci_ai_review_token_max_ttl_s | int)
+
+- name: Validate the ci-benchmark-lanes OIDC role inputs
+  ansible.builtin.assert:
+    that:
+      - openbao_ci_benchmark_lanes_workflow_ref | length > 0
+      - openbao_ci_benchmark_lanes_ref | length > 0
+      - >-
+        openbao_ci_benchmark_lanes_workflow_ref.startswith(
+          openbao_ci_benchmark_lanes_repository ~ '/.github/workflows/')
+    fail_msg: >-
+      ci-benchmark-lanes requires a workflow ref and ref that match the configured repository.
+  no_log: true
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_ci_benchmark_lanes_repository | length > 0
+
+- name: Read the ci-benchmark-lanes OIDC role
+  ansible.builtin.command:
+    cmd: >-
+      bao read -format=json
+      auth/{{ openbao_github_oidc_auth_path }}/role/{{ openbao_ci_benchmark_lanes_policy_name }}
+  environment:
+    BAO_ADDR: "{{ openbao_cli_addr }}"
+    BAO_TOKEN: "{{ openbao_bootstrap_token }}"
+  delegate_to: "{{ openbao_cli_host }}"
+  become: "{{ openbao_cli_become }}"
+  vars:
+    ansible_become: "{{ openbao_cli_become }}"
+  register: openbao_github_oidc_ci_benchmark_lanes_role_current
+  no_log: true
+  changed_when: false
+  check_mode: false
+  failed_when: false
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_bootstrap_token is defined
+    - openbao_ci_benchmark_lanes_repository | length > 0
+
+- name: Reconcile the ci-benchmark-lanes OIDC role
+  vars:
+    ansible_become: "{{ openbao_cli_become }}"
+    _ci_benchmark_lanes_role_claims:
+      repository: "{{ openbao_ci_benchmark_lanes_repository }}"
+      workflow_ref: "{{ openbao_ci_benchmark_lanes_workflow_ref }}"
+      ref: "{{ openbao_ci_benchmark_lanes_ref }}"
+    _ci_benchmark_lanes_role_live: >-
+      {{ (openbao_github_oidc_ci_benchmark_lanes_role_current.stdout | default('{}') | from_json).data
+         | default({}, true) }}
+    _ci_benchmark_lanes_token_ttl_s: >-
+      {{ openbao_ci_benchmark_lanes_token_ttl | community.general.to_seconds | int }}
+    _ci_benchmark_lanes_token_max_ttl_s: >-
+      {{ openbao_ci_benchmark_lanes_token_max_ttl | community.general.to_seconds | int }}
+  ansible.builtin.command:
+    cmd: >-
+      bao write
+      auth/{{ openbao_github_oidc_auth_path }}/role/{{ openbao_ci_benchmark_lanes_policy_name }} -
+    stdin: >-
+      {{ {'role_type': 'jwt',
+            'user_claim': 'workflow_ref',
+            'bound_audiences': [openbao_ci_benchmark_lanes_audience],
+            'bound_claims': _ci_benchmark_lanes_role_claims,
+            'bound_claims_type': 'string',
+            'token_policies': [openbao_ci_benchmark_lanes_policy_name],
+            'token_ttl': openbao_ci_benchmark_lanes_token_ttl,
+            'token_max_ttl': openbao_ci_benchmark_lanes_token_max_ttl} | to_json }}
+  environment:
+    BAO_ADDR: "{{ openbao_cli_addr }}"
+    BAO_TOKEN: "{{ openbao_bootstrap_token }}"
+  delegate_to: "{{ openbao_cli_host }}"
+  become: "{{ openbao_cli_become }}"
+  no_log: true
+  changed_when: true
+  when:
+    - openbao_select | default({}) | length == 0
+    - openbao_bootstrap_token is defined
+    - openbao_ci_benchmark_lanes_repository | length > 0
+    - >-
+      (openbao_github_oidc_ci_benchmark_lanes_role_current.rc | default(1)) != 0
+      or (_ci_benchmark_lanes_role_live.bound_audiences | default([]))
+         != [openbao_ci_benchmark_lanes_audience]
+      or (_ci_benchmark_lanes_role_live.bound_claims | default({}, true))
+         != _ci_benchmark_lanes_role_claims
+      or (_ci_benchmark_lanes_role_live.bound_claims_type | default(''))
+         != 'string'
+      or (_ci_benchmark_lanes_role_live.user_claim | default(''))
+         != 'workflow_ref'
+      or (_ci_benchmark_lanes_role_live.token_policies | default([]) | sort)
+         != [openbao_ci_benchmark_lanes_policy_name]
+      or (_ci_benchmark_lanes_role_live.token_ttl | default(0) | int)
+         != (_ci_benchmark_lanes_token_ttl_s | int)
+      or (_ci_benchmark_lanes_role_live.token_max_ttl | default(0) | int)
+         != (_ci_benchmark_lanes_token_max_ttl_s | int)
 
 # The scheduled local eval benchmark: one repository, one workflow file, one
 # ref. repository confines the role to the eval source repository,
@@ -355,7 +455,11 @@
   check_mode: false
   failed_when: false
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_ci_evals_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
 
 - name: Reconcile the ci-evals OIDC role
@@ -392,7 +496,11 @@
   no_log: true
   changed_when: true
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_ci_evals_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
     - >-
       (openbao_github_oidc_ci_evals_role_current.rc | default(1)) != 0
@@ -433,7 +541,11 @@
   check_mode: false
   failed_when: false
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_github_pr_reconcile_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
 
 - name: Reconcile the pr-reconcile-sweep OIDC role
@@ -475,7 +587,11 @@
   no_log: true
   changed_when: true
   when:
-    - openbao_select | default({}) | length == 0
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_github_pr_reconcile_policy_name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)
     - openbao_bootstrap_token is defined
     - openbao_github_pr_reconcile_enabled | bool
     - >-
@@ -522,7 +638,8 @@
 
 # A dropped org's OIDC role must be deleted by hand because this identity
 # cannot list roles. GitHub write workflows use a reusable workflow identity.
-# Each role is bound to one org and to its route's configured workflows/ref suffix.
+# Each role is bound to one org, to that org's default GitHub token audience
+# (https://github.com/<org>), and to its route's configured workflows/ref suffix.
 - name: Read each GitHub write OIDC role
   ansible.builtin.command:
     cmd: >-
@@ -587,7 +704,7 @@
     stdin: >-
       {{ {'role_type': 'jwt',
             'user_claim': 'job_workflow_ref',
-            'bound_audiences': [openbao_github_write_audience],
+            'bound_audiences': ['https://github.com/' ~ item.org],
             'bound_claims': _github_write_role_claims,
             'bound_claims_type': 'glob',
             'token_policies': [item.name],
@@ -613,7 +730,7 @@
          openbao_github_write_role_index].rc | default(1)) != 0
       or (_github_write_role_live.role_type | default('')) != 'jwt'
       or (_github_write_role_live.bound_audiences | default([]))
-         != [openbao_github_write_audience]
+         != ['https://github.com/' ~ item.org]
       or (_github_write_role_live.bound_claims | default({}, true))
          != _github_write_role_claims
       or (_github_write_role_live.bound_claims_type | default('')) != 'glob'

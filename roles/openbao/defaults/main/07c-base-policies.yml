@@ -82,6 +82,10 @@ openbao_agentgateway_openhands_mint_policies: >-
   {{ ([{'name': openbao_agentgateway_openhands_mint_policy_name,
         'template': 'agentgateway-openhands-mint-policy.hcl.j2'}]
       if openbao_agentgateway_openhands_mint_secret_id_cidr | length > 0 else []) }}
+openbao_ci_benchmark_lanes_policies: >-
+  {{ ([{'name': openbao_ci_benchmark_lanes_policy_name,
+        'template': 'ci-benchmark-lanes-policy.hcl.j2'}]
+      if openbao_ci_benchmark_lanes_configured | bool else []) }}
 
 openbao_base_policies: >-
   {{ openbao_terrakube_base_policies + openbao_base_policies_static
@@ -92,7 +96,8 @@ openbao_base_policies: >-
      + openbao_dify_agent_policies + openbao_window_service_policies
      + openbao_pr_reconcile_policies
      + openbao_github_write_policies
-     + openbao_agentgateway_openhands_mint_policies }}
+     + openbao_agentgateway_openhands_mint_policies
+     + openbao_ci_benchmark_lanes_policies }}
 
 # Static policy catalog, loaded with the other defaults.
 openbao_base_policies_static:
