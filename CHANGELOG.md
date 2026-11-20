@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.133.3](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.133.2...v0.133.3) (2026-11-20)
+
+
+### Bug Fixes
+
+* **openbao:** compare write-route mount sets by name, refuse duplicates ([#846](https://github.com/jpe-ansible/ansible-secrets-management/issues/846)) ([61529b3](https://github.com/jpe-ansible/ansible-secrets-management/commit/61529b3a21e339aa6a069a24e80bd9d800065b01))
+
 ## [0.133.2](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.133.1...v0.133.2) (2026-11-20)
 
 
