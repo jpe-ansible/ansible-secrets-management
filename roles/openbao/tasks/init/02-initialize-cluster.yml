@@ -389,6 +389,11 @@
   ansible.builtin.import_tasks: selection-preflight.yml
   when: openbao_ai_admin_window_mode | default(false) | bool
 
+# The policy-sync render reads openbao_policies, which includes the
+# arrangement policies only once the arrangement document is loaded.
+- name: Load the arrangement document before the policy-sync render
+  ansible.builtin.import_tasks: 07z-load-arrangement.yml
+
 # Resolves openbao_write_addr (the Raft leader) and runs the policy-sync
 # ask-and-rewrite pair, right after the reconcile login above -- BEFORE any
 # other init step consumes a reconcile grant for a newly declared name (see
