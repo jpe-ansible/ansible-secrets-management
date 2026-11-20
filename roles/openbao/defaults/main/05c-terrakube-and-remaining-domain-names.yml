@@ -38,7 +38,7 @@ openbao_terrakube_workspaces:
     # App's installed permissions as its ceiling.
     github_mint: [dryvist-full-automation]
     github_admin_raw: true
-    kv_read: [infrastructure/tofu-github/private-overrides]
+    kv_read: [infrastructure/tofu-github/private-overrides, infrastructure/tofu-github/private-overrides-jpe-ai-agents]
     kv_read_external: ["{{ openbao_hermes_webhook_kv_path }}"]
     kv_read_config: ["{{ openbao_hermes_webhook_kv_path }}"]
   - name: "{{ openbao_terrakube_org_secrets_workspace_name }}"

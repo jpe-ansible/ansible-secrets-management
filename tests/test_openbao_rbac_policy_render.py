@@ -206,6 +206,12 @@ def test_tofu_github_private_window_renders_only_its_exact_grants(rendered_defau
         f"{kv_mount}/metadata/infrastructure/tofu-github/private-overrides": [
             "read", "update"
         ],
+        f"{kv_mount}/data/infrastructure/tofu-github/private-overrides-jpe-ai-agents": [
+            "create", "update", "read"
+        ],
+        f"{kv_mount}/metadata/infrastructure/tofu-github/private-overrides-jpe-ai-agents": [
+            "read", "update"
+        ],
         f"{github_mount}/token": ["create", "update"],
         f"{transit_mount}/datakey/plaintext/{state_key}": ["update"],
         f"{transit_mount}/decrypt/{state_key}": ["update"],

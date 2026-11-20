@@ -58,6 +58,10 @@ openbao_window_services:
         capabilities: [create, update, read]
       - path: "{{ openbao_kv_mount }}/metadata/infrastructure/tofu-github/private-overrides"
         capabilities: [read, update]
+      - path: "{{ openbao_kv_mount }}/data/infrastructure/tofu-github/private-overrides-jpe-ai-agents"
+        capabilities: [create, update, read]
+      - path: "{{ openbao_kv_mount }}/metadata/infrastructure/tofu-github/private-overrides-jpe-ai-agents"
+        capabilities: [read, update]
       - path: "{{ openbao_github_mount }}/token"
         capabilities: [create, update]
         allowed_parameters:
