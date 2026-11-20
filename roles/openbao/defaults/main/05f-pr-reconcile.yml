@@ -41,9 +41,8 @@ openbao_pr_reconcile_policies: >-
      if openbao_github_pr_reconcile_enabled | bool else [] }}
 
 # GitHub write jobs authenticate using their GitHub Actions reusable workflow
-# identity. The audience and workflow-ref suffix are shared by every route.
-openbao_github_openhands_write_audience: "{{ openbao_github_oidc_audience }}"
-openbao_github_write_audience: "{{ openbao_github_openhands_write_audience }}"
+# identity. Each per-org role binds that org's own audience; the workflow-ref
+# suffix is shared by every route.
 openbao_github_openhands_write_token_ttl: "{{ openbao_github_pr_reconcile_token_ttl }}"
 openbao_github_openhands_write_token_max_ttl: "{{ openbao_github_pr_reconcile_token_max_ttl }}"
 openbao_github_openhands_write_workflow_ref_suffix: "@*"

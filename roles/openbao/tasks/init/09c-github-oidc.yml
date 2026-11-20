@@ -638,7 +638,8 @@
 
 # A dropped org's OIDC role must be deleted by hand because this identity
 # cannot list roles. GitHub write workflows use a reusable workflow identity.
-# Each role is bound to one org and to its route's configured workflows/ref suffix.
+# Each role is bound to one org, to that org's default GitHub token audience
+# (https://github.com/<org>), and to its route's configured workflows/ref suffix.
 - name: Read each GitHub write OIDC role
   ansible.builtin.command:
     cmd: >-
@@ -703,7 +704,7 @@
     stdin: >-
       {{ {'role_type': 'jwt',
             'user_claim': 'job_workflow_ref',
-            'bound_audiences': [openbao_github_write_audience],
+            'bound_audiences': ['https://github.com/' ~ item.org],
             'bound_claims': _github_write_role_claims,
             'bound_claims_type': 'glob',
             'token_policies': [item.name],
@@ -729,7 +730,7 @@
          openbao_github_write_role_index].rc | default(1)) != 0
       or (_github_write_role_live.role_type | default('')) != 'jwt'
       or (_github_write_role_live.bound_audiences | default([]))
-         != [openbao_github_write_audience]
+         != ['https://github.com/' ~ item.org]
       or (_github_write_role_live.bound_claims | default({}, true))
          != _github_write_role_claims
       or (_github_write_role_live.bound_claims_type | default('')) != 'glob'
