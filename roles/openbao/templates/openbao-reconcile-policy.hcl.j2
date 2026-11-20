@@ -163,6 +163,14 @@ path "auth/{{ openbao_terrakube_jwt_auth_path }}/role" {
   capabilities = ["list"]
 }
 
+# GitHub Actions OIDC role readback: role definitions and names only.
+path "auth/{{ openbao_github_oidc_auth_path }}/role/+" {
+  capabilities = ["read"]
+}
+path "auth/{{ openbao_github_oidc_auth_path }}/role" {
+  capabilities = ["list"]
+}
+
 # --- SSH signing roles, by name ------------------------------------------
 # Without these the identity cannot perform the SSH-role reconcile, which is
 # one of the jobs it exists to do — and the omission would only surface as a
