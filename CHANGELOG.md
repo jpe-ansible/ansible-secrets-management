@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.131.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.130.0...v0.131.0) (2026-11-20)
+
+
+### Features
+
+* **openbao:** let the admin window write GitHub OIDC roles with declared policies ([b5056b2](https://github.com/jpe-ansible/ansible-secrets-management/commit/b5056b2ed0c464842df1b940fe8bdbbbb6bb25cd))
+* **openbao:** window OIDC role policy list ([#820](https://github.com/jpe-ansible/ansible-secrets-management/issues/820)) ([b5056b2](https://github.com/jpe-ansible/ansible-secrets-management/commit/b5056b2ed0c464842df1b940fe8bdbbbb6bb25cd))
+
 ## [0.130.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.129.0...v0.130.0) (2026-11-20)
 
 
