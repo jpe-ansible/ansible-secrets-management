@@ -439,6 +439,10 @@ def test_everyday_mount_contains_every_openhands_write_route_set(
         OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_WORKFLOWS=(
             "example-org/example-repo/.github/workflows/publish.yml"
         ),
+        OPENBAO_GITHUB_GATE_CHECKS_ORGS="ThirdOrg",
+        OPENBAO_GITHUB_GATE_CHECKS_WORKFLOWS=(
+            "example-org/example-repo/.github/workflows/gate.yml"
+        ),
     )
     defaults, _approles, _policies = write_route_defaults
     overrides = {"openbao_github_openhands_installation_id": "67890"}
@@ -466,9 +470,13 @@ def test_everyday_mount_contains_every_openhands_write_route_set(
     assert [item["tier"] for item in route_sets] == [
         "openhands-write",
         "openhands-workflows",
+        "gate-checks",
     ]
     assert openhands_mount["permission_sets"] == pilot_sets
-    assert everyday_mount["permission_sets"] == read_sets + route_sets
+    def _names(sets):
+        return sorted(item["name"] for item in sets)
+
+    assert _names(everyday_mount["permission_sets"]) == _names(read_sets + route_sets)
 
     tasks = yaml.safe_load(APP_SET_CHECKS_TASKS.read_text(encoding="utf-8"))
     route_assertion = next(
@@ -502,6 +510,30 @@ def test_everyday_mount_contains_every_openhands_write_route_set(
     assert base_sets == read_sets
     assert mount_route_sets == route_sets
     assert rendered_assertion is True
+
+    unique_expression = route_assertion["ansible.builtin.assert"]["that"][1]
+    reordered_context = {
+        **assertion_context,
+        "gm": {
+            **everyday_mount,
+            "permission_sets": list(reversed(everyday_mount["permission_sets"])),
+        },
+    }
+    for expression in (mount_expression, unique_expression):
+        assert _rendered(
+            defaults, "{{ " + expression.strip() + " }}", **reordered_context
+        ) is True
+    duplicate_context = {
+        **assertion_context,
+        "gm": {
+            **everyday_mount,
+            "permission_sets": everyday_mount["permission_sets"]
+            + everyday_mount["permission_sets"][-1:],
+        },
+    }
+    assert _rendered(
+        defaults, "{{ " + unique_expression.strip() + " }}", **duplicate_context
+    ) is False
 
     missing_route_mount = {
         **everyday_mount,
