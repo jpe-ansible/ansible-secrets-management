@@ -421,9 +421,24 @@ def test_preexisting_oidc_tasks_are_gated_before_register_dependencies():
         if task.get("name") == "Read each GitHub write OIDC role"
     )
     full_run_guard = "openbao_select | default({}) | length == 0"
+    selected_role_policy_names = {
+        "ci-ai-review": "openbao_ci_ai_review_policy_name",
+        "ci-evals": "openbao_ci_evals_policy_name",
+        "pr-reconcile-sweep": "openbao_github_pr_reconcile_policy_name",
+    }
+    selection_guards = {
+        f"{action} the {role} OIDC role": (
+            f"{full_run_guard} or {policy_name}\n"
+            "   in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])\n"
+            "       | map(attribute='name') | list)"
+        )
+        for role, policy_name in selected_role_policy_names.items()
+        for action in ("Read", "Reconcile")
+    }
 
     for task in tasks[:first_openhands_task]:
-        assert task["when"][0] == full_run_guard, task["name"]
+        name = task["name"]
+        assert task["when"][0] == selection_guards.get(name, full_run_guard), name
 
     enable = _find_task("Enable the GitHub Actions OIDC auth method")
     assert enable["when"][0] == full_run_guard
