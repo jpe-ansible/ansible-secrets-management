@@ -127,7 +127,7 @@ def test_openhands_only_keeps_literal_existing_outputs_and_selection_candidates(
     workflow = "example-org/example-repo/.github/workflows/write.yml"
     _set_inputs(
         monkeypatch,
-        OPENBAO_GITHUB_OPENHANDS_APP_ID="12345",
+        OPENBAO_GITHUB_EVERYDAY_APP_ID="12345",
         OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS="ExampleOrg",
         OPENBAO_GITHUB_OPENHANDS_WRITE_WORKFLOWS=workflow,
     )
@@ -137,7 +137,7 @@ def test_openhands_only_keeps_literal_existing_outputs_and_selection_candidates(
     openhands_route = output["routes"][0]
     assert openhands_route == {
         "prefix": "openhands-write",
-        "mount": "github-openhands",
+        "mount": "github",
         "app_id": "12345",
         "orgs": ["ExampleOrg"],
         "workflows": [workflow],
@@ -166,13 +166,13 @@ def test_openhands_only_keeps_literal_existing_outputs_and_selection_candidates(
     ]
     policy_text = _render_route_policy(defaults, output["policies"][0])
     assert _policy_lines(policy_text) == [
-        'path "github-openhands/token/openhands-write-exampleorg" {',
+        'path "github/token/openhands-write-exampleorg" {',
         '  capabilities = ["create", "read", "update"]',
         "}",
     ]
     assert _route_policy_paths(policy_text) == [
         (
-            "github-openhands/token/openhands-write-exampleorg",
+            "github/token/openhands-write-exampleorg",
             '"create", "read", "update"',
         )
     ]
@@ -369,7 +369,7 @@ def test_openhands_workflows_route_uses_the_shared_ref_suffix_fallback(
     orgs = ["ExampleOrg", "SecondOrg"]
     _set_inputs(
         monkeypatch,
-        OPENBAO_GITHUB_OPENHANDS_APP_ID="12345",
+        OPENBAO_GITHUB_EVERYDAY_APP_ID="12345",
         OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_ORGS=",".join(orgs),
         OPENBAO_GITHUB_OPENHANDS_WORKFLOWS_WORKFLOWS=",".join(workflows),
     )
@@ -384,7 +384,7 @@ def test_openhands_workflows_route_uses_the_shared_ref_suffix_fallback(
     assert "workflow_ref_suffixes" not in route
     assert route == {
         "prefix": "openhands-workflows",
-        "mount": "github-openhands",
+        "mount": "github",
         "app_id": "12345",
         "orgs": orgs,
         "workflows": workflows,
@@ -423,12 +423,13 @@ def test_openhands_workflows_route_uses_the_shared_ref_suffix_fallback(
     ] == [[org] for org in orgs]
 
 
-def test_openhands_mount_contains_pilot_and_every_write_route_set(
+def test_everyday_mount_contains_every_openhands_write_route_set(
     write_route_defaults, monkeypatch,
 ):
     _set_inputs(
         monkeypatch,
         OPENBAO_GITHUB_OPENHANDS_APP_ID="12345",
+        OPENBAO_GITHUB_EVERYDAY_APP_ID="54321",
         OPENBAO_GITHUB_OPENHANDS_PILOT_REPOS="pilot-repo",
         OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS="FirstOrg",
         OPENBAO_GITHUB_OPENHANDS_WRITE_WORKFLOWS=(
@@ -446,13 +447,19 @@ def test_openhands_mount_contains_pilot_and_every_write_route_set(
     openhands_mount = next(
         item for item in output["mounts"] if item["mount"] == "github-openhands"
     )
+    everyday_mount = next(
+        item for item in output["mounts"] if item["mount"] == "github"
+    )
+    read_sets = _rendered(
+        defaults, "{{ openbao_github_read_permission_sets }}", **overrides
+    )
     pilot_sets = _rendered(
         defaults, "{{ openbao_github_openhands_permission_sets }}", **overrides
     )
     route_sets = [
         permission_set
         for route in output["routes"]
-        if route["mount"] == "github-openhands"
+        if route["mount"] == "github"
         for permission_set in output["sets"]
         if permission_set["tier"] == route["prefix"]
     ]
@@ -460,7 +467,8 @@ def test_openhands_mount_contains_pilot_and_every_write_route_set(
         "openhands-write",
         "openhands-workflows",
     ]
-    assert openhands_mount["permission_sets"] == pilot_sets + route_sets
+    assert openhands_mount["permission_sets"] == pilot_sets
+    assert everyday_mount["permission_sets"] == read_sets + route_sets
 
     tasks = yaml.safe_load(APP_SET_CHECKS_TASKS.read_text(encoding="utf-8"))
     route_assertion = next(
@@ -473,7 +481,7 @@ def test_openhands_mount_contains_pilot_and_every_write_route_set(
     mount_expression = route_assertion["ansible.builtin.assert"]["that"][0]
     context = {
         **overrides,
-        "gm": openhands_mount,
+        "gm": everyday_mount,
         "openbao_github_write_routes": output["routes"],
         "openbao_github_write_permission_sets": output["sets"],
     }
@@ -491,15 +499,15 @@ def test_openhands_mount_contains_pilot_and_every_write_route_set(
     rendered_assertion = _rendered(
         defaults, "{{ " + mount_expression.strip() + " }}", **assertion_context
     )
-    assert base_sets == pilot_sets
+    assert base_sets == read_sets
     assert mount_route_sets == route_sets
     assert rendered_assertion is True
 
     missing_route_mount = {
-        **openhands_mount,
+        **everyday_mount,
         "permission_sets": [
             permission_set
-            for permission_set in openhands_mount["permission_sets"]
+            for permission_set in everyday_mount["permission_sets"]
             if permission_set["tier"] != "openhands-workflows"
         ],
     }
@@ -670,7 +678,7 @@ def test_generic_oidc_role_task_inputs_preserve_openhands_payload_and_add_claude
 ):
     _set_inputs(
         monkeypatch,
-        OPENBAO_GITHUB_OPENHANDS_APP_ID="12345",
+        OPENBAO_GITHUB_EVERYDAY_APP_ID="12345",
         OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS="ExampleOrg",
         **{
             "OPENBAO_GITHUB_OPENHANDS_WRITE_WORKFLOWS": (

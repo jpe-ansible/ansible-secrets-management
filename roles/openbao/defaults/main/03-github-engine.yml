@@ -289,18 +289,19 @@ openbao_github_openhands_workflows_permissions: >-
   {{ openbao_github_write_permission_profiles[openbao_github_openhands_workflows_set_prefix] }}
 # A write route is one GitHub App's org-scoped token boundary. Keep this list
 # as the single input to write sets, policies, mount entries, and OIDC roles.
+# The OpenHands routes mint from the everyday App.
 openbao_github_write_routes:
   - prefix: "{{ openbao_github_openhands_write_set_prefix }}"
-    mount: "{{ openbao_github_openhands_mount }}"
-    app_id: "{{ openbao_github_openhands_app_id }}"
+    mount: "{{ openbao_github_everyday_mount }}"
+    app_id: "{{ openbao_github_everyday_app_id }}"
     orgs: "{{ openbao_github_openhands_write_orgs }}"
     workflows: "{{ openbao_github_openhands_write_workflows }}"
     permissions: "{{ openbao_github_openhands_write_permissions }}"
     token_ttl: "{{ openbao_github_openhands_write_token_ttl }}"
     token_max_ttl: "{{ openbao_github_openhands_write_token_max_ttl }}"
   - prefix: "{{ openbao_github_openhands_workflows_set_prefix }}"
-    mount: "{{ openbao_github_openhands_mount }}"
-    app_id: "{{ openbao_github_openhands_app_id }}"
+    mount: "{{ openbao_github_everyday_mount }}"
+    app_id: "{{ openbao_github_everyday_app_id }}"
     orgs: "{{ openbao_github_openhands_workflows_orgs }}"
     workflows: "{{ openbao_github_openhands_workflows_workflows }}"
     permissions: "{{ openbao_github_openhands_workflows_permissions }}"

@@ -85,7 +85,7 @@ def test_openhands_org_write_set_and_policy_use_org_name(
     openhands_defaults, monkeypatch,
 ):
     monkeypatch.setenv("OPENBAO_GITHUB_OPENHANDS_WRITE_ORGS", "ExampleOrg")
-    openhands_defaults["openbao_github_openhands_app_id"] = "fixture-app-id"
+    openhands_defaults["openbao_github_everyday_app_id"] = "fixture-app-id"
     sets = _render_value(
         openhands_defaults,
         "{{ openbao_github_openhands_write_permission_sets }}",
@@ -108,7 +108,7 @@ def test_openhands_org_write_set_and_policy_use_org_name(
 
     openhands_defaults["openbao_github_app_mounts"] = [
         {
-            "mount": "github-openhands",
+            "mount": "github",
             "permission_sets": sets,
         }
     ]
@@ -116,7 +116,7 @@ def test_openhands_org_write_set_and_policy_use_org_name(
         TEMPLATES / "github-mount-config-policy.hcl.j2", openhands_defaults
     )
     stanzas = dict(_stanzas(policy))
-    set_path = "github-openhands/permissionset/openhands-write-exampleorg"
+    set_path = "github/permissionset/openhands-write-exampleorg"
     assert set_path in stanzas
     assert '"org_name" = ["ExampleOrg"]' in stanzas[set_path]
     assert '"installation_id"' not in stanzas[set_path]

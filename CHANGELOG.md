@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.133.2](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.133.1...v0.133.2) (2026-11-20)
+
+
+### Bug Fixes
+
+* **openbao:** mint the OpenHands write sets from the everyday App ([#843](https://github.com/jpe-ansible/ansible-secrets-management/issues/843)) ([5ba5d49](https://github.com/jpe-ansible/ansible-secrets-management/commit/5ba5d49e433b40339ac36f2cabd16d2773515859))
+
 ## [0.133.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.133.0...v0.133.1) (2026-11-20)
 
 
