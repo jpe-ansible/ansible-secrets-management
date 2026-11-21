@@ -4,6 +4,10 @@ path "secrets-external/data/ai/saas/cursor" {
   capabilities = ["read"]
 }
 
+path "ext-ai/data/cursor/main/rw" {
+  capabilities = ["read"]
+}
+
 path "{{ openbao_github_agents_mount }}/token/public-write" {
   capabilities = ["create", "update"]
 }

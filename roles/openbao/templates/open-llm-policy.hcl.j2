@@ -27,6 +27,14 @@ path "secrets-external/data/ai/saas/zai" {
   capabilities = ["read"]
 }
 
+path "ext-ai/data/zai/main/rw" {
+  capabilities = ["read"]
+}
+
+path "config/data/zai/main" {
+  capabilities = ["read"]
+}
+
 {% if openbao_github_agents_installation_id | length > 0 %}
 path "{{ openbao_github_agents_mount }}/token" {
   # The plugin's token path has no existence check, so a mint routes as

@@ -114,6 +114,7 @@ def _matches_apps_reader_contract(policy: str, apps: set[str]) -> bool:
         ("secrets-external/data/backblaze/dryvist-nautobot-backups/rw", ("read",)),
         ("secrets-external/metadata/backblaze/dryvist-nautobot-backups/rw", ("read",)),
         ("secrets-external/data/ai/saas/opencode", ("read",)),
+        ("ext-ai/data/opencode/main/rw", ("read",)),
         ("secrets-external/data/platform/slack-ops", ("read",)),
         ("secrets-external/metadata/platform/slack-ops", ("read",)),
         ("secrets-external/data/slack/homelab-ops/rw", ("read",)),
