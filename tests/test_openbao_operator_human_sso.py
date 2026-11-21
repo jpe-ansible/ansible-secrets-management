@@ -127,6 +127,8 @@ def test_policy_write_capabilities_are_limited_to_two_provider_records():
     write_paths = {
         "secrets-external/data/ai/saas/opencode",
         "secrets-external/data/ai/saas/zai",
+        "ext-ai/data/opencode/main/rw",
+        "ext-ai/data/zai/main/rw",
     }
     # Self-token and UI bootstrap grants from OpenBao's default policy; the role
     # sets token_no_default_policy, so the UI cannot load after login without them.
@@ -155,6 +157,8 @@ def test_policy_write_capabilities_are_limited_to_two_provider_records():
     } == {
         "secrets-external/data/ai/saas/opencode": {"create", "read", "update"},
         "secrets-external/data/ai/saas/zai": {"create", "read", "update"},
+        "ext-ai/data/opencode/main/rw": {"create", "read", "update"},
+        "ext-ai/data/zai/main/rw": {"create", "read", "update"},
     }
     assert not any("delete" in capabilities for _, capabilities in grants)
     assert not any(
