@@ -41,6 +41,9 @@ openbao_credential_publish_apps:
   # the existing langfuse_project_keys and openbao_secrets seeding modules. Its own
   # leaf, so this grant never reaches the Hatchet keysets in apps/hatchet.
   - hatchet/eval
+  # The OpenHands Vikunja token (field token), minted create-if-absent by
+  # ansible-proxmox-apps' vikunja role (15-openhands.yml).
+  - openhands-vikunja
 
 # Credential leaves outside secret/apps/* that a converge publishes back, as full
 # paths under the KV mount. Same exact-path grant as the list above.
