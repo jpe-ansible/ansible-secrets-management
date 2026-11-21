@@ -16,6 +16,7 @@ TEMPLATES = ROOT / "roles/openbao/templates"
 RBAC = ROOT / "roles/openbao/tasks/init/08-rbac-policies.yml"
 REPOSITORY_KEY = "OPENBAO_GITHUB_PR_RECONCILE_REPOSITORY"
 OWNERS_KEY = "OPENBAO_GITHUB_PR_RECONCILE_OWNERS"
+CALLER_OWNERS_KEY = "OPENBAO_GITHUB_PR_RECONCILE_CALLER_OWNERS"
 
 
 def _defaults(name):
@@ -247,3 +248,130 @@ def test_existing_github_sets_policies_and_oidc_roles_keep_their_own_tiers():
         "Reconcile the ci-evals OIDC role",
     ):
         assert _find_task(tasks, role_name) is not None
+
+
+def _render_caller_policy(defaults):
+    environment = Environment(loader=FileSystemLoader(TEMPLATES))
+    environment.filters["comment"] = lambda value: "# " + str(value)
+    return environment.get_template("pr-reconcile-policy.hcl.j2").render(
+        ansible_managed="managed",
+        openbao_github_everyday_mount="github",
+        openbao_github_pr_reconcile_caller_owners=defaults[
+            "openbao_github_pr_reconcile_caller_owners"
+        ],
+        openbao_github_pr_reconcile_caller_permissions=defaults[
+            "openbao_github_pr_reconcile_caller_permissions"
+        ],
+    )
+
+
+def test_caller_owner_list_alone_declares_the_caller_policy():
+    defaults = _render_defaults({CALLER_OWNERS_KEY: " example-org, , example-other "})
+    assert defaults["openbao_github_pr_reconcile_caller_enabled"] is True
+    assert defaults["openbao_github_pr_reconcile_enabled"] is False
+    assert defaults["openbao_github_pr_reconcile_caller_owners"] == ["example-org", "example-other"]
+    assert defaults["openbao_pr_reconcile_policies"] == [
+        {"name": "pr-reconcile", "template": "pr-reconcile-policy.hcl.j2"}
+    ]
+    retired = _retired(defaults)
+    assert "pr-reconcile" not in retired
+    assert "pr-reconcile-sweep" in retired
+
+    both = _render_defaults({
+        REPOSITORY_KEY: "example-org/example-repo",
+        OWNERS_KEY: "example-org",
+        CALLER_OWNERS_KEY: "example-org",
+    })
+    assert [item["name"] for item in both["openbao_pr_reconcile_policies"]] == [
+        "pr-reconcile-sweep", "pr-reconcile"
+    ]
+    assert not {"pr-reconcile-sweep", "pr-reconcile"} & set(_retired(both))
+
+
+def test_empty_caller_owner_list_retires_the_caller_policy_and_removes_its_role():
+    defaults = _render_defaults({REPOSITORY_KEY: "example-org/example-repo", OWNERS_KEY: "example-org"})
+    assert defaults["openbao_github_pr_reconcile_caller_enabled"] is False
+    assert "pr-reconcile" in _retired(defaults)
+    assert re.findall(r'(?m)^path ', _render_caller_policy(defaults)) == []
+
+    tasks = yaml.safe_load(TASKS.read_text(encoding="utf-8"))
+    remove = _find_task(tasks, "Remove the pr-reconcile OIDC role while its owner list is empty")
+    assert " ".join(remove["ansible.builtin.command"]["cmd"].split()) == (
+        "bao delete auth/{{ openbao_github_oidc_auth_path }}/role/"
+        "{{ openbao_github_pr_reconcile_caller_policy_name }}"
+    )
+    assert remove["when"] == [
+        "openbao_select | default({}) | length == 0",
+        "openbao_bootstrap_token is defined",
+        "not (openbao_github_pr_reconcile_caller_enabled | bool)",
+        "(openbao_github_oidc_pr_reconcile_caller_role_current.rc | default(1)) == 0",
+    ]
+
+
+def test_caller_policy_requires_repositories_and_pins_owners_and_a_narrower_permission_map():
+    defaults = _render_defaults({CALLER_OWNERS_KEY: "example-org,example-other"})
+    caller = defaults["openbao_github_pr_reconcile_caller_permissions"]
+    sweep = defaults["openbao_github_pr_reconcile_permissions"]
+    assert caller == {"contents": "write", "pull_requests": "write", "statuses": "write"}
+    # Never wider than the sweep: every scope is one the sweep holds at the same level.
+    assert all(sweep.get(name) == level for name, level in caller.items())
+    rendered = _render_caller_policy(defaults)
+    assert re.findall(r'(?m)^path "([^"]+)" \{', rendered) == ["github/token"]
+    assert 'capabilities = ["create", "update"]' in rendered
+    assert 'required_parameters = ["org_name", "permissions", "repositories"]' in rendered
+    assert '"org_name" = ["example-org", "example-other"]' in rendered
+    assert (
+        '"permissions" = [{ "contents" = "write", "pull_requests" = "write", "statuses" = "write" }]'
+    ) in rendered
+    assert '"repositories" = []' in rendered
+    assert '"installation_id" = []' in rendered
+    assert '"repository_ids" = []' in rendered
+    for scope in ('"actions"', '"checks"', '"issues"', '"workflows"'):
+        assert scope not in rendered
+
+
+def test_caller_oidc_role_binds_the_reusable_workflow_owners_push_and_runner():
+    defaults = _render_defaults({CALLER_OWNERS_KEY: "example-org"})
+    assert defaults["openbao_github_pr_reconcile_caller_policy_name"] == "pr-reconcile"
+    assert defaults["openbao_github_pr_reconcile_caller_workflow_refs"] == [
+        "JacobPEvans/.github-ai/.github/workflows/pr-reconcile.yml@refs/heads/main",
+        "JacobPEvans/.github-ai/.github/workflows/pr-reconcile.yml@refs/tags/v*",
+    ]
+    assert defaults["openbao_github_pr_reconcile_caller_event_names"] == ["push"]
+    assert defaults["openbao_github_pr_reconcile_caller_refs"] == [
+        "refs/heads/develop", "refs/heads/main"
+    ]
+
+    tasks = yaml.safe_load(TASKS.read_text(encoding="utf-8"))
+    read = _find_task(tasks, "Read the pr-reconcile OIDC role")
+    write = _find_task(tasks, "Reconcile the pr-reconcile OIDC role")
+    assert read["register"] == "openbao_github_oidc_pr_reconcile_caller_role_current"
+    assert write["vars"]["_pr_reconcile_caller_role_claims"] == {
+        "job_workflow_ref": "{{ openbao_github_pr_reconcile_caller_workflow_refs }}",
+        "repository_owner": "{{ openbao_github_pr_reconcile_caller_owners }}",
+        "event_name": "{{ openbao_github_pr_reconcile_caller_event_names }}",
+        "ref": "{{ openbao_github_pr_reconcile_caller_refs }}",
+        "runner_environment": "{{ openbao_github_pr_reconcile_runner_environment }}",
+    }
+    payload = write["ansible.builtin.command"]["stdin"]
+    for fragment in (
+        "'role_type': 'jwt'",
+        "'user_claim': 'job_workflow_ref'",
+        "'bound_audiences': [openbao_github_pr_reconcile_audience]",
+        "'bound_claims_type': 'glob'",
+        "'token_policies': openbao_github_pr_reconcile_caller_policy_name,",
+        "'token_no_default_policy': true",
+        "'token_type': 'batch'",
+        "'token_ttl': openbao_github_pr_reconcile_token_ttl",
+        "'token_max_ttl': openbao_github_pr_reconcile_token_max_ttl",
+    ):
+        assert fragment in payload
+
+    assert "openbao_github_pr_reconcile_caller_enabled | bool" in write["when"]
+    drift_guard = write["when"][-1]
+    assert "openbao_github_oidc_pr_reconcile_caller_role_current.rc | default(1)" in drift_guard
+    for field in (
+        ".role_type", ".bound_audiences", ".bound_claims", ".bound_claims_type", ".user_claim",
+        ".token_policies", ".token_no_default_policy", ".token_type", ".token_ttl", ".token_max_ttl",
+    ):
+        assert f"_pr_reconcile_caller_role_live{field}" in drift_guard

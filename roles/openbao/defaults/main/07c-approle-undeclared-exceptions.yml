@@ -46,7 +46,9 @@ openbao_retired_policies: >-
      + openbao_roster_key_reader_retired_names
      + openbao_roster_owned_mcp_deny_retired_names
      + ([] if openbao_github_pr_reconcile_enabled | bool
-        else [openbao_github_pr_reconcile_policy_name]) }}
+        else [openbao_github_pr_reconcile_policy_name])
+     + ([] if openbao_github_pr_reconcile_caller_enabled | bool
+        else [openbao_github_pr_reconcile_caller_policy_name]) }}
 # Example shape (do not add speculatively):
 #   - name: some-vendor-managed-role
 #     reason: provisioned by <tool>, out of this repo's control

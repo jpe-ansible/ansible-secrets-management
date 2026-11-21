@@ -21,6 +21,7 @@ CI_ROLES = [
     ("ci-evals", "openbao_ci_evals_policy_name", "05f-ci-evals.yml"),
     ("ci-ai-review", "openbao_ci_ai_review_policy_name", "05f-ci-ai-review.yml"),
     ("pr-reconcile-sweep", "openbao_github_pr_reconcile_policy_name", "05f-pr-reconcile.yml"),
+    ("pr-reconcile", "openbao_github_pr_reconcile_caller_policy_name", "05f-pr-reconcile.yml"),
 ]
 
 
@@ -32,6 +33,7 @@ def _oidc_variables():
         ],
         "openbao_ci_ai_review_enterprise_id": "12345",
         "openbao_github_pr_reconcile_enabled": True,
+        "openbao_github_pr_reconcile_caller_enabled": True,
         "openbao_bootstrap_token": "test-token",
     }
     for _, policy_name, filename in CI_ROLES:
@@ -112,6 +114,7 @@ def test_oidc_candidates_preserve_write_roles_and_gate_named_ci_roles(
         expected.append({"name": variables["openbao_ci_ai_review_policy_name"]})
     if enabled in (True, "true"):
         expected.append({"name": variables["openbao_github_pr_reconcile_policy_name"]})
+    expected.append({"name": variables["openbao_github_pr_reconcile_caller_policy_name"]})
     assert sorted(candidates, key=lambda item: item["name"]) == sorted(
         expected, key=lambda item: item["name"]
     )
