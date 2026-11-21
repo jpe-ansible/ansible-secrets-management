@@ -28,8 +28,24 @@ path "secrets-external/data/ai/saas/qwencloud" {
   capabilities = ["read"]
 }
 
+path "ext-ai/data/qwencloud/main/rw" {
+  capabilities = ["read"]
+}
+
+path "config/data/qwencloud/main" {
+  capabilities = ["read"]
+}
+
 # Z.ai's external leaf: the router sends its key only to the vendor's usage endpoint.
 path "secrets-external/data/ai/saas/zai" {
+  capabilities = ["read"]
+}
+
+path "ext-ai/data/zai/main/rw" {
+  capabilities = ["read"]
+}
+
+path "config/data/zai/main" {
   capabilities = ["read"]
 }
 

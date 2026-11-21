@@ -346,6 +346,8 @@ def test_open_llm_policy_mints_raw_and_named_agents_tokens():
         "secret/data/apps/open-llm",
         "secret/metadata/apps/open-llm",
         "secrets-external/data/ai/saas/zai",
+        "ext-ai/data/zai/main/rw",
+        "config/data/zai/main",
         "github/token",
         "github/token/public-write",
         "auth/approle/role/sandbox-agent-read/role-id",

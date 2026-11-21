@@ -4,6 +4,14 @@ path "secrets-external/data/ai/saas/zai" {
   capabilities = ["read"]
 }
 
+path "ext-ai/data/zai/main/rw" {
+  capabilities = ["read"]
+}
+
+path "config/data/zai/main" {
+  capabilities = ["read"]
+}
+
 path "{{ openbao_github_agents_mount }}/token/public-read" {
   capabilities = ["create", "update"]
 }

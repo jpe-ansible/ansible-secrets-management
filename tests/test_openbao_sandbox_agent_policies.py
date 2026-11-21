@@ -94,11 +94,12 @@ class AgentPolicies(unittest.TestCase):
 
     def test_per_tool_policies_have_only_their_exact_grants(self):
         credentials = {
-            "zcode": "secrets-external/data/ai/saas/zai",
-            "opencode": "secret/data/apps/sandbox-agent-router",
-            "cursor": "secrets-external/data/ai/saas/cursor",
+            "zcode": ["secrets-external/data/ai/saas/zai", "ext-ai/data/zai/main/rw",
+                      "config/data/zai/main"],
+            "opencode": ["secret/data/apps/sandbox-agent-router"],
+            "cursor": ["secrets-external/data/ai/saas/cursor", "ext-ai/data/cursor/main/rw"],
         }
-        for tool, credential in credentials.items():
+        for tool, own in credentials.items():
             for tier in ("read", "write"):
                 with self.subTest(tool=tool, tier=tier):
                     rendered = _render(f"sandbox-{tool}-{tier}-policy.hcl.j2")
@@ -106,23 +107,23 @@ class AgentPolicies(unittest.TestCase):
                     grants = re.findall(
                         r'path "([^"]+)" \{\s*capabilities = \[([^\]]+)\]\s*\}', rendered
                     )
-                    self.assertEqual(paths, [credential, f"github-agents/token/public-{tier}"])
+                    self.assertEqual(paths, [*own, f"github-agents/token/public-{tier}"])
                     self.assertEqual(grants, [
-                        (credential, '"read"'),
+                        *((c, '"read"') for c in own),
                         (f"github-agents/token/public-{tier}", '"create", "update"'),
                     ])
-                    for other in credentials.values():
-                        if other != credential:
-                            self.assertNotIn(other, paths)
+                    for other_tool, other in credentials.items():
+                        if other_tool != tool:
+                            self.assertFalse(set(other) & set(paths))
                     self.assertEqual([p for p in paths if p.startswith("secret/data/apps/")],
-                                     [credential] if tool == "opencode" else [])
+                                     own if tool == "opencode" else [])
                     self.assertFalse(any("llm-router" in p or p.startswith("sys/")
                                          or "/metadata/" in p or "*" in p for p in paths))
                     self.assertNotIn('"list"', rendered)
                     # The only external ai/saas leaf a tool policy may read is
                     # its own credential; no sibling provider leaf is reachable.
                     self.assertEqual([p for p in paths if "/ai/saas/" in p],
-                                     [credential] if "/ai/saas/" in credential else [])
+                                     [c for c in own if "/ai/saas/" in c])
 
     def test_fleet_agent_policies_mint_only_their_named_set(self):
         for name in DIFY_AGENT_POLICY_NAMES:
