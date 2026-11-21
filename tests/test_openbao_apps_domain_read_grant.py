@@ -364,6 +364,20 @@ def test_openproject_secret_is_promoted_and_prefetched():
     }
 
 
+def test_vikunja_task_webhook_secret_is_its_own_generated_apps_leaf():
+    generated = _yaml(GENERATED_FILE)["openbao_generated_app_secrets"]
+    assert generated["vikunja-task-webhook"] == ["vikunja_task_webhook_secret"]
+    assert not any(
+        "vikunja_task_webhook_secret" in fields for app, fields in generated.items() if app != "vikunja-task-webhook"
+    )
+    assert "apps/vikunja-task-webhook" in _apps_domain_paths()
+    assert "vikunja-task-webhook" in _read_apps(_yaml(NAMES_FILE))
+
+    policy = _render_apps_policy(_read_apps(_yaml(NAMES_FILE)))
+    for kind in ("data", "metadata"):
+        assert f'path "secret/{kind}/apps/vikunja-task-webhook"' in policy
+
+
 def test_openhands_fields_are_prefetched_by_the_apps_domain():
     generated = _yaml(GENERATED_FILE)["openbao_generated_app_secrets"]["openhands"]
     assert generated == [
