@@ -344,9 +344,10 @@ def test_caller_oidc_role_binds_the_reusable_workflow_owners_push_and_runner():
 
     tasks = yaml.safe_load(TASKS.read_text(encoding="utf-8"))
     read = _find_task(tasks, "Read the pr-reconcile OIDC role")
-    write = _find_task(tasks, "Reconcile the pr-reconcile OIDC role")
+    guard = _find_task(tasks, "Reconcile the pr-reconcile OIDC role")
+    write = _find_task(tasks, "Write the pr-reconcile OIDC role")
     assert read["register"] == "openbao_github_oidc_pr_reconcile_caller_role_current"
-    assert write["vars"]["_pr_reconcile_caller_role_claims"] == {
+    assert guard["vars"]["_pr_reconcile_caller_role_claims"] == {
         "job_workflow_ref": "{{ openbao_github_pr_reconcile_caller_workflow_refs }}",
         "repository_owner": "{{ openbao_github_pr_reconcile_caller_owners }}",
         "event_name": "{{ openbao_github_pr_reconcile_caller_event_names }}",
@@ -367,11 +368,31 @@ def test_caller_oidc_role_binds_the_reusable_workflow_owners_push_and_runner():
     ):
         assert fragment in payload
 
-    assert "openbao_github_pr_reconcile_caller_enabled | bool" in write["when"]
-    drift_guard = write["when"][-1]
+    assert "openbao_github_pr_reconcile_caller_enabled | bool" in guard["when"]
+    drift_guard = guard["when"][-1]
     assert "openbao_github_oidc_pr_reconcile_caller_role_current.rc | default(1)" in drift_guard
     for field in (
         ".role_type", ".bound_audiences", ".bound_claims", ".bound_claims_type", ".user_claim",
         ".token_policies", ".token_no_default_policy", ".token_type", ".token_ttl", ".token_max_ttl",
     ):
         assert f"_pr_reconcile_caller_role_live{field}" in drift_guard
+
+
+def test_caller_oidc_role_write_is_named_in_check_mode_and_its_error_is_shown():
+    tasks = yaml.safe_load(TASKS.read_text(encoding="utf-8"))
+    guard = _find_task(tasks, "Reconcile the pr-reconcile OIDC role")
+    report, write, refused = guard["block"]
+
+    assert report["when"] == "ansible_check_mode"
+    assert "token_policies {{ openbao_github_pr_reconcile_caller_policy_name }}" in report[
+        "ansible.builtin.debug"]["msg"]
+
+    assert write["name"] == "Write the pr-reconcile OIDC role"
+    assert write["register"] == "openbao_github_oidc_pr_reconcile_caller_role_write"
+    assert write["no_log"] is True
+    assert write["failed_when"] is False
+
+    assert "ansible.builtin.fail" in refused
+    assert refused["when"] == "(openbao_github_oidc_pr_reconcile_caller_role_write.rc | default(0)) != 0"
+    assert "openbao_github_oidc_pr_reconcile_caller_role_write.stderr" in refused[
+        "ansible.builtin.fail"]["msg"]
