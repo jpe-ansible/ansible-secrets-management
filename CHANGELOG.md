@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.135.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.135.0...v0.135.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **openbao:** grant the converge publish on apps/openhands-vikunja ([#860](https://github.com/jpe-ansible/ansible-secrets-management/issues/860)) ([cd47578](https://github.com/jpe-ansible/ansible-secrets-management/commit/cd47578d6061313001f032d1a506a5b51916ea65))
+
 ## [0.135.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.134.1...v0.135.0) (2026-11-21)
 
 
