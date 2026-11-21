@@ -1,0 +1,22 @@
+{{ ansible_managed | comment }}
+# pr-reconcile: the raw everyday-App token endpoint for push-to-base PR Reconcile
+# callers, limited to the listed owners and a fixed permission map narrower than
+# the sweep's (no actions, checks or workflow-file write). A mint must name its
+# repositories, so a token never covers a whole installation; installation and
+# repository-id selectors are denied.
+
+{% if openbao_github_pr_reconcile_caller_owners | length > 0 %}
+path "{{ openbao_github_everyday_mount }}/token" {
+  capabilities = ["create", "update"]
+  required_parameters = ["org_name", "permissions", "repositories"]
+  allowed_parameters = {
+    "org_name" = [{% for owner in openbao_github_pr_reconcile_caller_owners %}"{{ owner }}"{{ ", " if not loop.last else "" }}{% endfor %}]
+    "permissions" = [{ {% for name, level in openbao_github_pr_reconcile_caller_permissions | dictsort %}"{{ name }}" = "{{ level }}"{{ ", " if not loop.last else "" }}{% endfor %} }]
+    "repositories" = []
+  }
+  denied_parameters = {
+    "installation_id" = []
+    "repository_ids" = []
+  }
+}
+{% endif %}
