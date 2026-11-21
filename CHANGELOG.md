@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.134.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.133.3...v0.134.0) (2026-11-21)
+
+
+### Features
+
+* **openbao:** add the vikunja-task-webhook route secret leaf ([#849](https://github.com/jpe-ansible/ansible-secrets-management/issues/849)) ([baac3ce](https://github.com/jpe-ansible/ansible-secrets-management/commit/baac3ce24ee1ed416fba43379284940f04a53b2a))
+
 ## [0.133.3](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.133.2...v0.133.3) (2026-11-20)
 
 
