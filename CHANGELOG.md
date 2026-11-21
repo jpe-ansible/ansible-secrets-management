@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.135.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.134.1...v0.135.0) (2026-11-21)
+
+
+### Features
+
+* **openbao:** declare the pr-reconcile OIDC role for push-to-base callers ([#856](https://github.com/jpe-ansible/ansible-secrets-management/issues/856)) ([d9e07c2](https://github.com/jpe-ansible/ansible-secrets-management/commit/d9e07c23607891cc197185798a78f486720c7720))
+
 ## [0.134.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.134.0...v0.134.1) (2026-11-21)
 
 
