@@ -8,7 +8,7 @@ platforms:
     # No stable version tags published; geerlingguy only ships :latest.
     # renovate: datasource=docker depName=mirror.gcr.io/geerlingguy/docker-debian12-ansible
     image: >-
-      mirror.gcr.io/geerlingguy/docker-debian12-ansible:latest@sha256:43b3f59882ccc0ba5deb3b3ecac727084bb082a3230b5258c500395694b5497f
+      mirror.gcr.io/geerlingguy/docker-debian12-ansible:latest@sha256:39bdd16916ec475a12db0502550b72e4f4c2cc858a1939ad2a17f21f6eb51b65
     privileged: true
     command: ""
     pre_build_image: true
