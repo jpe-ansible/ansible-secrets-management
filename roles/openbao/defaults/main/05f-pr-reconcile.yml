@@ -32,13 +32,39 @@ openbao_github_pr_reconcile_permissions:
   pull_requests: write
   statuses: write
 
-# Declared only while both inputs are set. Unset, the policy is retired (deleted
-# if it exists) and the OIDC role is removed, so an empty owner list can never
-# render an allow-anything org_name constraint.
+# Push-to-base callers of the shared PR Reconcile reusable workflow mint a token
+# for their own repository through this role (a reusable workflow, so its claim
+# is job_workflow_ref): that workflow at main or a release tag, a push to develop
+# or main, a self-hosted runner, and only the listed owners.
+openbao_github_pr_reconcile_caller_policy_name: pr-reconcile
+openbao_github_pr_reconcile_caller_workflow_refs:
+  - JacobPEvans/.github-ai/.github/workflows/pr-reconcile.yml@refs/heads/main
+  - JacobPEvans/.github-ai/.github/workflows/pr-reconcile.yml@refs/tags/v*
+openbao_github_pr_reconcile_caller_event_names: [push]
+openbao_github_pr_reconcile_caller_refs: [refs/heads/develop, refs/heads/main]
+# Owners that have a push-to-base caller, by name; an owner is added as its callers roll out.
+openbao_github_pr_reconcile_caller_owners: >-
+  {{ (openbao_platform_env['OPENBAO_GITHUB_PR_RECONCILE_CALLER_OWNERS'] | default('', true)).split(',')
+     | map('trim') | reject('equalto', '') | list }}
+openbao_github_pr_reconcile_caller_enabled: >-
+  {{ openbao_github_pr_reconcile_caller_owners | length > 0 }}
+# A single-repository reconcile updates branches, labels and comments on pull
+# requests and sets commit statuses; it never dispatches or reruns a workflow.
+openbao_github_pr_reconcile_caller_permissions:
+  contents: write
+  pull_requests: write
+  statuses: write
+
+# Each policy is declared only while its inputs are set. Unset, it is retired
+# (deleted if it exists) and its OIDC role is removed, so an empty owner list can
+# never render an allow-anything org_name constraint.
 openbao_pr_reconcile_policies: >-
-  {{ [{'name': openbao_github_pr_reconcile_policy_name,
-       'template': 'pr-reconcile-sweep-policy.hcl.j2'}]
-     if openbao_github_pr_reconcile_enabled | bool else [] }}
+  {{ ([{'name': openbao_github_pr_reconcile_policy_name,
+        'template': 'pr-reconcile-sweep-policy.hcl.j2'}]
+      if openbao_github_pr_reconcile_enabled | bool else [])
+     + ([{'name': openbao_github_pr_reconcile_caller_policy_name,
+          'template': 'pr-reconcile-policy.hcl.j2'}]
+        if openbao_github_pr_reconcile_caller_enabled | bool else []) }}
 
 # GitHub write jobs authenticate using their GitHub Actions reusable workflow
 # identity. Each per-org role binds that org's own audience; the workflow-ref

@@ -182,6 +182,7 @@ openbao_ai_admin_window_grant_policies: >-
 openbao_ai_admin_window_oidc_role_policies: >-
   {{ [openbao_ci_evals_policy_name, openbao_ci_ai_review_policy_name,
       openbao_ci_benchmark_lanes_policy_name, openbao_github_pr_reconcile_policy_name,
+      openbao_github_pr_reconcile_caller_policy_name,
       openbao_github_docs_publisher_policy_name, openbao_uicheck_policy_name]
      + (openbao_github_write_oidc_roles | map(attribute='name') | list) }}
 # Retain exact denies for named self-protecting roles even when their

@@ -419,6 +419,7 @@ def test_preexisting_oidc_tasks_are_gated_before_register_dependencies():
         "ci-ai-review": "openbao_ci_ai_review_policy_name",
         "ci-evals": "openbao_ci_evals_policy_name",
         "pr-reconcile-sweep": "openbao_github_pr_reconcile_policy_name",
+        "pr-reconcile": "openbao_github_pr_reconcile_caller_policy_name",
     }
     selection_guards = {
         f"{action} the {role} OIDC role": (
