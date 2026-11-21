@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.136.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.135.1...v0.136.0) (2026-11-21)
+
+
+### Features
+
+* **openbao:** add the agent-zammad-triage AppRole and runtime leaf read ([#863](https://github.com/jpe-ansible/ansible-secrets-management/issues/863)) ([a179bd2](https://github.com/jpe-ansible/ansible-secrets-management/commit/a179bd22670ebe12eeceb2cfbb268c52cee22cfe))
+
 ## [0.135.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.135.0...v0.135.1) (2026-11-21)
 
 
