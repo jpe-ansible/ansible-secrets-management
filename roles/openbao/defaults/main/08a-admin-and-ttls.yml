@@ -142,7 +142,7 @@ openbao_approle_secret_id_ttl_overrides_base:
   snapshot: "0s"
   splunk-mcp-rotate: "0s"
   secret-age-audit: "0s"
-  github-runner: "0s"
+  github-runner: "{{ openbao_rotated_domain_secret_id_ttl }}"
   github-exporter: "0s"
   hatchet-eval-status: "0s"
   ai-sessions-backup: "0s"

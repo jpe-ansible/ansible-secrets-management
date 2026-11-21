@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.138.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.137.0...v0.138.0) (2026-11-21)
+
+
+### Features
+
+* **openbao:** add github-runner to the AppRole rotation roster ([#869](https://github.com/jpe-ansible/ansible-secrets-management/issues/869)) ([db2c664](https://github.com/jpe-ansible/ansible-secrets-management/commit/db2c66411e521abf0f20ef1491e181573b3e33cf))
+
 ## [0.137.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.136.0...v0.137.0) (2026-11-21)
 
 

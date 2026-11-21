@@ -298,7 +298,8 @@ openbao_secrets_domain_approle_names: >-
       openbao_github_git_mirror_approle_name,
       openbao_openhands_approle_name,
       openbao_authelia_signing_writer_approle_name,
-      openbao_ansible_converge_writer_approle_name]
+      openbao_ansible_converge_writer_approle_name,
+      openbao_github_runner_approle_name]
      + ([openbao_agentgateway_openhands_mint_approle_name]
         if openbao_agentgateway_openhands_mint_secret_id_cidr | length > 0 else [])
      + ([openbao_dify_secret_id_issuer_approle_name]
@@ -307,7 +308,9 @@ openbao_secrets_domain_approle_names: >-
         + openbao_workstation_ssh_key_reader_approles)
        | map(attribute='name') | list }}
 # Roles using lookup proof despite the runner's source class allowing login.
-openbao_approle_rotation_lookup_proof_names: []
+# github-runner's secret_id is bound to the CI source class, so the rotation host proves it by lookup.
+openbao_approle_rotation_lookup_proof_names:
+  - "{{ openbao_github_runner_approle_name }}"
 # Provider-level API credentials live on exact leaves under a separately
 # supplied external KV location. Public configuration carries no path literal.
 openbao_ai_api_key_mount: >-
