@@ -103,6 +103,7 @@ openbao_approle_class_map: >-
     'agent-ci-fixer': 'service-runtime',
     'agent-vikunja-clerk': 'service-runtime',
     'agent-vikunja-triage': 'service-runtime',
+    'agent-zammad-triage': 'service-runtime',
     'agent-docs-updater': 'service-runtime',
     'agent-pr-keeper': 'service-runtime',
     'agent-github-clerk': 'service-runtime',

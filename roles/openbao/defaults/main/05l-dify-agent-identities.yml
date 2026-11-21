@@ -7,6 +7,8 @@ openbao_dify_agent_vikunja_clerk_policy_name: agent-vikunja-clerk
 openbao_dify_agent_vikunja_clerk_approle_name: agent-vikunja-clerk
 openbao_dify_agent_vikunja_triage_policy_name: agent-vikunja-triage
 openbao_dify_agent_vikunja_triage_approle_name: agent-vikunja-triage
+openbao_dify_agent_zammad_triage_policy_name: agent-zammad-triage
+openbao_dify_agent_zammad_triage_approle_name: agent-zammad-triage
 openbao_dify_agent_docs_updater_policy_name: agent-docs-updater
 openbao_dify_agent_docs_updater_approle_name: agent-docs-updater
 openbao_dify_agent_pr_keeper_policy_name: agent-pr-keeper
@@ -29,6 +31,8 @@ openbao_dify_agent_policies:
     template: agent-vikunja-clerk-policy.hcl.j2
   - name: "{{ openbao_dify_agent_vikunja_triage_policy_name }}"
     template: agent-vikunja-triage-policy.hcl.j2
+  - name: "{{ openbao_dify_agent_zammad_triage_policy_name }}"
+    template: agent-zammad-triage-policy.hcl.j2
   - name: "{{ openbao_dify_agent_docs_updater_policy_name }}"
     template: agent-docs-updater-policy.hcl.j2
   - name: "{{ openbao_dify_agent_pr_keeper_policy_name }}"

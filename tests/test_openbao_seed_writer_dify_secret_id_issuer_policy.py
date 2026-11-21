@@ -22,6 +22,7 @@ DECLARED_ROLES = (
     "agent-ci-fixer",
     "agent-vikunja-clerk",
     "agent-vikunja-triage",
+    "agent-zammad-triage",
     "agent-docs-updater",
     "agent-pr-keeper",
     "agent-github-clerk",
