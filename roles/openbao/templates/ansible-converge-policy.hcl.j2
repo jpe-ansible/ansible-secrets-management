@@ -218,9 +218,14 @@ path "{{ openbao_kv_mount }}/data/ai/dify/agent-mcp/*" {
   capabilities = ["create", "update", "read"]
 }
 
-# Read and list KV v2 metadata for the same Dify MCP URL leaves only.
-path "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/*" {
-  capabilities = ["read", "list"]
+# List the Dify MCP URL leaf folder.
+path "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/" {
+  capabilities = ["list"]
+}
+
+# Read KV v2 metadata for each Dify MCP URL leaf only.
+path "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/+" {
+  capabilities = ["read"]
 }
 
 # Evaluation-only specialist-platform instances: one exact leaf per candidate.

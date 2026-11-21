@@ -72,10 +72,15 @@ def test_dify_agent_app_key_leaves_are_granted_below_the_dify_record_only() -> N
 def test_dify_agent_mcp_url_leaves_are_granted_below_the_dify_record_only() -> None:
     grants = _grants()
     leaves = "{{ openbao_kv_mount }}/data/ai/dify/agent-mcp/*"
-    metadata = "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/*"
+    folder = "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/"
+    metadata = "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/+"
     assert grants.count((leaves, ("create", "update", "read"))) == 1
-    assert grants.count((metadata, ("read", "list"))) == 1
-    assert _wildcard_covers(metadata, "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/")
+    # The seed writer check needs exactly read on a leaf's metadata; list stays on the folder.
+    assert grants.count((folder, ("list",))) == 1
+    assert grants.count((metadata, ("read",))) == 1
+    assert not any(path.startswith(folder) and path.endswith("*") for path, _ in grants)
+    assert _wildcard_covers(metadata, "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/vikunja-clerk")
+    assert not _wildcard_covers(metadata, "{{ openbao_kv_mount }}/metadata/ai/dify/agent-mcp/a/b")
     assert _wildcard_covers(leaves, "{{ openbao_kv_mount }}/data/ai/dify/agent-mcp/ai-news")
     assert not _wildcard_covers(leaves, "{{ openbao_kv_mount }}/data/ai/dify/agent-apps/ai-news")
 
