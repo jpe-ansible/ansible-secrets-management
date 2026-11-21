@@ -20,6 +20,7 @@ DIFY_AGENT_POLICY_NAMES = [
         "agent-pr-keeper",
         "agent-github-clerk",
         "agent-merge-steward",
+        "agent-zammad-triage",
     }
 ]
 POLICIES = (
@@ -140,6 +141,13 @@ class AgentPolicies(unittest.TestCase):
                     or "*" in p or (p.startswith("github-agents/token/") and p != path)
                     for p in paths
                 ))
+
+    def test_zammad_triage_policy_reads_only_its_runtime_leaf(self):
+        rendered = _render("agent-zammad-triage-policy.hcl.j2")
+        leaf = "secret/data/ai/dify/agent-runtime/zammad-triage"
+        grants = re.findall(r'path "([^"]+)" \{\s*capabilities = \[([^]]+)\]\s*\}', rendered)
+        self.assertEqual(re.findall(r'path "([^"]+)"', rendered), [leaf])
+        self.assertEqual(grants, [(leaf, '"read"')])
 
 
 if __name__ == "__main__":

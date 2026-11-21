@@ -1,0 +1,5 @@
+{{ ansible_managed | comment }}
+# Reads only the zammad-triage runtime leaf, which holds its Zammad token.
+path "{{ openbao_kv_mount }}/data/ai/dify/agent-runtime/zammad-triage" {
+  capabilities = ["read"]
+}
