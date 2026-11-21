@@ -19,7 +19,7 @@ PATH_BLOCK = re.compile(
     re.MULTILINE,
 )
 AI_SEED_APPS = ("langfuse", "langflow", "phoenix", "dify")
-PUBLISH_APPS = ("grafana", "status-stack")
+PUBLISH_APPS = ("grafana", "status-stack", "openhands-vikunja")
 AGENT_PATH_DEFAULTS = ROOT / "roles/openbao/defaults/main/05k-agent-tier-secret-paths.yml"
 PRIVILEGED_POLICY_TEMPLATES = {
     "operator-human-policy.hcl.j2",
