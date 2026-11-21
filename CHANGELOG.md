@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.137.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.136.0...v0.137.0) (2026-11-21)
+
+
+### Features
+
+* **openbao:** mirror batch 1 provider grants onto ext-ai and config ([#866](https://github.com/jpe-ansible/ansible-secrets-management/issues/866)) ([e0e2031](https://github.com/jpe-ansible/ansible-secrets-management/commit/e0e2031a009bb99d6ef3fc42f93bf9e58dd7f4d6))
+
 ## [0.136.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.135.1...v0.136.0) (2026-11-21)
 
 
