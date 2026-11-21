@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.134.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.134.0...v0.134.1) (2026-11-21)
+
+
+### Bug Fixes
+
+* **openbao:** split the Dify MCP metadata grant into folder list and leaf read ([#852](https://github.com/jpe-ansible/ansible-secrets-management/issues/852)) ([816a95f](https://github.com/jpe-ansible/ansible-secrets-management/commit/816a95f98922286db2f5ac546d25b419c17a7eca))
+
 ## [0.134.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.133.3...v0.134.0) (2026-11-21)
 
 
