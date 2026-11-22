@@ -194,7 +194,8 @@
 # into openbao_bootstrap_token. Only a 404 establishes that a set is missing.
 - name: Read the GitHub token permission sets
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_github_mount }}/permissionset/{{ item.name }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_github_mount }}/permissionset/{{ item.name }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: GET
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -254,7 +255,8 @@
 # an omitted repository list means every repository of the installation.
 - name: Reconcile the GitHub token permission sets
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_github_mount }}/permissionset/{{ item.name }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_github_mount }}/permissionset/{{ item.name }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"

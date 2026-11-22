@@ -48,7 +48,8 @@
 
         - name: Create the missing Context7 field with a merge-preserving CAS write
           ansible.builtin.uri:
-            url: "{{ openbao_cli_addr }}/v1/secrets-external/data/ai/saas/context7"
+            url: "{{ openbao_cli_http_addr }}/v1/secrets-external/data/ai/saas/context7"
+            unix_socket: "{{ openbao_cli_unix_socket }}"
             method: POST
             headers:
               X-Vault-Token: "{{ openbao_bootstrap_token }}"

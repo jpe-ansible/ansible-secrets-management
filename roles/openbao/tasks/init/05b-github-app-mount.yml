@@ -255,7 +255,8 @@
   block:
     - name: "Mint a metadata-only token for sets that are public-only on mount {{ gm.mount }}"
       ansible.builtin.uri:
-        url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
+        url: "{{ openbao_cli_http_addr }}/v1/{{ gm.mount }}/token"
+        unix_socket: "{{ openbao_cli_unix_socket }}"
         method: POST
         headers:
           X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -296,7 +297,8 @@
   always:
     - name: "Revoke the metadata-only tokens for public repositories on mount {{ gm.mount }}"
       ansible.builtin.uri:
-        url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
+        url: "{{ openbao_cli_http_addr }}/v1/sys/leases/revoke"
+        unix_socket: "{{ openbao_cli_unix_socket }}"
         method: PUT
         headers:
           X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -326,7 +328,8 @@
   block:
     - name: "Mint a metadata-only token for sets that are private-only on mount {{ gm.mount }}"
       ansible.builtin.uri:
-        url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
+        url: "{{ openbao_cli_http_addr }}/v1/{{ gm.mount }}/token"
+        unix_socket: "{{ openbao_cli_unix_socket }}"
         method: POST
         headers:
           X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -364,7 +367,8 @@
   always:
     - name: "Revoke the metadata-only tokens on mount {{ gm.mount }}"
       ansible.builtin.uri:
-        url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
+        url: "{{ openbao_cli_http_addr }}/v1/sys/leases/revoke"
+        unix_socket: "{{ openbao_cli_unix_socket }}"
         method: PUT
         headers:
           X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -399,7 +403,8 @@
   block:
     - name: "Mint a token to read the installation's grant on mount {{ gm.mount }}"
       ansible.builtin.uri:
-        url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/token"
+        url: "{{ openbao_cli_http_addr }}/v1/{{ gm.mount }}/token"
+        unix_socket: "{{ openbao_cli_unix_socket }}"
         method: POST
         headers:
           X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -419,7 +424,8 @@
   always:
     - name: "Revoke the grant-reading token on mount {{ gm.mount }}"
       ansible.builtin.uri:
-        url: "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
+        url: "{{ openbao_cli_http_addr }}/v1/sys/leases/revoke"
+        unix_socket: "{{ openbao_cli_unix_socket }}"
         method: PUT
         headers:
           X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -488,7 +494,8 @@
 
 - name: "Reconcile the permission sets on mount {{ gm.mount }}"
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ gm.mount }}/permissionset/{{ item.0.name }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ gm.mount }}/permissionset/{{ item.0.name }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"

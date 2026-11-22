@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.140.3](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.140.2...v0.140.3) (2026-11-22)
+
+
+### Bug Fixes
+
+* **openbao:** reach the window proxy socket from uri tasks ([#885](https://github.com/jpe-ansible/ansible-secrets-management/issues/885)) ([3022d43](https://github.com/jpe-ansible/ansible-secrets-management/commit/3022d43e1968ad7323c21ce952bcc30be0ccedf0))
+
 ## [0.140.2](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.140.1...v0.140.2) (2026-11-22)
 
 

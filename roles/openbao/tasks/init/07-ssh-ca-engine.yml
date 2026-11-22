@@ -57,7 +57,8 @@
 
 - name: Generate the SSH CA signing key (first configuration only, never exported)
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_ssh_mount }}/config/ca"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_ssh_mount }}/config/ca"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
