@@ -188,7 +188,11 @@ def test_openhands_only_keeps_literal_existing_outputs_and_selection_candidates(
     profile = yaml.safe_load((DEFAULTS / "00-selection.yml").read_text())[
         "openbao_select_profiles"
     ]["github_oidc_roles"]
-    assert _rendered(defaults, profile["candidates"]) == [expected_role, {"name": "ci-evals"}]
+    agent_flow_roles = _rendered(defaults, "{{ openbao_github_agent_flow_roles }}")
+    assert agent_flow_roles
+    assert _rendered(defaults, profile["candidates"]) == [
+        expected_role, {"name": "ci-evals"}, *agent_flow_roles,
+    ]
     assert [
         item["name"]
         for item in output["permission_sets"]
@@ -285,10 +289,13 @@ def test_claude_route_creates_one_org_bound_set_policy_and_role_per_org(
         "openbao_select_profiles"
     ]["github_oidc_roles"]
     candidates = _rendered(defaults, profile["candidates"])
+    agent_flow_roles = _rendered(defaults, "{{ openbao_github_agent_flow_roles }}")
+    assert agent_flow_roles
     assert [item["name"] for item in candidates] == [
         "claude-write-exampleorg",
         "claude-write-example-org",
         "ci-evals",
+        *[role["name"] for role in agent_flow_roles],
     ]
 
 
