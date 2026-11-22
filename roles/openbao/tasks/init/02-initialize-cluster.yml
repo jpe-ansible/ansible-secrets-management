@@ -364,7 +364,11 @@
                else (openbao_approles
                      | rejectattr('manage_secret_id', 'defined')
                      | rejectattr('name', 'in', openbao_reconcile_excluded_policies)
-                     | list)) }}
+                     | list)
+                    + (openbao_approles
+                       | selectattr('name', 'in', openbao_dify_agent_approles | default([])
+                                    | map(attribute='name') | list)
+                       | list)) }}
   when: openbao_bootstrap_token is defined
 
 - name: Require an explicit bounded selection for ai-admin-session
