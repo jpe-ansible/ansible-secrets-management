@@ -207,6 +207,7 @@ def test_live_claim_comparison_is_idempotent_for_scalar_and_list_roles():
         payload = _payload(role)
         live = {
             **payload,
+            "token_policies": [payload["token_policies"]],  # the role reads back as a list
             "token_ttl": 600,
             "token_max_ttl": 900,
         }
@@ -231,6 +232,7 @@ def test_live_claim_comparison_is_idempotent_for_scalar_and_list_roles():
     payload = _payload(ci_fix)
     live = {
         **payload,
+        "token_policies": [payload["token_policies"]],
         "token_ttl": 600,
         "token_max_ttl": 900,
         "bound_audiences": [

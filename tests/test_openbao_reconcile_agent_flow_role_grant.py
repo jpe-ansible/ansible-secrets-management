@@ -1,6 +1,7 @@
 """The routine reconcile identity may write only the named agent-flow roles, each pinned to its own policy."""
 
 import re
+from pathlib import Path
 
 from openbao_reconcile_bounds_helpers import (
     _allowed_parameters, _capabilities, _render, _stanzas, rendered_defaults, RECONCILE
@@ -37,8 +38,9 @@ def _permits(stanzas, name, capability, params):
     allowed = _allowed_parameters(body)
     for key, value in params.items():
         if key in allowed:
-            values = value if isinstance(value, list) else [value]
-            if allowed[key] and not all(item in allowed[key] for item in values):
+            # The ACL compares the request value as sent with each listed item: a JSON array
+            # never equals a scalar item, so a pinned list must be matched with a scalar value.
+            if allowed[key] and value not in allowed[key]:
                 return False
         elif "*" not in allowed:
             return False
@@ -64,10 +66,17 @@ def test_the_named_role_is_pinned_to_its_own_policy(rendered_defaults):
     assert allowed["token_no_default_policy"] == [True]
 
 
+def test_the_role_write_sends_the_policy_as_a_scalar():
+    # The pinned list only matches a scalar request value, so the write must not wrap it in a list.
+    task = (Path(__file__).parent.parent / "roles/openbao/tasks/init/reconcile-github-agent-flow.yml").read_text()
+    assert "'token_policies': openbao_github_agent_flow.policy," in task
+    assert "'token_policies': [" not in task
+
+
 def test_an_unlisted_role_path_is_refused_for_writes(rendered_defaults):
     values, _approles, _policies = rendered_defaults
     stanzas = _role_stanzas(values)
-    body = {"token_policies": [OTHER_FLOW]}
+    body = {"token_policies": OTHER_FLOW}
     for name in (OTHER_FLOW, "docs-router-snapshot", "not-a-declared-role"):
         assert _permits(stanzas, name, "read", {})
         assert not _permits(stanzas, name, "update", body)
@@ -80,13 +89,14 @@ def test_a_different_token_policy_set_is_refused_on_the_named_role(rendered_defa
     stanzas = _role_stanzas(values)
     own = {
         "role_type": "jwt",
-        "token_policies": [NAMED],
+        "token_policies": NAMED,
         "token_no_default_policy": True,
         "bound_claims_type": "string",
     }
     assert _permits(stanzas, NAMED, "update", own)
     assert not _permits(stanzas, NAMED, "update", {**own, "token_no_default_policy": False})
     for key in ("token_policies", "policies"):
-        assert not _permits(stanzas, NAMED, "update", {**own, key: [OTHER_FLOW]})
-        assert not _permits(stanzas, NAMED, "update", {**own, key: [NAMED, "default"]})
+        assert not _permits(stanzas, NAMED, "update", {**own, key: OTHER_FLOW})
+        assert not _permits(stanzas, NAMED, "update", {**own, key: f"{NAMED},default"})
+        assert not _permits(stanzas, NAMED, "update", {**own, key: [NAMED]})
     assert not _permits(stanzas, NAMED, "update", {**own, "groups_claim": "groups"})
