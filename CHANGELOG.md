@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.144.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.143.0...v0.144.0) (2026-11-22)
+
+
+### Features
+
+* **openbao:** let a selected run reconcile the agent-flow OIDC roles by name ([#897](https://github.com/jpe-ansible/ansible-secrets-management/issues/897)) ([abe6caa](https://github.com/jpe-ansible/ansible-secrets-management/commit/abe6caa35a1e9d2ad74c55045639c197d5e98bcb))
+
 ## [0.143.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.142.0...v0.143.0) (2026-11-22)
 
 

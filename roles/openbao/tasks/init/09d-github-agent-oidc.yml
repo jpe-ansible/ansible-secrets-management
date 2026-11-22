@@ -7,4 +7,10 @@
   loop_control:
     loop_var: openbao_github_agent_flow
     label: "{{ openbao_github_agent_flow.name }}"
-  when: openbao_bootstrap_token is defined
+  when:
+    - openbao_bootstrap_token is defined
+    - >-
+      openbao_select | default({}) | length == 0
+      or openbao_github_agent_flow.name
+         in ((openbao_selected_objects | default({})).get('github_oidc_roles', [])
+             | map(attribute='name') | list)

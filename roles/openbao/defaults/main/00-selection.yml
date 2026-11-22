@@ -51,7 +51,8 @@ openbao_select_profiles:
          + ([{'name': openbao_github_pr_reconcile_policy_name}]
             if openbao_github_pr_reconcile_enabled | bool else [])
          + ([{'name': openbao_github_pr_reconcile_caller_policy_name}]
-            if openbao_github_pr_reconcile_caller_enabled | bool else []) }}
+            if openbao_github_pr_reconcile_caller_enabled | bool else [])
+         + (openbao_github_agent_flow_roles | default([])) }}
     prefix: "auth/{{ openbao_github_oidc_auth_path }}/role/"
     suffixes: [""]
     capability: update
