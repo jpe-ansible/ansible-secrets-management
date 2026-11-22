@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.146.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.146.0...v0.146.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **ci:** widen the escalation-class label globs ([#909](https://github.com/jpe-ansible/ansible-secrets-management/issues/909)) ([65feaef](https://github.com/jpe-ansible/ansible-secrets-management/commit/65feaef501f35f93cc6be7c1ee49167c9dd7c00c))
+
 ## [0.146.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.145.1...v0.146.0) (2026-11-22)
 
 
