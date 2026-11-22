@@ -236,10 +236,10 @@ def test_window_grant_is_exact_and_matches_only_eligible_protected_objects(rende
     text = _render(WINDOW_GRANT, values)
     stanzas = dict(_stanzas(text))
     oidc_path = f"auth/{values['openbao_github_oidc_auth_path']}/role/*"
-    read_only_wildcards = {
+    wildcard_capabilities = {
         "sys/policies/acl/*": ["read"],
         f"sys/policies/acl/{values['openbao_human_unlock_policy_name']}*": ["deny"],
-        "auth/approle/role/+": ["read"],
+        "auth/approle/role/+": ["create", "read", "update"],
     }
     assert [path for path in stanzas if "*" in path or "+" in path] == [
         "sys/policies/acl/*",
@@ -247,7 +247,7 @@ def test_window_grant_is_exact_and_matches_only_eligible_protected_objects(rende
         "auth/approle/role/+",
         oidc_path,
     ]
-    for path, capabilities in read_only_wildcards.items():
+    for path, capabilities in wildcard_capabilities.items():
         assert _capabilities(stanzas.pop(path)) == capabilities
     guard_path = f"sys/policies/acl/{values['openbao_ai_admin_guard_policy_name']}"
     assert _capabilities(stanzas.pop(guard_path)) == ["deny"]
@@ -519,7 +519,7 @@ def test_native_composition_denies_dangerous_and_protected_paths(window_server):
     status, result = _call(base, "root", "POST", "sys/capabilities",
                            {"token": parent, "paths": ["auth/approle/role/ordinary"]})
     assert status == 200
-    assert result["auth/approle/role/ordinary"] == ["read"]
+    assert result["auth/approle/role/ordinary"] == ["create", "read", "update"]
     status, result = _call(base, parent, "GET", "auth/token/lookup-self")
     assert status == 200, result if status != 200 else ""
     assert _call(base, parent, "POST", "auth/token/renew-self", {})[0] == 200
