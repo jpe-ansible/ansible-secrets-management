@@ -1,17 +1,19 @@
 ---
 # Coarse label for changes that need the lead and a second-model review before merge. It over-labels on purpose: a
 # human or the second reviewer clears a false positive. Globs cover policy templates, policy declarations, AppRole
-# declarations and tasks, and auth-method tasks and defaults.
+# declarations and tasks, identity declarations, GitHub engine permission sets, the role-write reconcile tasks, and
+# auth-method tasks and defaults.
 escalation-class:
   - changed-files:
       - any-glob-to-any-file:
           - roles/openbao/templates/*policy*.hcl.j2
-          - roles/openbao/defaults/main/05b-domain-policy-approle-names.yml
-          - roles/openbao/defaults/main/05i-authelia-elevation.yml
-          - roles/openbao/defaults/main/05j-openbao-ui-operator-oidc.yml
+          - roles/openbao/defaults/main/03*.yml
+          - roles/openbao/defaults/main/05*.yml
           - roles/openbao/defaults/main/07*.yml
           - roles/openbao/defaults/main/08*.yml
           - roles/openbao/tasks/init/02b-policy-sync*.yml
+          - roles/openbao/tasks/init/05*.yml
           - roles/openbao/tasks/init/08*.yml
           - roles/openbao/tasks/init/09*.yml
           - roles/openbao/tasks/init/10*.yml
+          - roles/openbao/tasks/init/reconcile-*.yml
