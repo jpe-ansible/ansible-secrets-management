@@ -36,7 +36,7 @@
                 | to_datetime('%Y-%m-%dT%H:%M:%SZ'))
               - ((rotate_kv_metadata_updated_time_by_path[
                     rotate_kv_target.mount ~ '/' ~ rotate_kv_target.path]
-                   | regex_replace('\\.\\d+Z$', 'Z'))
+                   | regex_replace('\.\d+Z$', 'Z'))
                   | to_datetime('%Y-%m-%dT%H:%M:%SZ'))).total_seconds() | int }}
       no_log: true
 
