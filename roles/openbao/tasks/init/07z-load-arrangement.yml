@@ -15,8 +15,7 @@
   block:
     - name: Read the arrangement KV leaf
       ansible.builtin.uri:
-        url: >-
-          {{ openbao_cli_addr }}/v1/{{ openbao_arrangement_kv_mount }}/data/{{ openbao_arrangement_kv_path }}
+        url: "{{ openbao_cli_addr }}/v1/{{ openbao_arrangement_kv_mount }}/data/{{ openbao_arrangement_kv_path }}"
         method: GET
         headers:
           X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -25,13 +24,48 @@
       become: "{{ openbao_cli_become }}"
       vars:
         ansible_become: "{{ openbao_cli_become }}"
-      register: openbao_arrangement_read
+      register: _openbao_arrangement_read_direct
       changed_when: false
       check_mode: false
       no_log: true
       failed_when: >-
-        openbao_arrangement_read.status is not defined
-        or (openbao_arrangement_read.status | int) < 0
+        _openbao_arrangement_read_direct.status is not defined
+        or (_openbao_arrangement_read_direct.status | int) < 0
+      when:
+        - openbao_bootstrap_token is defined
+        - not (openbao_cli_proxy_active | default(false) | bool)
+
+    - name: Read the arrangement KV leaf through the window proxy
+      # The proxy socket is on the controller and injects the window token itself.
+      ansible.builtin.uri:
+        url: "http://localhost/v1/{{ openbao_arrangement_kv_mount }}/data/{{ openbao_arrangement_kv_path }}"
+        unix_socket: "{{ openbao_window_proxy_addr | regex_replace('^unix://', '') }}"
+        method: GET
+        status_code: [200, 403, 404]
+      delegate_to: localhost
+      connection: local
+      become: false
+      vars:
+        ansible_become: false
+      register: _openbao_arrangement_read_proxy
+      changed_when: false
+      check_mode: false
+      no_log: true
+      failed_when: >-
+        _openbao_arrangement_read_proxy.status is not defined
+        or (_openbao_arrangement_read_proxy.status | int) < 0
+      when:
+        - openbao_bootstrap_token is defined
+        - openbao_cli_proxy_active | default(false) | bool
+
+    - name: Keep the arrangement read result from the branch that ran
+      ansible.builtin.set_fact:
+        openbao_arrangement_read: >-
+          {{ _openbao_arrangement_read_proxy
+             if openbao_cli_proxy_active | default(false) | bool
+             else _openbao_arrangement_read_direct }}
+      changed_when: false
+      no_log: true
       when: openbao_bootstrap_token is defined
   rescue:
     - name: Record an arrangement read transport failure
