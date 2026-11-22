@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.143.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.142.0...v0.143.0) (2026-11-22)
+
+
+### Features
+
+* **openbao:** bind github-agent-ci-fix to the ai-llm-prompts and llm-prompt-evals callers ([#894](https://github.com/jpe-ansible/ansible-secrets-management/issues/894)) ([acc090f](https://github.com/jpe-ansible/ansible-secrets-management/commit/acc090fa205bc3be8d33c123aaad1c5249ffcb88))
+
 ## [0.142.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.141.0...v0.142.0) (2026-11-22)
 
 

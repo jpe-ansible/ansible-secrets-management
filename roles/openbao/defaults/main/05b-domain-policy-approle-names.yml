@@ -180,12 +180,15 @@ openbao_github_agent_flow_base_roles:
       - https://github.com/jpe-ansible
       - https://github.com/JacobPEvans
       - https://github.com/jpe-nix
+      - https://github.com/JacobPEvans-ai
     repository:
       - dryvist/ansible-proxmox-ai
       - jpe-ansible/ansible-secrets-management
       - jpe-ansible/homelab-contracts
       - JacobPEvans/.github
       - jpe-nix/nix-ai
+      - JacobPEvans-ai/ai-llm-prompts
+      - JacobPEvans-ai/llm-prompt-evals
     job_workflow_ref:
       - JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@refs/tags/v1
       - JacobPEvans/.github-ai/.github/workflows/cc-ci-fix-oidc.yml@refs/tags/v2
