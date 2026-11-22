@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.145.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.144.0...v0.145.0) (2026-11-22)
+
+
+### Features
+
+* **openbao:** render a per-role reconcile policy stanza for a named agent-flow role ([#900](https://github.com/jpe-ansible/ansible-secrets-management/issues/900)) ([86c172c](https://github.com/jpe-ansible/ansible-secrets-management/commit/86c172cabd61bf8d0801bc4e75d69f920e2ebfdc))
+
 ## [0.144.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.143.0...v0.144.0) (2026-11-22)
 
 
