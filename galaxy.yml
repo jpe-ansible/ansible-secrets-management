@@ -1,7 +1,7 @@
 ---
 namespace: dryvist
 name: secrets_management
-version: 0.144.0  # x-release-please-version
+version: 0.145.0  # x-release-please-version
 readme: README.md
 authors:
   - dryvist

@@ -171,6 +171,25 @@ path "auth/{{ openbao_terrakube_jwt_auth_path }}/role" {
 path "auth/{{ openbao_github_oidc_auth_path }}/role/+" {
   capabilities = ["read"]
 }
+# The agent-flow roles named in openbao_reconcile_agent_flow_role_names may be
+# written by exact path, each pinned to its own policy; there is no delete,
+# list or wildcard. Group and alias-metadata claims stay denied.
+{% for flow in openbao_github_agent_flow_roles
+     | selectattr('name', 'in', openbao_reconcile_agent_flow_role_names) %}
+path "auth/{{ openbao_github_oidc_auth_path }}/role/{{ flow.name }}" {
+  capabilities = ["create", "read", "update"]
+  allowed_parameters = {
+    "*" = []
+    "token_policies" = [{{ flow.policy | tojson }}]
+    "policies" = [{{ flow.policy | tojson }}]
+    "token_no_default_policy" = [true]
+  }
+  denied_parameters = {
+    "groups_claim" = []
+    "claim_mappings" = []
+  }
+}
+{% endfor %}
 path "auth/{{ openbao_github_oidc_auth_path }}/role" {
   capabilities = ["list"]
 }
