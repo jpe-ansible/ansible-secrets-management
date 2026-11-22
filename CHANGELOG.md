@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.145.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.145.0...v0.145.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **openbao:** send the agent-flow role policy as a scalar in the role write ([#903](https://github.com/jpe-ansible/ansible-secrets-management/issues/903)) ([5188e34](https://github.com/jpe-ansible/ansible-secrets-management/commit/5188e34286873c9399175123289e7ba4f177cd3a))
+
 ## [0.145.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.144.0...v0.145.0) (2026-11-22)
 
 
