@@ -1,0 +1,34 @@
+---
+name: Local CI Failure Agent
+
+on:
+  workflow_run:
+    workflows: ["CI Gate"]
+    types: [completed]
+
+permissions: {}
+
+jobs:
+  ci-fix:
+    if: >-
+      vars.AI_AGENT_CI_FIX_ENABLED == 'true' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    permissions:
+      actions: read
+      contents: write
+      id-token: write
+      issues: write
+      pull-requests: write
+    uses: JacobPEvans/.github-ai/.github/workflows/cc-ci-fix-oidc.yml@v2
+    with:
+      runner_label: review
+      repo_context: An Ansible collection for managing OpenBao, Authelia, secret rotation, and voter health.
+      ci_structure: CI Gate runs lint, role tests, pytest, and selected Molecule scenarios for pull requests.
+      daily_run_limit: "5"
+      local_only: true
+      local_model: review-local
+      dry_run: ${{ vars.AI_AGENT_CI_FIX_DRY_RUN != 'false' }}
+    secrets:
+      LLM_ROUTER_BASE_URL: ${{ secrets.LLM_ROUTER_BASE_URL }}
+      OPENBAO_ADDR: ${{ secrets.OPENBAO_ADDR }}
