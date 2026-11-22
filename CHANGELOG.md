@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.140.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.139.0...v0.140.0) (2026-11-22)
+
+
+### Features
+
+* **openbao:** add the Dify agent AppRoles to managed_approles ([#876](https://github.com/jpe-ansible/ansible-secrets-management/issues/876)) ([77d32ea](https://github.com/jpe-ansible/ansible-secrets-management/commit/77d32ead0726fc3ac64f7104d1c714f05fc421c3))
+* **openbao:** manage the Dify agent AppRoles from the reconcile policy ([77d32ea](https://github.com/jpe-ansible/ansible-secrets-management/commit/77d32ead0726fc3ac64f7104d1c714f05fc421c3))
+
 ## [0.139.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.138.0...v0.139.0) (2026-11-22)
 
 
