@@ -323,6 +323,14 @@
     - "'github_oidc_roles' in (openbao_select | default({}))"
     - openbao_bootstrap_token is defined
 
+- name: Reconcile selected GitHub agent-flow OIDC roles
+  ansible.builtin.import_tasks: init/09d-github-agent-oidc.yml
+  tags:
+    - openbao_auth_methods
+  when:
+    - "'github_oidc_roles' in (openbao_select | default({}))"
+    - openbao_bootstrap_token is defined
+
 - name: Declare AppRoles and reconcile their policy and TTL bounds
   ansible.builtin.import_tasks: init/10-approles.yml
   tags:

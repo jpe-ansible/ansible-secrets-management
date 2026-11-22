@@ -374,3 +374,82 @@ def test_window_mode_accepts_both_new_selection_kinds_and_keeps_policy_sync_read
     command = capability_read["ansible.builtin.command"]["cmd"]
     assert "sys/capabilities-self" in command
     assert "openbao_github_app_mounts" in command
+
+
+AGENT_FLOW_TASKS = ROLE / "tasks/init/09d-github-agent-oidc.yml"
+AGENT_FLOW_DEFAULTS = ROLE / "defaults/main/05b-domain-policy-approle-names.yml"
+
+
+def _agent_flow_variables():
+    declared = yaml.safe_load(AGENT_FLOW_DEFAULTS.read_text(encoding="utf-8"))
+    return {
+        **_oidc_variables(),
+        "openbao_github_agent_flow_roles": declared["openbao_github_agent_flow_base_roles"],
+    }
+
+
+def test_agent_flow_roles_are_selectable_by_their_exact_declared_names():
+    variables = _agent_flow_variables()
+    names = [role["name"] for role in variables["openbao_github_agent_flow_roles"]]
+    assert "github-agent-ci-fix" in names
+    candidate_names = [candidate["name"] for candidate in _oidc_candidates(variables)]
+    assert all(name in candidate_names for name in names)
+    for name in names:
+        selected = _with_oidc_selection(variables, [name])
+        assert selected["openbao_selected_objects"][OIDC_ROLES] == [{"name": name}]
+    del variables["openbao_github_agent_flow_roles"]
+    assert not set(names) & {candidate["name"] for candidate in _oidc_candidates(variables)}
+
+
+def test_an_unlisted_agent_flow_name_is_refused_by_the_selector_guard():
+    variables = _agent_flow_variables()
+    matches, targets = resolve(
+        {OIDC_ROLES: ["github-agent-unlisted"]}, OIDC_ROLES,
+        names=[candidate["name"] for candidate in _oidc_candidates(variables)],
+    )
+    guard = task("Require every OpenBao selector to match a declared object")["ansible.builtin.assert"]
+    assert targets == []
+    assert not condition(guard["that"][0], {"item": matches[0]})
+
+
+def test_agent_flow_loop_admits_only_the_selected_role_and_keeps_the_token_gate():
+    node = task("Reconcile GitHub agent-flow OIDC roles", AGENT_FLOW_TASKS)
+    variables = _agent_flow_variables()
+    roles = variables["openbao_github_agent_flow_roles"]
+    assert len(roles) >= 2
+    for role in roles:
+        own = _with_oidc_selection(variables, [role["name"]])
+        assert _runs(node, {**own, "openbao_github_agent_flow": role})
+        for other in roles:
+            if other["name"] != role["name"]:
+                assert not _runs(node, {**own, "openbao_github_agent_flow": other})
+        assert not _runs(node, {
+            **_with_oidc_selection(variables, [WRITE_ROLE_NAMES[0]]),
+            "openbao_github_agent_flow": role,
+        })
+        assert _runs(node, {**_with_oidc_selection(variables, []), "openbao_github_agent_flow": role})
+        no_token = {k: v for k, v in own.items() if k != "openbao_bootstrap_token"}
+        assert not _runs(node, {**no_token, "openbao_github_agent_flow": role})
+
+
+def test_init_imports_agent_flow_roles_only_for_an_oidc_role_selection():
+    node = task("Reconcile selected GitHub agent-flow OIDC roles", INIT)
+    assert _import_target(node) == "init/09d-github-agent-oidc.yml"
+    assert node["tags"] == ["openbao_auth_methods"]
+    assert _runs(node, {"openbao_select": {OIDC_ROLES: ["github-agent-ci-fix"]},
+                        "openbao_bootstrap_token": "test-token"})
+    assert not _runs(node, {"openbao_select": {}, "openbao_bootstrap_token": "test-token"})
+    assert not _runs(node, {"openbao_select": {APP_MOUNTS: ["github-openhands"]},
+                            "openbao_bootstrap_token": "test-token"})
+    assert not _runs(node, {"openbao_select": {OIDC_ROLES: ["github-agent-ci-fix"]}})
+
+
+def test_window_mode_still_refuses_an_unselected_run():
+    initialize = yaml.safe_load(INITIALIZE.read_text(encoding="utf-8"))
+    guard = next(
+        node for node in initialize
+        if node.get("name") == "Require an explicit bounded selection for ai-admin-session"
+    )
+    nonempty = guard["ansible.builtin.assert"]["that"][1]
+    assert not condition(nonempty, {"openbao_select": {}})
+    assert condition(nonempty, {"openbao_select": {OIDC_ROLES: ["github-agent-ci-fix"]}})
