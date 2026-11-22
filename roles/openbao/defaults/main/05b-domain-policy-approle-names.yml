@@ -176,6 +176,10 @@ openbao_github_agent_flow_roles: >-
 openbao_github_agent_flow_base_roles:
   - name: github-agent-ci-fix
     policy: github-agent-ci-fix
+    extra_audiences:
+      - https://github.com/jpe-ansible
+      - https://github.com/JacobPEvans
+      - https://github.com/jpe-nix
     repository:
       - dryvist/ansible-proxmox-ai
       - jpe-ansible/ansible-secrets-management

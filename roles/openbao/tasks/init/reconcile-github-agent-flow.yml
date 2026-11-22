@@ -24,6 +24,9 @@
       repository: "{{ openbao_github_agent_flow.repository }}"
       job_workflow_ref: "{{ openbao_github_agent_flow.job_workflow_ref }}"
       event_name: "{{ openbao_github_agent_flow.event_names }}"
+    _agent_flow_audiences: >-
+      {{ [openbao_github_oidc_audience]
+         + (openbao_github_agent_flow.extra_audiences | default([])) }}
     _agent_flow_role_live: >-
       {{ (openbao_github_agent_flow_role_current.stdout | default('{}') | from_json).data
          | default({}, true) }}
@@ -37,7 +40,7 @@
     stdin: >-
       {{ {'role_type': 'jwt',
             'user_claim': 'job_workflow_ref',
-            'bound_audiences': [openbao_github_oidc_audience],
+            'bound_audiences': _agent_flow_audiences,
             'bound_claims': _agent_flow_claims,
             'bound_claims_type': 'string',
             'token_policies': [openbao_github_agent_flow.policy],
@@ -53,8 +56,8 @@
   changed_when: true
   when: >-
     (openbao_github_agent_flow_role_current.rc | default(1)) != 0
-    or (_agent_flow_role_live.bound_audiences | default([]))
-       != [openbao_github_oidc_audience]
+    or ((_agent_flow_role_live.bound_audiences | default([])) | sort)
+       != (_agent_flow_audiences | sort)
     or (_agent_flow_role_live.bound_claims | default({}, true)) != _agent_flow_claims
     or (_agent_flow_role_live.bound_claims_type | default('')) != 'string'
     or (_agent_flow_role_live.user_claim | default('')) != 'job_workflow_ref'
