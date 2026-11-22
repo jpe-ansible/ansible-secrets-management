@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.141.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.140.3...v0.141.0) (2026-11-22)
+
+
+### Features
+
+* **openbao:** bind the github-agent-ci-fix role to the v2 workflow and four more repositories ([9504fe4](https://github.com/jpe-ansible/ansible-secrets-management/commit/9504fe4950bbcac8c4c04f0b8673089da5bd2776))
+* **openbao:** use exact-string lists for the github-agent-ci-fix claims ([#888](https://github.com/jpe-ansible/ansible-secrets-management/issues/888)) ([9504fe4](https://github.com/jpe-ansible/ansible-secrets-management/commit/9504fe4950bbcac8c4c04f0b8673089da5bd2776))
+
 ## [0.140.3](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.140.2...v0.140.3) (2026-11-22)
 
 
