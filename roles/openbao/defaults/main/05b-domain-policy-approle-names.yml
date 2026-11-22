@@ -176,8 +176,15 @@ openbao_github_agent_flow_roles: >-
 openbao_github_agent_flow_base_roles:
   - name: github-agent-ci-fix
     policy: github-agent-ci-fix
-    repository: dryvist/ansible-proxmox-ai
-    job_workflow_ref: JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@refs/tags/v1
+    repository:
+      - dryvist/ansible-proxmox-ai
+      - jpe-ansible/ansible-secrets-management
+      - jpe-ansible/homelab-contracts
+      - JacobPEvans/.github
+      - jpe-nix/nix-ai
+    job_workflow_ref:
+      - JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@refs/tags/v1
+      - JacobPEvans/.github-ai/.github/workflows/cc-ci-fix-oidc.yml@refs/tags/v2
     event_names: [workflow_run]
     token_ttl: 10m
     token_max_ttl: 15m
