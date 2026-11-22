@@ -36,16 +36,17 @@
         - not (openbao_cli_proxy_active | default(false) | bool)
 
     - name: Read the arrangement KV leaf through the window proxy
-      # The proxy listens on a unix socket and injects the window token itself.
+      # The proxy socket is on the controller and injects the window token itself.
       ansible.builtin.uri:
         url: "http://localhost/v1/{{ openbao_arrangement_kv_mount }}/data/{{ openbao_arrangement_kv_path }}"
         unix_socket: "{{ openbao_window_proxy_addr | regex_replace('^unix://', '') }}"
         method: GET
         status_code: [200, 403, 404]
-      delegate_to: "{{ openbao_cli_host }}"
-      become: "{{ openbao_cli_become }}"
+      delegate_to: localhost
+      connection: local
+      become: false
       vars:
-        ansible_become: "{{ openbao_cli_become }}"
+        ansible_become: false
       register: _openbao_arrangement_read_proxy
       changed_when: false
       check_mode: false
