@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.140.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.140.0...v0.140.1) (2026-11-22)
+
+
+### Bug Fixes
+
+* **openbao:** read the arrangement through the window proxy socket ([#875](https://github.com/jpe-ansible/ansible-secrets-management/issues/875)) ([f0c6dab](https://github.com/jpe-ansible/ansible-secrets-management/commit/f0c6dabdc15a40eaf90a666f3a32795f4aedded9))
+
 ## [0.140.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.139.0...v0.140.0) (2026-11-22)
 
 
