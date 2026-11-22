@@ -23,10 +23,14 @@
      | map(attribute='name')
      | reject('in', excluded_policies)
      | list %}
-{% set managed_approles = openbao_approles
+{# The Dify agent roles are inert (manage_secret_id: false; the issuer mints their
+   secret_ids) but their configuration is reconcile-managed by exact name. #}
+{% set managed_approles = ((openbao_approles
      | rejectattr('manage_secret_id', 'defined')
-     | map(attribute='name')
+     | map(attribute='name') | list)
+     + (openbao_dify_agent_approles | default([]) | map(attribute='name') | list))
      | reject('in', breakglass)
+     | unique
      | list %}
 
 # --- Policies this converge owns, by name --------------------------------
