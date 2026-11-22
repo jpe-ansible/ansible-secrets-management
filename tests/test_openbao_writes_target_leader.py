@@ -270,7 +270,7 @@ class DelegatedBaoCallsAreConsistent(unittest.TestCase):
                 addr = (
                     (task.get("environment") or {}).get("BAO_ADDR")
                     or ("{{ openbao_cli_addr }}" if str((task.get("ansible.builtin.uri") or {}).get("url", ""))
-                        .startswith("{{ openbao_cli_addr }}/") else None)
+                        .startswith(("{{ openbao_cli_addr }}/", "{{ openbao_cli_http_addr }}/")) else None)
                 )
                 ok = (
                     addr == "{{ openbao_cli_addr }}"

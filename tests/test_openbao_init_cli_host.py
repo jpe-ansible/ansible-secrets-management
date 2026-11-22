@@ -23,6 +23,7 @@ TOKEN = "openbao_bootstrap_token"
 WRITE_ADDR = "{{ openbao_write_addr }}"
 API_ADDR = "{{ openbao_api_addr }}"
 CLI_ADDR = "{{ openbao_cli_addr }}"
+CLI_HTTP_ADDR = "{{ openbao_cli_http_addr }}"  # the same address, in the form uri can open
 CLI_HOST = "{{ openbao_cli_host }}"
 CLI_BECOME = "{{ openbao_cli_become }}"
 
@@ -145,7 +146,7 @@ class BootstrapTokenCallsRunOnTheCliHost(unittest.TestCase):
             if not kind:
                 continue
             address = _address(task, scope, kind)
-            address_ok = address == CLI_ADDR if kind == "command" else address.startswith(CLI_ADDR + "/")
+            address_ok = address == CLI_ADDR if kind == "command" else address.startswith((CLI_ADDR + "/", CLI_HTTP_ADDR + "/"))
             switch_ok = (
                 scope["delegate_to"] == CLI_HOST
                 and scope["become"] == CLI_BECOME

@@ -172,7 +172,8 @@
 # deliberate, separate operator action.
 - name: Configure the AWS engine root credentials (first configuration only)
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_aws_mount }}/config/root"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_aws_mount }}/config/root"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"

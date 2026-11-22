@@ -5,7 +5,8 @@
 #   openbao_github_app_config_private_key  the App private key (PEM)
 - name: "Write the App credentials on mount {{ openbao_github_app_config_mount }}"
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_github_app_config_mount }}/config"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_github_app_config_mount }}/config"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"

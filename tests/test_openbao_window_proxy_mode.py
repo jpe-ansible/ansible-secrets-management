@@ -341,3 +341,27 @@ def test_status_reads_keep_their_failure_rules_and_separate_registers():
     assert leader_status["failed_when"] is False
     assert proxy_leader_status["failed_when"] is False
     assert leader_status["register"] != proxy_leader_status["register"]
+
+
+def test_uri_tasks_reach_a_unix_socket_proxy_by_socket_path():
+    def addresses(proxy_addr):
+        context = _proxy_defaults(True) | {"openbao_window_proxy_addr": proxy_addr, "omit": "OMIT"}
+        context["openbao_cli_addr"] = render(DEFAULTS["openbao_cli_addr"], context)
+        return (render(DEFAULTS["openbao_cli_http_addr"], context),
+                render(DEFAULTS["openbao_cli_unix_socket"], context))
+
+    assert addresses("unix:///run/window/bao.sock") == ("http://localhost", "/run/window/bao.sock")
+    assert addresses(PROXY_ADDR) == (PROXY_ADDR, "OMIT")
+
+    direct = []
+    for path in sorted(TASKS.rglob("*.yml")):
+        for node in _walk_tasks(yaml.safe_load(path.read_text())):
+            uri = node.get("ansible.builtin.uri")
+            url = str(uri.get("url")) if isinstance(uri, dict) else ""
+            if "openbao_cli_http_addr" in url:
+                assert uri.get("unix_socket") == "{{ openbao_cli_unix_socket }}", node["name"]
+                assert node.get("delegate_to") == "{{ openbao_cli_host }}", node["name"]
+            elif "openbao_cli_addr" in url:
+                direct.append(node["name"])
+    # The one direct read is gated to runs without the proxy; its proxy twin follows it.
+    assert direct == ["Read the arrangement KV leaf"]
