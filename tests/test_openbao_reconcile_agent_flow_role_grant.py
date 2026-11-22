@@ -61,6 +61,7 @@ def test_the_named_role_is_pinned_to_its_own_policy(rendered_defaults):
     allowed = _allowed_parameters(_role_stanzas(values)[NAMED])
     assert allowed["token_policies"] == [flow["policy"]]
     assert allowed["policies"] == [flow["policy"]]
+    assert allowed["token_no_default_policy"] == [True]
 
 
 def test_an_unlisted_role_path_is_refused_for_writes(rendered_defaults):
@@ -77,8 +78,14 @@ def test_an_unlisted_role_path_is_refused_for_writes(rendered_defaults):
 def test_a_different_token_policy_set_is_refused_on_the_named_role(rendered_defaults):
     values, _approles, _policies = rendered_defaults
     stanzas = _role_stanzas(values)
-    own = {"role_type": "jwt", "token_policies": [NAMED], "bound_claims_type": "string"}
+    own = {
+        "role_type": "jwt",
+        "token_policies": [NAMED],
+        "token_no_default_policy": True,
+        "bound_claims_type": "string",
+    }
     assert _permits(stanzas, NAMED, "update", own)
+    assert not _permits(stanzas, NAMED, "update", {**own, "token_no_default_policy": False})
     for key in ("token_policies", "policies"):
         assert not _permits(stanzas, NAMED, "update", {**own, key: [OTHER_FLOW]})
         assert not _permits(stanzas, NAMED, "update", {**own, key: [NAMED, "default"]})

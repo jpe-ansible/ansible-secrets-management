@@ -182,6 +182,7 @@ path "auth/{{ openbao_github_oidc_auth_path }}/role/{{ flow.name }}" {
     "*" = []
     "token_policies" = [{{ flow.policy | tojson }}]
     "policies" = [{{ flow.policy | tojson }}]
+    "token_no_default_policy" = [true]
   }
   denied_parameters = {
     "groups_claim" = []
