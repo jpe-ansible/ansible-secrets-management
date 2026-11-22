@@ -43,7 +43,7 @@
             'bound_audiences': _agent_flow_audiences,
             'bound_claims': _agent_flow_claims,
             'bound_claims_type': 'string',
-            'token_policies': [openbao_github_agent_flow.policy],
+            'token_policies': openbao_github_agent_flow.policy,
             'token_no_default_policy': true,
             'token_ttl': openbao_github_agent_flow.token_ttl,
             'token_max_ttl': openbao_github_agent_flow.token_max_ttl} | to_json }}
