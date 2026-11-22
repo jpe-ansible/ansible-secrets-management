@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.140.2](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.140.1...v0.140.2) (2026-11-22)
+
+
+### Bug Fixes
+
+* **rotation:** strip fractional seconds from the KV updated time before parsing ([#881](https://github.com/jpe-ansible/ansible-secrets-management/issues/881)) ([c95e3de](https://github.com/jpe-ansible/ansible-secrets-management/commit/c95e3de645e36d9c5464bc73a9314242e29185b0))
+
 ## [0.140.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.140.0...v0.140.1) (2026-11-22)
 
 
