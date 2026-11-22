@@ -766,3 +766,17 @@ def test_role_refuses_unsafe_kv_target_paths_before_any_policy_render():
     # The guard file is imported first, ahead of every render and write task.
     first = yaml.safe_load(RBAC_TASKS.read_text(encoding="utf-8"))[0]
     assert first["ansible.builtin.import_tasks"] == "08-policy-declaration-assertions.yml"
+
+
+def test_kv_target_age_parses_nanosecond_updated_time():
+    tasks = yaml.safe_load(ROTATION_TASKS.read_text(encoding="utf-8"))
+    block = tasks[0]["block"]
+    task = next(t for t in block if t.get("name") == "Compute KV target age")
+    expression = task["ansible.builtin.set_fact"]["rotate_kv_target_age_seconds"]
+    context = {
+        "rotate_kv_target": {"mount": "secret", "path": "app/main"},
+        # OpenBao KV metadata carries nanoseconds; strptime %f takes at most six digits.
+        "rotate_kv_metadata_updated_time_by_path": {"secret/app/main": "2000-01-01T00:00:00.085750621Z"},
+    }
+    age = int(_render_source(expression, context))
+    assert age > 0
