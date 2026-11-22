@@ -33,26 +33,35 @@ def test_arrangement_loader_reads_declared_leaf_safely():
     tasks = _task_file(LOADER)
     requests = [task for task in tasks if "ansible.builtin.uri" in task]
 
-    assert len(requests) == 1
-    task = requests[0]
-    uri = task["ansible.builtin.uri"]
-    assert uri["method"] == "GET"
-    assert uri["url"] == (
-        "{{ openbao_cli_addr }}/v1/{{ openbao_arrangement_kv_mount }}"
-        "/data/{{ openbao_arrangement_kv_path }}"
-    )
-    assert uri["status_code"] == [200, 403, 404]
-    assert uri["headers"]["X-Vault-Token"] == "{{ openbao_bootstrap_token }}"
-    assert task["delegate_to"] == "{{ openbao_cli_host }}"
-    assert task["become"] == "{{ openbao_cli_become }}"
-    assert task["vars"]["ansible_become"] == "{{ openbao_cli_become }}"
-    assert task["changed_when"] is False
-    assert task["check_mode"] is False
-    assert task["no_log"] is True
-    failed_when = str(task["failed_when"])
-    assert "status is not defined" in failed_when
-    assert "status | int" in failed_when
-    assert "< 0" in failed_when
+    assert len(requests) == 2
+    direct, proxy = requests
+    leaf = "/v1/{{ openbao_arrangement_kv_mount }}/data/{{ openbao_arrangement_kv_path }}"
+    assert direct["ansible.builtin.uri"]["url"] == "{{ openbao_cli_addr }}" + leaf
+    assert direct["ansible.builtin.uri"]["headers"]["X-Vault-Token"] == "{{ openbao_bootstrap_token }}"
+    assert "not (openbao_cli_proxy_active | default(false) | bool)" in _when(direct)
+    assert proxy["ansible.builtin.uri"]["url"] == "http://localhost" + leaf
+    assert "openbao_window_proxy_addr" in proxy["ansible.builtin.uri"]["unix_socket"]
+    assert "headers" not in proxy["ansible.builtin.uri"]
+    assert "openbao_cli_proxy_active | default(false) | bool" in _when(proxy)
+    assert direct["delegate_to"] == "{{ openbao_cli_host }}"
+    assert direct["become"] == "{{ openbao_cli_become }}"
+    assert direct["vars"]["ansible_become"] == "{{ openbao_cli_become }}"
+    assert proxy["delegate_to"] == "localhost" and proxy["connection"] == "local"
+    assert proxy["become"] is False and proxy["vars"]["ansible_become"] is False
+    for task in requests:
+        uri = task["ansible.builtin.uri"]
+        assert uri["method"] == "GET"
+        assert uri["status_code"] == [200, 403, 404]
+        assert task["changed_when"] is False
+        assert task["check_mode"] is False
+        assert task["no_log"] is True
+        failed_when = str(task["failed_when"])
+        assert "status is not defined" in failed_when
+        assert "status | int" in failed_when
+        assert "< 0" in failed_when
+    select = next(t for t in tasks if t.get("name") == "Keep the arrangement read result from the branch that ran")
+    assert select["no_log"] is True
+    assert "_openbao_arrangement_read_proxy" in select["ansible.builtin.set_fact"]["openbao_arrangement_read"]
     assert "openbao_bootstrap_token is defined" in str(_when(task))
 
 
