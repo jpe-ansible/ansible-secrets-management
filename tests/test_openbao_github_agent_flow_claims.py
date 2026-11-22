@@ -16,6 +16,11 @@ RECONCILE_TASK = next(
     if task.get("name") == "Reconcile the GitHub agent-flow OIDC role"
 )
 AUDIENCE = "https://github.com/dryvist"
+EXTRA_AUDIENCES = [
+    "https://github.com/jpe-ansible",
+    "https://github.com/JacobPEvans",
+    "https://github.com/jpe-nix",
+]
 CI_FIX_V1 = "JacobPEvans/.github-ai/.github/workflows/cc-ci-fix.yml@refs/tags/v1"
 CI_FIX_V2 = "JacobPEvans/.github-ai/.github/workflows/cc-ci-fix-oidc.yml@refs/tags/v2"
 REPOSITORIES = [
@@ -49,6 +54,13 @@ def _claims(role):
     }
 
 
+def _audiences(role):
+    return render(RECONCILE_TASK["vars"]["_agent_flow_audiences"], {
+        "openbao_github_agent_flow": role,
+        "openbao_github_oidc_audience": AUDIENCE,
+    })
+
+
 def _payload(role):
     rendered = render(
         RECONCILE_TASK["ansible.builtin.command"]["stdin"],
@@ -56,6 +68,7 @@ def _payload(role):
             "openbao_github_agent_flow": role,
             "openbao_github_oidc_audience": AUDIENCE,
             "_agent_flow_claims": _claims(role),
+            "_agent_flow_audiences": _audiences(role),
         },
     )
     return json.loads(rendered) if isinstance(rendered, str) else rendered
@@ -76,6 +89,7 @@ def _reconcile_needed(role, live):
         "_agent_flow_role_live": live,
         "openbao_github_oidc_audience": AUDIENCE,
         "_agent_flow_claims": _claims(role),
+        "_agent_flow_audiences": _audiences(role),
         "_agent_flow_token_ttl_s": 600,
         "_agent_flow_token_max_ttl_s": 900,
     })
@@ -106,6 +120,25 @@ def test_ci_fix_keeps_the_original_repository_and_v1_workflow():
         "job_workflow_ref": CI_FIX_V1,
         "event_name": "workflow_run",
     })
+
+
+def test_ci_fix_accepts_each_configured_owner_audience():
+    bound_audiences = _payload(_role("github-agent-ci-fix"))["bound_audiences"]
+    assert bound_audiences == [AUDIENCE, *EXTRA_AUDIENCES]
+    assert all(audience in bound_audiences for audience in [AUDIENCE, *EXTRA_AUDIENCES])
+
+
+def test_ci_fix_refuses_unlisted_and_bare_github_audiences():
+    bound_audiences = _payload(_role("github-agent-ci-fix"))["bound_audiences"]
+    assert "https://github.com/other-owner" not in bound_audiences
+    assert "https://github.com" not in bound_audiences
+
+
+def test_ci_fix_audiences_are_exact_and_keep_the_base_first():
+    bound_audiences = _payload(_role("github-agent-ci-fix"))["bound_audiences"]
+    assert bound_audiences[0] == AUDIENCE
+    assert all(not any(char in audience for char in "*?") for audience in bound_audiences)
+    assert all(not any(char.isspace() for char in audience) for audience in bound_audiences)
 
 
 def test_ci_fix_claim_lists_are_exact_and_keep_existing_values_first():
@@ -139,6 +172,11 @@ def test_other_flow_roles_keep_scalar_repository_and_workflow_claims():
     assert isinstance(snapshot["job_workflow_ref"], str)
 
 
+def test_other_flow_roles_keep_the_single_base_audience():
+    for name in ("github-agent-pr-review", "docs-router-snapshot"):
+        assert _payload(_role(name))["bound_audiences"] == [AUDIENCE]
+
+
 def test_live_claim_comparison_is_idempotent_for_scalar_and_list_roles():
     for name in ("github-agent-ci-fix", "github-agent-pr-review", "docs-router-snapshot"):
         role = _role(name)
@@ -150,6 +188,12 @@ def test_live_claim_comparison_is_idempotent_for_scalar_and_list_roles():
         }
         assert not _reconcile_needed(role, live)
 
+        reordered = {
+            **live,
+            "bound_audiences": list(reversed(payload["bound_audiences"])),
+        }
+        assert not _reconcile_needed(role, reordered)
+
         drifted = {
             **live,
             "bound_claims": {
@@ -158,3 +202,16 @@ def test_live_claim_comparison_is_idempotent_for_scalar_and_list_roles():
             },
         }
         assert _reconcile_needed(role, drifted)
+
+    ci_fix = _role("github-agent-ci-fix")
+    payload = _payload(ci_fix)
+    live = {
+        **payload,
+        "token_ttl": 600,
+        "token_max_ttl": 900,
+        "bound_audiences": [
+            audience for audience in payload["bound_audiences"]
+            if audience != EXTRA_AUDIENCES[0]
+        ],
+    }
+    assert _reconcile_needed(ci_fix, live)
