@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.146.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.145.1...v0.146.0) (2026-11-22)
+
+
+### Features
+
+* **ci:** label escalation-class changes with actions/labeler ([#906](https://github.com/jpe-ansible/ansible-secrets-management/issues/906)) ([143c061](https://github.com/jpe-ansible/ansible-secrets-management/commit/143c0617ce0f01c2b845c546fb985b8e0a40809b))
+
 ## [0.145.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.145.0...v0.145.1) (2026-11-22)
 
 

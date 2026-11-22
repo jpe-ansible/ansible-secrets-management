@@ -1,0 +1,22 @@
+---
+# Applies the escalation-class label from .github/labeler.yml. The pull_request_target form reads the configuration
+# from the base branch and never checks out the pull request head, so the job runs no pull request code.
+name: Escalation label
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions: {}
+
+jobs:
+  label:
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/labeler@bf12e9b00b37c5c0ca2b87b79b2daf7891dbda13 # v7.0.0
+        with:
+          configuration-path: .github/labeler.yml
+          sync-labels: true
