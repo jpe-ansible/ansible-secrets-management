@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.142.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.141.0...v0.142.0) (2026-11-22)
+
+
+### Features
+
+* **openbao:** accept the owner audiences of the github-agent-ci-fix callers ([552a7cb](https://github.com/jpe-ansible/ansible-secrets-management/commit/552a7cbef7f96a5561f7cd084d6d4a55971481a5))
+* **openbao:** add per-role extra audiences for github-agent-ci-fix ([#889](https://github.com/jpe-ansible/ansible-secrets-management/issues/889)) ([552a7cb](https://github.com/jpe-ansible/ansible-secrets-management/commit/552a7cbef7f96a5561f7cd084d6d4a55971481a5))
+
 ## [0.141.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.140.3...v0.141.0) (2026-11-22)
 
 
