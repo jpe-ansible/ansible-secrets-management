@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.139.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.138.0...v0.139.0) (2026-11-22)
+
+
+### Features
+
+* **openbao:** grant AppRole configuration writes at depth one to the admin window ([#872](https://github.com/jpe-ansible/ansible-secrets-management/issues/872)) ([a573f4f](https://github.com/jpe-ansible/ansible-secrets-management/commit/a573f4f0e8f2a71b0df826e604c59d863f3ac55b))
+
 ## [0.138.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.137.0...v0.138.0) (2026-11-21)
 
 
