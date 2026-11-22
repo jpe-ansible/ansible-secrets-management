@@ -41,7 +41,8 @@ def test_public_repository_reads_are_authenticated_and_tokens_are_revoked():
     assert read["loop"] == "{{ gm.permission_sets | selectattr('public_repos_of', 'defined') | list }}"
     assert read["register"] == "openbao_github_app_mount_public_repos"
     assert read["no_log"] is True
-    assert revoke["ansible.builtin.uri"]["url"] == "{{ openbao_cli_addr }}/v1/sys/leases/revoke"
+    assert revoke["ansible.builtin.uri"]["url"] == "{{ openbao_cli_http_addr }}/v1/sys/leases/revoke"
+    assert revoke["ansible.builtin.uri"]["unix_socket"] == "{{ openbao_cli_unix_socket }}"
     assert revoke["ansible.builtin.uri"]["body"]["lease_id"] == "{{ item.json.lease_id }}"
     assert "openbao_github_app_mount_ready | bool" in revoke["when"]
     assert any("lease_id | default('', true) | length > 0" in c for c in revoke["when"])

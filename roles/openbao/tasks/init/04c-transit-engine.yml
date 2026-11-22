@@ -19,7 +19,8 @@
 
 - name: Check whether the OpenTofu state Transit key exists
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_transit_mount }}/keys/{{ openbao_tofu_state_transit_key }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_transit_mount }}/keys/{{ openbao_tofu_state_transit_key }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: GET
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -36,7 +37,8 @@
 
 - name: Create the OpenTofu state Transit key if absent
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_transit_mount }}/keys/{{ openbao_tofu_state_transit_key }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_transit_mount }}/keys/{{ openbao_tofu_state_transit_key }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -58,8 +60,9 @@
 
 - name: Check whether the GitHub org-secrets Transit key exists
   ansible.builtin.uri:
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     url: >-
-      {{ openbao_cli_addr }}/v1/{{ openbao_transit_mount }}/keys/{{
+      {{ openbao_cli_http_addr }}/v1/{{ openbao_transit_mount }}/keys/{{
       openbao_github_org_secrets_state_transit_key }}
     method: GET
     headers:
@@ -77,8 +80,9 @@
 
 - name: Create the GitHub org-secrets Transit key if absent
   ansible.builtin.uri:
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     url: >-
-      {{ openbao_cli_addr }}/v1/{{ openbao_transit_mount }}/keys/{{
+      {{ openbao_cli_http_addr }}/v1/{{ openbao_transit_mount }}/keys/{{
       openbao_github_org_secrets_state_transit_key }}
     method: POST
     headers:

@@ -4,7 +4,8 @@
 # A 403 or 404 means the source is not provisioned yet, so leave the old value.
 - name: Read an existing Vikunja login leaf before migrating a password
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.login_path }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.login_path }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: GET
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -21,7 +22,8 @@
 
 - name: Read the token leaf as the source for any unmigrated login password
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.tier }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.tier }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: GET
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -38,7 +40,8 @@
 
 - name: Read the former shared app leaf as a fallback login-password source
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_kv_mount }}/data/{{ openbao_agent_tier_reader.legacy_app_path }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_kv_mount }}/data/{{ openbao_agent_tier_reader.legacy_app_path }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: GET
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -132,7 +135,8 @@
 
 - name: Preserve an existing tier password in its new login leaf with a check-and-set write
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.login_path }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.login_path }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -158,8 +162,9 @@
 
 - name: Check whether the agent-tier replacement leaf is provisioned
   ansible.builtin.uri:
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     url: >-
-      {{ openbao_cli_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{
+      {{ openbao_cli_http_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{
         openbao_agent_tier_reader.login_path | default(openbao_agent_tier_reader.tier) }}
     method: GET
     headers:
@@ -176,7 +181,8 @@
 
 - name: Read the legacy shared app leaf when the dedicated leaf exists
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_kv_mount }}/data/{{ openbao_agent_tier_reader.legacy_app_path }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_kv_mount }}/data/{{ openbao_agent_tier_reader.legacy_app_path }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: GET
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -237,7 +243,8 @@
 
 - name: Remove migrated fields from the legacy leaf with a check-and-set write
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_kv_mount }}/data/{{ openbao_agent_tier_reader.legacy_app_path }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_kv_mount }}/data/{{ openbao_agent_tier_reader.legacy_app_path }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -260,7 +267,8 @@
 
 - name: Read the token leaf that may still contain a migrated login password
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.tier }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.tier }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: GET
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -322,7 +330,8 @@
 
 - name: Remove the migrated password from the token leaf with a check-and-set write
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.tier }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_agent_tier_mount }}/data/{{ openbao_agent_tier_reader.tier }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"

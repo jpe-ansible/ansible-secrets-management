@@ -184,7 +184,8 @@
 # a deliberate, separate operator action.
 - name: Configure the Azure engine service principal (first configuration only)
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_azure_mount }}/config"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_azure_mount }}/config"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"

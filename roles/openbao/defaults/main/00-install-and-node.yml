@@ -108,6 +108,18 @@ openbao_cli_host: >-
 openbao_cli_addr: >-
   {{ openbao_window_proxy_addr if openbao_cli_proxy_active | default(false) | bool
      else openbao_reconcile_addr | default(openbao_write_addr, true) }}
+# The same address for ansible.builtin.uri, which cannot open a unix:// URL:
+# through the proxy it takes the socket path and a plain base URL.
+openbao_cli_http_addr: >-
+  {{ 'http://localhost'
+     if openbao_cli_proxy_active | default(false) | bool
+        and openbao_cli_addr.startswith('unix://')
+     else openbao_cli_addr }}
+openbao_cli_unix_socket: >-
+  {{ openbao_cli_addr | regex_replace('^unix://', '')
+     if openbao_cli_proxy_active | default(false) | bool
+        and openbao_cli_addr.startswith('unix://')
+     else omit }}
 openbao_cli_become: >-
   {{ not (openbao_reconcile_addr | length > 0 or openbao_cli_proxy_active | default(false) | bool) }}
 

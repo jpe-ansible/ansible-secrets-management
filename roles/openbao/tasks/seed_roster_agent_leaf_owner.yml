@@ -28,7 +28,8 @@
 # version-destroy knobs. A POST is a 403 for that identity.
 - name: Mark the absent roster key leaf with its owner
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ openbao_kv_mount }}/metadata/apps/{{ openbao_seed_app }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ openbao_kv_mount }}/metadata/apps/{{ openbao_seed_app }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: PATCH
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"

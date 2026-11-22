@@ -121,6 +121,8 @@ def _run(tmp_path, endpoint, caller, stored_app_id, app_id, key, rotate=None, co
         **CALLERS[caller]["variables"](stored, app_id, key),
         "openbao_bootstrap_token": TOKEN,
         "openbao_cli_addr": address,
+        "openbao_cli_http_addr": address,
+        "openbao_cli_unix_socket": "{{ omit }}",
         "openbao_cli_host": "localhost",
         "openbao_cli_become": False,
     }
@@ -244,8 +246,9 @@ def test_shared_file_holds_the_only_config_write():
     assert len(shared) == 1
     write = shared[0]
     assert write["ansible.builtin.uri"]["url"] == (
-        "{{ openbao_cli_addr }}/v1/{{ openbao_github_app_config_mount }}/config"
+        "{{ openbao_cli_http_addr }}/v1/{{ openbao_github_app_config_mount }}/config"
     )
+    assert write["ansible.builtin.uri"]["unix_socket"] == "{{ openbao_cli_unix_socket }}"
     assert write["ansible.builtin.uri"]["method"] == "POST"
     assert write["ansible.builtin.uri"]["headers"] == {
         "X-Vault-Token": "{{ openbao_bootstrap_token }}",

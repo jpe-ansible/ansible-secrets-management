@@ -89,7 +89,8 @@
 
 - name: Generate each etcd PKI root CA (first configuration only, never exported)
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ item.0.mount }}/root/generate/internal"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ item.0.mount }}/root/generate/internal"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -147,7 +148,8 @@
 # blanket wildcard for the whole estate domain.
 - name: Reconcile each etcd PKI role
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ item.0.mount }}/roles/{{ item.0.role }}"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ item.0.mount }}/roles/{{ item.0.role }}"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
@@ -209,7 +211,8 @@
 
 - name: Reconcile each etcd PKI Patroni-client role
   ansible.builtin.uri:
-    url: "{{ openbao_cli_addr }}/v1/{{ item.0.mount }}/roles/{{ item.0.role }}-patroni"
+    url: "{{ openbao_cli_http_addr }}/v1/{{ item.0.mount }}/roles/{{ item.0.role }}-patroni"
+    unix_socket: "{{ openbao_cli_unix_socket }}"
     method: POST
     headers:
       X-Vault-Token: "{{ openbao_bootstrap_token }}"
