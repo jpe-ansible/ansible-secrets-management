@@ -1,9 +1,9 @@
 {{ ansible_managed | comment }}
 # Finite exact-name grants used by the selected ai-admin-session RBAC path.
 # Policy contents and AppRole parameters are not pinned.
-# This policy is paired with ai-admin-guard; neither it nor the token has a
-# wildcard policy or AppRole write path. Its one wildcard path is the GitHub
-# Actions OIDC role path, limited by the policies a role may attach.
+# This policy is paired with ai-admin-guard; it has no wildcard policy write
+# path. Its wildcard write paths are AppRole configuration at depth one and the
+# GitHub Actions OIDC role path, limited by the policies a role may attach.
 
 path "sys/capabilities-self" {
   capabilities = ["create", "update"]
@@ -23,13 +23,13 @@ path "sys/policies/acl/{{ openbao_ai_admin_guard_policy_name }}" {
   capabilities = ["deny"]
 }
 
-# AppRole configuration readback at depth one: role-id and secret-id subpaths
-# stay under the guard's deny.
+# AppRole configuration at depth one, written and read back without delete.
+# role-id and secret-id subpaths and the guarded roles stay under the guard's deny.
 path "auth/approle/role" {
   capabilities = ["list"]
 }
 path "auth/approle/role/+" {
-  capabilities = ["read"]
+  capabilities = ["create", "read", "update"]
 }
 
 {% for _policy in openbao_ai_admin_window_grant_policies %}
