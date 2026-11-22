@@ -173,6 +173,9 @@ openbao_github_oidc_audience: https://github.com/dryvist
 # key; publication jobs keep their existing, separate GitHub App token.
 openbao_github_agent_flow_roles: >-
   {{ openbao_github_agent_flow_base_roles + openbao_github_router_snapshot_flow_roles }}
+# Agent-flow roles the routine reconcile identity may write, by exact name.
+openbao_reconcile_agent_flow_role_names:
+  - github-agent-ci-fix
 openbao_github_agent_flow_base_roles:
   - name: github-agent-ci-fix
     policy: github-agent-ci-fix
