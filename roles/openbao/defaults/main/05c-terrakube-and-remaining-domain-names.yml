@@ -285,6 +285,8 @@ openbao_secrets_domain_approle_names: >-
      + openbao_cribl_edge_mac_approle_names
      + openbao_roster_agent_valid_names
      + openbao_roster_key_reader_approle_names
+     + (openbao_app_agent_tier_readers | map(attribute='tier')
+        | map('regex_replace', '^', 'app-agent-') | list)
      + [openbao_agent_ssh_sign_approle_name,
       openbao_agent_workstation_approle_name,
       openbao_herdr_hail_approle_name,
