@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.147.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.146.1...v0.147.0) (2026-11-25)
+
+
+### Features
+
+* **openbao:** add the youtrack-clerk profile keys and tool tier reader ([#916](https://github.com/jpe-ansible/ansible-secrets-management/issues/916)) ([3a21f49](https://github.com/jpe-ansible/ansible-secrets-management/commit/3a21f490c62398cd587af1013fd5f9454c313f88))
+
 ## [0.146.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.146.0...v0.146.1) (2026-11-22)
 
 
