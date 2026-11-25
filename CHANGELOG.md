@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.148.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.147.0...v0.148.0) (2026-11-25)
+
+
+### Features
+
+* **openbao:** generate the vikunja-clerk and zammad-clerk profile keys ([#919](https://github.com/jpe-ansible/ansible-secrets-management/issues/919)) ([aef4db4](https://github.com/jpe-ansible/ansible-secrets-management/commit/aef4db455e3595b3fcf369e6af4e4a5fd1da0104))
+
 ## [0.147.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.146.1...v0.147.0) (2026-11-25)
 
 
