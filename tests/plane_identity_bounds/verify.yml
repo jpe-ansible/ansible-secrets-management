@@ -426,3 +426,20 @@
           No declared role carries a non-expiring secret_id, so the guard above
           asserted nothing. If that exception has genuinely been retired, delete
           the guard deliberately rather than leaving a check that cannot fail.
+
+    # The router redeems one reader pair per agent-tier leaf from the platform
+    # env document, so each reader must be in the scheduled rotation.
+    - name: Every agent-tier reader rotates through the platform env document
+      vars:
+        _readers: >-
+          {{ openbao_app_agent_tier_readers | map(attribute='tier')
+             | map('regex_replace', '^', 'app-agent-') | list }}
+      ansible.builtin.assert:
+        that:
+          - _readers | length > 0
+          - _readers | difference(openbao_secrets_domain_approle_names) | length == 0
+          - _readers | difference(openbao_approles | map(attribute='name') | list) | length == 0
+        fail_msg: >-
+          An agent-tier reader is missing from the scheduled rotation or from the
+          declared AppRoles, so its pair never reaches the env document.
+        quiet: true
