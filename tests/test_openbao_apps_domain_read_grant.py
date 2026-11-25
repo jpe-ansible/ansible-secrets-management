@@ -270,6 +270,17 @@ def test_zammad_agent_write_token_is_generated_with_the_app_credentials():
     assert "zammad_agent_write_api_token" not in promoted.get("zammad", {})
 
 
+def test_youtrack_write_tier_reader_generates_no_field():
+    readers = _yaml(DEFAULTS / "05k-agent-tier-secret-paths.yml")[
+        "openbao_app_agent_tier_readers"
+    ]
+    reader = next(reader for reader in readers if reader["tier"] == "youtrack-write")
+
+    assert "generated_fields" not in reader
+    assert "login_path" not in reader
+    assert reader["trust_class"] == "trusted-agent-read"
+
+
 def test_idrac_console_user_paths_are_not_prefetched_and_have_exact_reads():
     paths = _domain("apps")["paths"]
     console_paths = {
