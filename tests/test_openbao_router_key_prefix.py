@@ -58,7 +58,12 @@ class RouterKeyPrefixRegeneration(unittest.TestCase):
         self.assertNotIn("valid_pattern", field)
 
     def test_hermes_profile_api_server_key_is_plain_alphanumeric(self):
-        for name in ("hermes_eval_api_server_key", "hermes_youtrack_clerk_api_server_key"):
+        for name in (
+            "hermes_eval_api_server_key",
+            "hermes_youtrack_clerk_api_server_key",
+            "hermes_vikunja_clerk_api_server_key",
+            "hermes_zammad_clerk_api_server_key",
+        ):
             with self.subTest(field=name):
                 field = _field_declaration(name)
                 self.assertEqual(field["prefix"], "")
