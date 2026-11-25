@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.149.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.148.0...v0.149.0) (2026-11-25)
+
+
+### Features
+
+* **openbao:** rotate the agent-tier reader AppRoles ([#922](https://github.com/jpe-ansible/ansible-secrets-management/issues/922)) ([d279f96](https://github.com/jpe-ansible/ansible-secrets-management/commit/d279f961096de908ef0f269d56b7ee9a844844b2))
+
 ## [0.148.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.147.0...v0.148.0) (2026-11-25)
 
 
