@@ -281,7 +281,7 @@ def test_router_catalog_entries_feed_generation_and_the_apps_read_paths():
     assert 'path "secret/metadata/apps/*"' not in policy
 
 
-@pytest.mark.parametrize("profile", ["eval", "youtrack_clerk"])
+@pytest.mark.parametrize("profile", ["eval", "youtrack_clerk", "vikunja_clerk", "zammad_clerk"])
 def test_hermes_profile_api_server_key_stays_outside_the_router_catalog(profile):
     app = f"hermes-{profile.replace('_', '-')}"
     api_server_key = f"hermes_{profile}_api_server_key"
