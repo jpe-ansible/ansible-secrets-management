@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 
 import jinja2
+import pytest
 import yaml
 from ansible.parsing.dataloader import DataLoader
 from ansible.template import Templar, trust_as_template
@@ -280,8 +281,10 @@ def test_router_catalog_entries_feed_generation_and_the_apps_read_paths():
     assert 'path "secret/metadata/apps/*"' not in policy
 
 
-def test_hermes_eval_api_server_key_stays_outside_the_router_catalog():
-    api_server_key = "hermes_eval_api_server_key"
+@pytest.mark.parametrize("profile", ["eval", "youtrack_clerk"])
+def test_hermes_profile_api_server_key_stays_outside_the_router_catalog(profile):
+    app = f"hermes-{profile.replace('_', '-')}"
+    api_server_key = f"hermes_{profile}_api_server_key"
     generated = DEFAULTS_DATA["openbao_generated_app_secrets"]
     catalog = {"contract-fixture": ["contract_fixture_llm_router_key"]}
     seeded = _render(
@@ -292,10 +295,10 @@ def test_hermes_eval_api_server_key_stays_outside_the_router_catalog():
         },
     )
 
-    assert generated["hermes-eval"] == ["hermes_eval_llm_router_key", api_server_key]
-    assert "hermes-eval" not in catalog
+    assert generated[app] == [f"hermes_{profile}_llm_router_key", api_server_key]
+    assert app not in catalog
     assert all(api_server_key not in fields for fields in catalog.values())
-    assert seeded["hermes-eval"] == generated["hermes-eval"]
+    assert seeded[app] == generated[app]
 
 
 def test_open_llm_fields_mirror_the_generated_router_fields():
