@@ -270,11 +270,12 @@ def test_zammad_agent_write_token_is_generated_with_the_app_credentials():
     assert "zammad_agent_write_api_token" not in promoted.get("zammad", {})
 
 
-def test_youtrack_write_tier_reader_generates_no_field():
+@pytest.mark.parametrize("tier", ["youtrack-write", "semaphore-write"])
+def test_app_minted_write_tier_reader_generates_no_field(tier: str):
     readers = _yaml(DEFAULTS / "05k-agent-tier-secret-paths.yml")[
         "openbao_app_agent_tier_readers"
     ]
-    reader = next(reader for reader in readers if reader["tier"] == "youtrack-write")
+    reader = next(reader for reader in readers if reader["tier"] == tier)
 
     assert "generated_fields" not in reader
     assert "login_path" not in reader

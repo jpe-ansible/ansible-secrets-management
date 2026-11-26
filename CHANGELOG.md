@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.150.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.149.0...v0.150.0) (2026-11-26)
+
+
+### Features
+
+* **openbao:** declare the semaphore-write agent tier ([#925](https://github.com/jpe-ansible/ansible-secrets-management/issues/925)) ([0257f7a](https://github.com/jpe-ansible/ansible-secrets-management/commit/0257f7ae7b027f394144b4b29c2159ee7c26e06c))
+
 ## [0.149.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.148.0...v0.149.0) (2026-11-25)
 
 
