@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.150.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.150.0...v0.150.1) (2026-11-26)
+
+
+### Bug Fixes
+
+* **openbao:** let tofu-github read each opted-in org's private overrides ([#930](https://github.com/jpe-ansible/ansible-secrets-management/issues/930)) ([3997739](https://github.com/jpe-ansible/ansible-secrets-management/commit/39977397fbff86bc55043ae186bb1c08a4bd23f6))
+* **openbao:** show the pr-reconcile role write error and name the write in check mode ([#859](https://github.com/jpe-ansible/ansible-secrets-management/issues/859)) ([2d27ce0](https://github.com/jpe-ansible/ansible-secrets-management/commit/2d27ce0f2bd2080e32c90f26764ae4c2a4e83396))
+
 ## [0.150.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.149.0...v0.150.0) (2026-11-26)
 
 
