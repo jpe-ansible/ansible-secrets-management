@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.150.2](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.150.1...v0.150.2) (2026-11-27)
+
+
+### Bug Fixes
+
+* **openbao:** show the text diff of changed policies in check mode ([#935](https://github.com/jpe-ansible/ansible-secrets-management/issues/935)) ([5a2819a](https://github.com/jpe-ansible/ansible-secrets-management/commit/5a2819adac4eb34ba9146cfbe099826e207bff77))
+
 ## [0.150.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.150.0...v0.150.1) (2026-11-26)
 
 
