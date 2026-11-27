@@ -186,6 +186,34 @@
     - openbao_bootstrap_token is defined
     - openbao_select | default({}) | length == 0
 
+# Same pattern as 02c-policy-sync-preview.yml: the reads above are no_log, so
+# without this a check run names the changed policies but never shows the text
+# an operator has to judge before acknowledging them.
+- name: Compute a unified line diff for each existing policy whose text changed
+  ansible.utils.fact_diff:
+    before: "{{ (openbao_existing_policy_map | default({})).get(item, '') }}"
+    after: "{{ (openbao_rendered_policy_map | default({})).get(item, '') }}"
+  loop: "{{ openbao_policy_text_changes | default([]) }}"
+  register: openbao_policy_text_diffs
+  check_mode: false
+  changed_when: false
+  when:
+    - ansible_check_mode
+    - openbao_bootstrap_token is defined
+    - openbao_select | default({}) | length == 0
+
+# Printed explicitly: with changed_when false the --diff callback may not show fact_diff's own output.
+- name: Show the policy text diffs in check mode
+  ansible.builtin.debug:
+    msg: "{{ [item.item ~ ':'] + (item.diff_lines | default([])) }}"
+  loop: "{{ openbao_policy_text_diffs.results | default([]) | rejectattr('skipped', 'defined') | list }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when:
+    - ansible_check_mode
+    - openbao_bootstrap_token is defined
+    - openbao_select | default({}) | length == 0
+
 - name: Refuse policy text changes that are not acknowledged
   ansible.builtin.assert:
     that:
