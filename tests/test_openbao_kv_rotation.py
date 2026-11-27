@@ -765,7 +765,7 @@ def test_role_refuses_unsafe_kv_target_paths_before_any_policy_render():
 
     # The guard file is imported first, ahead of every render and write task.
     first = yaml.safe_load(RBAC_TASKS.read_text(encoding="utf-8"))[0]
-    assert first["ansible.builtin.import_tasks"] == "08-policy-declaration-assertions.yml"
+    assert first["ansible.builtin.import_tasks"] == "init/08-policy-declaration-assertions.yml"
 
 
 def test_kv_target_age_parses_nanosecond_updated_time():
