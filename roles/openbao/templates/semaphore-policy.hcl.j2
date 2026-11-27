@@ -70,6 +70,24 @@ path "{{ openbao_kv_mount }}/metadata/apps/sandbox-agent" {
   capabilities = ["read", "list"]
 }
 
+# Grafana/vmauth's converge and the Semaphore proof read these generated
+# credentials from their exact app leaves.
+path "{{ openbao_kv_mount }}/data/apps/agent-quota" {
+  capabilities = ["read"]
+}
+
+path "{{ openbao_kv_mount }}/metadata/apps/agent-quota" {
+  capabilities = ["read", "list"]
+}
+
+path "{{ openbao_kv_mount }}/data/apps/metrics-reader" {
+  capabilities = ["read"]
+}
+
+path "{{ openbao_kv_mount }}/metadata/apps/metrics-reader" {
+  capabilities = ["read", "list"]
+}
+
 # The Nautobot drift report reads its dedicated pipeline token. Keep this exact
 # leaf on the Semaphore delta; it does not need the optional sync-write token.
 # Call site: ansible-proxmox-apps playbooks/nautobot-drift.yml.
