@@ -75,6 +75,9 @@ def _flatten(tasks, order, base_dir):
             target = task.get(key)
             if isinstance(target, str):
                 included = base_dir / target
+                if not included.is_file():
+                    # Ansible falls back to the role's tasks directory for a nested import.
+                    included = INIT_DIR.parent / target
                 _flatten(
                     yaml.safe_load(included.read_text(encoding="utf-8")),
                     order,

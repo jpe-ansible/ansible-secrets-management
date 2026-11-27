@@ -253,7 +253,7 @@
       .get('sys/policies/acl/' ~ openbao_reconcile_policy_name, [])
 
 - name: Preview reconcile policy changes in check mode
-  ansible.builtin.import_tasks: 02c-policy-sync-preview.yml
+  ansible.builtin.import_tasks: init/02c-policy-sync-preview.yml
   when:
     - ansible_check_mode
     - openbao_reconcile_policy_selected_for_sync | bool
