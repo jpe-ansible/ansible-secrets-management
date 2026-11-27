@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.153.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.152.0...v0.153.0) (2026-11-27)
+
+
+### Features
+
+* **openbao:** generate the shared Splunk general pass4SymmKey ([#945](https://github.com/jpe-ansible/ansible-secrets-management/issues/945)) ([35d4ffa](https://github.com/jpe-ansible/ansible-secrets-management/commit/35d4ffa5453c100a0988c231a4fb50a36f4cf43b))
+
 ## [0.152.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.151.0...v0.152.0) (2026-11-27)
 
 
