@@ -191,6 +191,22 @@ class GeneratedAppSecretSeedFilterTest(unittest.TestCase):
         )
         self.assertEqual(_loop_names(selected), ["rotated", "required"])
 
+    def test_subkeys_read_prefilter_reads_only_the_selected_apps(self):
+        apps = _app_map(a=["a_key"], b=["b_key"], c=["c_key"])
+        read_task = _prepare_task("Read generated app-secret field names from KV v2 subkeys")
+        for named, expected in ((["a"], ["a"]), ([], ["a", "b", "c"])):
+            variables = {
+                "openbao_seeded_generated_app_secrets": apps,
+                "openbao_seed_only_apps": named,
+                "openbao_seed_absent_only": True,
+                "openbao_seed_rotate_list": [],
+                "openbao_seed_required_apps": [],
+            }
+            _set_fact("Find apps with fields requested for rotation", variables)
+            _set_fact("Select generated app-secret leaves by name", variables)
+            loop = _render(read_task["loop"], variables)
+            self.assertEqual([item["key"] for item in loop], expected)
+
     def test_read_pass_is_names_only_and_executes_in_check_mode(self):
         task = _prepare_task("Read generated app-secret field names from KV v2 subkeys")
         self.assertTrue(task["no_log"])
