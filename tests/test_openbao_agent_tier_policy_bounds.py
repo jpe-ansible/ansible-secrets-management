@@ -146,6 +146,7 @@ def test_legacy_removal_is_field_scoped_and_uses_kv_check_and_set():
     assert fields == [
         "vikunja_agent_read_password",
         "vikunja_agent_write_password",
+        "vikunja_agent_clerk_password",
         "zammad_agent_write_api_token",
     ]
     assert "login_path | default(openbao_agent_tier_reader.tier)" in task
