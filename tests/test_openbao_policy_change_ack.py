@@ -21,6 +21,8 @@ TASKS = ROOT / "roles" / "openbao" / "tasks" / "init" / "08b-rbac-policy-writes.
 
 RESOLVE = "Resolve existing RBAC policies whose rendered text differs from live"
 ASSERT = "Refuse policy text changes that are not acknowledged"
+DIFF = "Compute a unified line diff for each existing policy whose text changed"
+SHOW = "Show the policy text diffs in check mode"
 
 
 def _task(name):
@@ -129,6 +131,48 @@ class PolicyTextChangeAck(unittest.TestCase):
         self.assertIn('"openbao_select": {"policies": ["hermes"]}', msg)
         self.assertNotIn("new hermes text", msg)
         self.assertNotIn("old hermes text", msg)
+
+
+    def test_h_check_mode_diffs_exactly_the_changed_policies(self):
+        task = _task(DIFF)
+        variables = {
+            "ansible_check_mode": True,
+            "openbao_bootstrap_token": "s.test",
+            "openbao_select": {},
+            "openbao_policy_text_changes": ["hermes"],
+            "openbao_existing_policy_map": LIVE,
+            "openbao_rendered_policy_map": RENDERED,
+        }
+        self.assertTrue(_conditions_hold(task, variables))
+        self.assertEqual(_render(task["loop"], variables), ["hermes"])
+        variables["item"] = "hermes"
+        args = task["ansible.utils.fact_diff"]
+        self.assertEqual(_render(args["before"], variables), "old hermes text")
+        self.assertEqual(_render(args["after"], variables), "new hermes text")
+
+    def test_i_policy_text_is_shown_only_in_check_mode(self):
+        for name in (DIFF, SHOW):
+            task = _task(name)
+            variables = {
+                "ansible_check_mode": False,
+                "openbao_bootstrap_token": "s.test",
+                "openbao_select": {},
+            }
+            self.assertFalse(_conditions_hold(task, variables), name)
+
+    def test_j_the_shown_diff_is_labelled_with_its_policy(self):
+        task = _task(SHOW)
+        variables = {
+            "openbao_policy_text_diffs": {"results": [
+                {"item": "hermes", "diff_lines": ["-old", "+new"]},
+                {"item": "apps", "skipped": True},
+            ]},
+        }
+        shown = _render(task["loop"], variables)
+        self.assertEqual([r["item"] for r in shown], ["hermes"])
+        variables["item"] = shown[0]
+        self.assertEqual(_render(task["ansible.builtin.debug"]["msg"], variables),
+                         ["hermes:", "-old", "+new"])
 
 
 if __name__ == "__main__":
