@@ -236,7 +236,11 @@ def test_vikunja_generated_password_coexists_with_promoted_fields():
         for field in reader.get("login_fields", [])
     }
 
-    assert {"vikunja_agent_read_password", "vikunja_agent_write_password"} == tier_fields
+    assert {
+        "vikunja_agent_read_password",
+        "vikunja_agent_write_password",
+        "vikunja_agent_clerk_password",
+    } == tier_fields
     assert not any("vikunja_agent_" in field for reader in readers for field in reader.get("generated_fields", []))
     assert not tier_fields.intersection(generated)
     assert promoted
