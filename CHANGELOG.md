@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.154.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.153.1...v0.154.0) (2026-11-27)
+
+
+### Features
+
+* **openbao:** let the admin-window playbook sync selected RBAC policies ([#952](https://github.com/jpe-ansible/ansible-secrets-management/issues/952)) ([d079ac3](https://github.com/jpe-ansible/ansible-secrets-management/commit/d079ac3e8f3a9d68e8d512348b3300cdf01e74a2))
+
 ## [0.153.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.153.0...v0.153.1) (2026-11-27)
 
 
