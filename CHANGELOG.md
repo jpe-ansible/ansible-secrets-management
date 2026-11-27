@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.153.1](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.153.0...v0.153.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **openbao:** read only the selected apps in the seed prefilter ([#949](https://github.com/jpe-ansible/ansible-secrets-management/issues/949)) ([d51aedb](https://github.com/jpe-ansible/ansible-secrets-management/commit/d51aedb04e86835516d3cb774ff625248a694cb0))
+
 ## [0.153.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.152.0...v0.153.0) (2026-11-27)
 
 
