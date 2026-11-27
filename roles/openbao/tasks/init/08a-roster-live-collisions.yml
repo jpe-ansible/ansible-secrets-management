@@ -9,7 +9,7 @@
   block:
     - name: Refuse roster writes without a converge token
       ansible.builtin.include_tasks:
-        file: ../roster_converge_token_assert.yml
+        file: roster_converge_token_assert.yml
 
     - name: List live AppRoles for roster collision checks
       ansible.builtin.command:

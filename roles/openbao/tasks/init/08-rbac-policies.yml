@@ -1,6 +1,6 @@
 ---
 - name: Assert RBAC policy declaration invariants
-  ansible.builtin.import_tasks: 08-policy-declaration-assertions.yml
+  ansible.builtin.import_tasks: init/08-policy-declaration-assertions.yml
 
 # The policy-sync pair (ask capability + rewrite the reconcile policy from
 # the declared set) now runs in init/02-initialize-cluster.yml, immediately
@@ -138,7 +138,7 @@
   when: openbao_bootstrap_token is defined
 
 - name: Select RBAC policy objects
-  ansible.builtin.import_tasks: select-objects.yml
+  ansible.builtin.import_tasks: init/select-objects.yml
   vars:
     openbao_select_kind: policies
     openbao_select_declared_candidates: "{{ openbao_policies }}"
@@ -298,13 +298,13 @@
 # Keep the audit for full and reconcile runs; the window selection is validated
 # against its exact grants before writes.
 - name: Refuse live objects that collide with roster agent names
-  ansible.builtin.import_tasks: 08a-roster-live-collisions.yml
+  ansible.builtin.import_tasks: init/08a-roster-live-collisions.yml
   when:
     - openbao_ai_agents | length > 0
     - not (openbao_ai_admin_window_mode | default(false) | bool)
 
 - name: Read the stored RBAC policies and write what differs
-  ansible.builtin.import_tasks: 08b-rbac-policy-writes.yml
+  ansible.builtin.import_tasks: init/08b-rbac-policy-writes.yml
 
 # The capability probe earlier in this file found every declared policy this
 # identity may write; the render/write steps just above acted on exactly that
