@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.151.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.150.2...v0.151.0) (2026-11-27)
+
+
+### Features
+
+* **openbao:** declare the vikunja-clerk agent-tier reader ([#938](https://github.com/jpe-ansible/ansible-secrets-management/issues/938)) ([defd62c](https://github.com/jpe-ansible/ansible-secrets-management/commit/defd62cc0a137b1743da5983d923eb656fb9bf8d))
+
 ## [0.150.2](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.150.1...v0.150.2) (2026-11-27)
 
 
