@@ -1,0 +1,256 @@
+---
+# Converge only selected OpenBao AppRoles, and optionally sync the reconcile
+# policy, through the operator's admin-window proxy. This is the human-gated
+# path for objects the reconcile identity may not write; it reuses the role's
+# own selection, arrangement, policy-sync and AppRole tasks.
+# With BAO_AGENT_ADDR and BAO_CONFIG_PATH set, the run-env documents
+# (homelab-contracts ansible/files/run-env-documents.txt) loaded into the
+# environment as a Semaphore task has them, and the deployment document saved
+# as {"tofu_data": ...} in a 0600 file, and this collection on the collections
+# path (a checkout: ANSIBLE_COLLECTIONS_PATH holding ansible_collections/dryvist/
+# secrets_management linked to it) with dryvist.homelab at the version the
+# converge pins, so the caller registry matches the live one, run:
+#   ansible-playbook playbooks/openbao-approle-config.yml -i localhost, -e @<tofu-data-file> \
+#     -e '{"openbao_select":{"approles":["<name>"],"reconcile_policy":["openbao-reconcile"]}}' [--check]
+- name: Converge selected OpenBao AppRole configuration through the admin window
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  become: false
+
+  pre_tasks:
+    # The reconcile policy grants each roster agent's leaves; without the
+    # caller registry the policy-sync render would drop them.
+    - name: Load the harness caller registry
+      ansible.builtin.include_role:
+        name: dryvist.homelab.agent_callers
+
+    - name: Load OpenBao role defaults
+      ansible.builtin.include_vars:
+        dir: "{{ playbook_dir }}/../roles/openbao/defaults/main"
+        extensions:
+          - yml
+          - yaml
+
+    - name: Require a nonempty AppRole or reconcile-policy selection
+      ansible.builtin.assert:
+        that:
+          - openbao_select | default({}) is mapping
+          - openbao_select | default({}) | length > 0
+          - openbao_select | default({}) | difference(['approles', 'reconcile_policy']) | length == 0
+          - >-
+            openbao_select | default({}) | dict2items | map(attribute='value')
+            | reject('sequence') | list | length == 0
+          - >-
+            openbao_select | default({}) | dict2items | map(attribute='value')
+            | select('mapping') | list | length == 0
+          - >-
+            openbao_select | default({}) | dict2items | map(attribute='value')
+            | select('string') | list | length == 0
+          - >-
+            openbao_select | default({}) | dict2items | map(attribute='value')
+            | map('length') | select('equalto', 0) | list | length == 0
+        fail_msg: >-
+          Set openbao_select to nonempty lists under approles and/or
+          reconcile_policy only.
+        quiet: true
+
+    - name: Require the admin-window proxy address
+      ansible.builtin.assert:
+        that:
+          - lookup('env', 'BAO_AGENT_ADDR') | default('', true) | trim is match('unix://.+')
+        fail_msg: >-
+          BAO_AGENT_ADDR must be the admin-window proxy's unix:// socket. This playbook only runs through the
+          human-gated admin-window proxy.
+        quiet: true
+
+    - name: Resolve the admin-window proxy address from the controller environment
+      ansible.builtin.set_fact:
+        openbao_window_proxy_addr: "{{ lookup('env', 'BAO_AGENT_ADDR') | default('', true) | trim }}"
+      changed_when: false
+
+    - name: Detect whether this run uses the admin-window proxy
+      ansible.builtin.set_fact:
+        openbao_window_proxy_mode: >-
+          {{ openbao_window_proxy_addr | length > 0
+             and openbao_provisioning_token | default('', true) | length == 0 }}
+      changed_when: false
+
+    - name: Require admin-window proxy mode
+      ansible.builtin.assert:
+        that:
+          - openbao_window_proxy_mode | bool
+        fail_msg: >-
+          This playbook requires admin-window proxy mode. Unset
+          OPENBAO_PROVISIONING_TOKEN and use BAO_AGENT_ADDR for the human-gated
+          window identity.
+        quiet: true
+
+    # The policy-sync render reads the roster from tofu_data.agents and the
+    # GitHub App installations from the env document, as the site converge does.
+    - name: Require the deployment document as tofu_data
+      ansible.builtin.assert:
+        that:
+          - tofu_data is defined
+          - tofu_data is mapping
+          - tofu_data.agents is defined
+        fail_msg: >-
+          Pass the deployment document as tofu_data (-e @<file> holding
+          {"tofu_data": <deployment-json fetch output>}). Without it the
+          reconcile policy would drop every roster agent's grants.
+        quiet: true
+
+    - name: Read the env document through the window proxy
+      ansible.builtin.uri:
+        url: http://localhost/v1/secret/data/platform/ansible/env
+        unix_socket: "{{ openbao_window_proxy_addr | regex_replace('^unix://', '') }}"
+        status_code: 200
+      register: _platform_env_read
+      changed_when: false
+      check_mode: false
+      no_log: true
+
+    - name: Publish the env document for the role's installation settings
+      ansible.builtin.set_fact:
+        openbao_platform_env_doc: "{{ _platform_env_read.json.data.data }}"
+      no_log: true
+
+  tasks:
+    - name: Run OpenBao proxy preflight and cluster status probe
+      ansible.builtin.import_tasks: ../roles/openbao/tasks/init/01-preflight-and-cluster-probe.yml
+
+    - name: Keep the admin-window identity out of the token environment
+      ansible.builtin.set_fact:
+        openbao_bootstrap_token: ""
+      changed_when: false
+      when:
+        - openbao_status.initialized
+        - openbao_window_proxy_mode | bool
+
+    - name: Look up the admin-window identity's own policies
+      ansible.builtin.command:
+        cmd: bao read -format=json auth/token/lookup-self
+      environment: "{{ openbao_window_proxy_env }}"
+      delegate_to: localhost
+      connection: local
+      become: false
+      vars:
+        ansible_become: false
+      register: openbao_supplied_token_lookup
+      no_log: true
+      check_mode: false
+      changed_when: false
+      failed_when: false
+      when: openbao_status.initialized
+
+    - name: Refuse an unverifiable admin-window identity
+      ansible.builtin.fail:
+        msg: >-
+          OpenBao could not verify the admin-window identity with
+          auth/token/lookup-self. No AppRole configuration was written.
+      when:
+        - openbao_supplied_token_lookup is defined
+        - not (openbao_supplied_token_lookup.skipped | default(false))
+        - (openbao_supplied_token_lookup.rc | default(1)) != 0
+
+    - name: Resolve the admin-window policy set
+      ansible.builtin.set_fact:
+        openbao_ai_admin_window_policies: "{{ _lookup.get('data', {}).get('policies', []) }}"
+        openbao_ai_admin_window_mode: >-
+          {{ openbao_ai_admin_guard_policy_name in _lookup.get('data', {}).get('policies', [])
+             and openbao_ai_admin_window_policy_name in _lookup.get('data', {}).get('policies', [])
+             and openbao_ai_admin_policy_name in _lookup.get('data', {}).get('policies', [])
+             and openbao_tofu_state_admin_policy_name in _lookup.get('data', {}).get('policies', []) }}
+      vars:
+        _lookup: "{{ openbao_supplied_token_lookup.stdout | from_json }}"
+      no_log: true
+      changed_when: false
+      when:
+        - openbao_supplied_token_lookup is defined
+        - not (openbao_supplied_token_lookup.skipped | default(false))
+        - (openbao_supplied_token_lookup.rc | default(1)) == 0
+
+    - name: Refuse an incomplete admin-window policy set
+      ansible.builtin.assert:
+        that:
+          - >-
+            (openbao_ai_admin_guard_policy_name not in openbao_ai_admin_window_policies
+             and openbao_ai_admin_window_policy_name not in openbao_ai_admin_window_policies)
+            or (openbao_ai_admin_guard_policy_name in openbao_ai_admin_window_policies
+                and openbao_ai_admin_window_policy_name in openbao_ai_admin_window_policies
+                and openbao_ai_admin_policy_name in openbao_ai_admin_window_policies
+                and openbao_tofu_state_admin_policy_name in openbao_ai_admin_window_policies)
+        fail_msg: >-
+          This token carries only part of the current ai-admin-session policy set.
+          Re-open ai-admin-session after its role policy attachment has been
+          reconciled; this token cannot take the selected AppRole path.
+        quiet: true
+      when:
+        - openbao_ai_admin_window_policies is defined
+        - >-
+          openbao_ai_admin_guard_policy_name in openbao_ai_admin_window_policies
+          or openbao_ai_admin_window_policy_name in openbao_ai_admin_window_policies
+
+    - name: Require the human-gated admin-window identity
+      ansible.builtin.assert:
+        that:
+          - openbao_ai_admin_window_mode | default(false) | bool
+        fail_msg: >-
+          BAO_AGENT_ADDR did not resolve to the complete ai-admin-session policy
+          set. Refusing to write AppRole configuration.
+        quiet: true
+
+    - name: Resolve the AppRole set this admin-window identity may manage
+      ansible.builtin.set_fact:
+        openbao_bounded_rbac_mode: true
+        openbao_manageable_policies: "{{ openbao_ai_admin_window_manageable_policies }}"
+        openbao_manageable_approles: "{{ openbao_ai_admin_window_manageable_approles }}"
+      changed_when: false
+
+    - name: Resolve AppRole selection and verify selected-object write grants
+      ansible.builtin.import_tasks: ../roles/openbao/tasks/init/selection-preflight.yml
+
+    - name: Load the arrangement document before the policy-sync render
+      ansible.builtin.import_tasks: ../roles/openbao/tasks/init/07z-load-arrangement.yml
+
+    - name: Resolve the Raft leader and sync the reconcile policy when selected
+      # Loaded in role context so the policy-sync render finds the role's templates.
+      ansible.builtin.include_role:
+        name: dryvist.secrets_management.openbao
+        tasks_from: init/02b-policy-sync.yml
+
+    - name: Declare selected AppRoles and reconcile their policies and bounds
+      ansible.builtin.import_tasks: ../roles/openbao/tasks/init/10-approles.yml
+
+    - name: Report AppRoles that would be created in check mode
+      ansible.builtin.debug:
+        msg: "AppRole {{ item.0.name }} would be created."
+      loop: >-
+        {{ (openbao_approle_config_targets | default([]))
+           | zip(openbao_approle_checks.results | default([])) | list }}
+      loop_control:
+        label: "{{ item.0.name }}"
+      changed_when: true
+      when:
+        - ansible_check_mode
+        - openbao_bootstrap_token is defined
+        - (item.1.rc | default(1)) != 0
+
+    - name: Report AppRole policy attachment changes in check mode
+      vars:
+        _live_token_policies: >-
+          {{ ((item.1.stdout | default('{}') | from_json).data | default({})).token_policies | default([]) }}
+        _desired_token_policies: "{{ item.0.token_policies | default([item.0.policy]) }}"
+      ansible.builtin.debug:
+        msg: "AppRole {{ item.0.name }} token_policies would be reconciled."
+      loop: >-
+        {{ (openbao_approle_config_targets | default([]))
+           | zip(openbao_approle_checks.results | default([])) | list }}
+      loop_control:
+        label: "{{ item.0.name }}"
+      changed_when: true
+      when:
+        - ansible_check_mode
+        - openbao_bootstrap_token is defined
+        - (item.1.rc | default(1)) == 0
+        - _live_token_policies | sort != _desired_token_policies | sort

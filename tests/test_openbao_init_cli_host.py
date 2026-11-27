@@ -88,7 +88,9 @@ def _included(path):
                 name = target["file"] if isinstance(target, dict) else target
                 if "{{" in name:
                     raise AssertionError(f"{path.name}: templated include {name!r} cannot be resolved")
-                yield (path.parent / name).resolve()
+                local = path.parent / name
+                # Ansible falls back to the role's tasks directory for a nested import.
+                yield (local if local.is_file() else INIT.parent / name).resolve()
 
 
 def _scanned_files():

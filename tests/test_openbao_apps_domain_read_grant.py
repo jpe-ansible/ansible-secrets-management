@@ -129,15 +129,17 @@ def test_every_apps_domain_path_is_granted_to_the_apps_reader():
     )
 
 
-@pytest.mark.parametrize("app,field", [
-    ("langflow", "langflow_llm_router_key"),
-    ("grafana-llm", "grafana_llm_router_key"),
-    ("crawl4ai", "crawl4ai_api_token"),
-    ("next-ai-drawio", "next_ai_drawio_llm_router_key"),
+@pytest.mark.parametrize("app,fields", [
+    ("langflow", ["langflow_llm_router_key"]),
+    ("grafana-llm", ["grafana_llm_router_key"]),
+    ("crawl4ai", ["crawl4ai_api_token"]),
+    ("next-ai-drawio", ["next_ai_drawio_llm_router_key"]),
+    ("agent-quota", ["agent_quota_reader_token", "agent_quota_write_token"]),
+    ("metrics-reader", ["metrics_reader_token"]),
 ])
-def test_generated_apps_have_exact_read_only_grants(app, field):
+def test_generated_apps_have_exact_read_only_grants(app, fields):
     names = _yaml(NAMES_FILE)
-    assert _yaml(GENERATED_FILE)["openbao_generated_app_secrets"][app] == [field]
+    assert _yaml(GENERATED_FILE)["openbao_generated_app_secrets"][app] == fields
     assert app not in names["openbao_apps_read_published_apps"]
     assert app not in _yaml(GENERATED_PATHS_FILE)["openbao_generated_app_secret_paths"]
 

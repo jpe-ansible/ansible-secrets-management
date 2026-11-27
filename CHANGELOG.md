@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.152.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.151.0...v0.152.0) (2026-11-27)
+
+
+### Features
+
+* **openbao:** add the admin-window AppRole and reconcile-policy playbook ([#942](https://github.com/jpe-ansible/ansible-secrets-management/issues/942)) ([25be38c](https://github.com/jpe-ansible/ansible-secrets-management/commit/25be38c5ea43869c9577bae30c637fe89d8793ff))
+* **openbao:** declare the agent-quota and metrics-reader app leaves ([#941](https://github.com/jpe-ansible/ansible-secrets-management/issues/941)) ([d99ef95](https://github.com/jpe-ansible/ansible-secrets-management/commit/d99ef95b223c3b25e692c35cc5ed8e388aef8348))
+
 ## [0.151.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.150.2...v0.151.0) (2026-11-27)
 
 
