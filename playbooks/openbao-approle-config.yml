@@ -1,8 +1,9 @@
 ---
-# Converge only selected OpenBao AppRoles, and optionally sync the reconcile
-# policy, through the operator's admin-window proxy. This is the human-gated
-# path for objects the reconcile identity may not write; it reuses the role's
-# own selection, arrangement, policy-sync and AppRole tasks.
+# Converge only selected OpenBao AppRoles or RBAC policies, and optionally sync
+# the reconcile policy, through the operator's admin-window proxy. This is the
+# human-gated path for objects the reconcile identity may not write; it reuses
+# the role's own selection, arrangement, policy-sync, RBAC policy and AppRole
+# tasks.
 # With BAO_AGENT_ADDR and BAO_CONFIG_PATH set, the run-env documents
 # (homelab-contracts ansible/files/run-env-documents.txt) loaded into the
 # environment as a Semaphore task has them, and the deployment document saved
@@ -12,7 +13,8 @@
 # converge pins, so the caller registry matches the live one, run:
 #   ansible-playbook playbooks/openbao-approle-config.yml -i localhost, -e @<tofu-data-file> \
 #     -e '{"openbao_select":{"approles":["<name>"],"reconcile_policy":["openbao-reconcile"]}}' [--check]
-- name: Converge selected OpenBao AppRole configuration through the admin window
+#   Policy-only runs use: -e '{"openbao_select":{"policies":["<policy-name>"]}}' [--check]
+- name: Converge selected OpenBao configuration through the admin window
   hosts: localhost
   connection: local
   gather_facts: false
@@ -32,12 +34,12 @@
           - yml
           - yaml
 
-    - name: Require a nonempty AppRole or reconcile-policy selection
+    - name: Require a nonempty AppRole, RBAC-policy or reconcile-policy selection
       ansible.builtin.assert:
         that:
           - openbao_select | default({}) is mapping
           - openbao_select | default({}) | length > 0
-          - openbao_select | default({}) | difference(['approles', 'reconcile_policy']) | length == 0
+          - openbao_select | default({}) | difference(['approles', 'policies', 'reconcile_policy']) | length == 0
           - >-
             openbao_select | default({}) | dict2items | map(attribute='value')
             | reject('sequence') | list | length == 0
@@ -51,7 +53,7 @@
             openbao_select | default({}) | dict2items | map(attribute='value')
             | map('length') | select('equalto', 0) | list | length == 0
         fail_msg: >-
-          Set openbao_select to nonempty lists under approles and/or
+          Set openbao_select to nonempty lists under approles, policies and/or
           reconcile_policy only.
         quiet: true
 
@@ -147,7 +149,7 @@
       ansible.builtin.fail:
         msg: >-
           OpenBao could not verify the admin-window identity with
-          auth/token/lookup-self. No AppRole configuration was written.
+          auth/token/lookup-self. No selected configuration was written.
       when:
         - openbao_supplied_token_lookup is defined
         - not (openbao_supplied_token_lookup.skipped | default(false))
@@ -183,7 +185,7 @@
         fail_msg: >-
           This token carries only part of the current ai-admin-session policy set.
           Re-open ai-admin-session after its role policy attachment has been
-          reconciled; this token cannot take the selected AppRole path.
+          reconciled; this token cannot take the selected configuration path.
         quiet: true
       when:
         - openbao_ai_admin_window_policies is defined
@@ -197,17 +199,17 @@
           - openbao_ai_admin_window_mode | default(false) | bool
         fail_msg: >-
           BAO_AGENT_ADDR did not resolve to the complete ai-admin-session policy
-          set. Refusing to write AppRole configuration.
+          set. Refusing to write selected OpenBao configuration.
         quiet: true
 
-    - name: Resolve the AppRole set this admin-window identity may manage
+    - name: Resolve the AppRole and RBAC policy sets this admin-window identity may manage
       ansible.builtin.set_fact:
         openbao_bounded_rbac_mode: true
         openbao_manageable_policies: "{{ openbao_ai_admin_window_manageable_policies }}"
         openbao_manageable_approles: "{{ openbao_ai_admin_window_manageable_approles }}"
       changed_when: false
 
-    - name: Resolve AppRole selection and verify selected-object write grants
+    - name: Resolve selected objects and verify their write grants
       ansible.builtin.import_tasks: ../roles/openbao/tasks/init/selection-preflight.yml
 
     - name: Load the arrangement document before the policy-sync render
@@ -218,6 +220,39 @@
       ansible.builtin.include_role:
         name: dryvist.secrets_management.openbao
         tasks_from: init/02b-policy-sync.yml
+
+    - name: Sync selected RBAC policies through the role's policy path
+      ansible.builtin.include_role:
+        name: dryvist.secrets_management.openbao
+        tasks_from: init/08-rbac-policies.yml
+      when: openbao_select.policies is defined
+
+    - name: Compute unified diffs for selected RBAC policy changes in check mode
+      ansible.utils.fact_diff:
+        before: "{{ (openbao_existing_policy_map | default({})).get(item, '') }}"
+        after: "{{ (openbao_rendered_policy_map | default({})).get(item, '') }}"
+      loop: "{{ openbao_changed_policy_names | default([]) }}"
+      loop_control:
+        label: "{{ item }}"
+      register: openbao_admin_window_policy_diffs
+      check_mode: false
+      changed_when: false
+      when:
+        - ansible_check_mode
+        - openbao_select.policies is defined
+        - openbao_bootstrap_token is defined
+
+    - name: Show selected RBAC policy diffs in check mode
+      ansible.builtin.debug:
+        msg: "{{ [item.item ~ ':'] + (item.diff_lines | default([])) }}"
+      loop: >-
+        {{ openbao_admin_window_policy_diffs.results | default([])
+           | rejectattr('skipped', 'defined') | list }}
+      loop_control:
+        label: "{{ item.item }}"
+      when:
+        - ansible_check_mode
+        - openbao_select.policies is defined
 
     - name: Declare selected AppRoles and reconcile their policies and bounds
       ansible.builtin.import_tasks: ../roles/openbao/tasks/init/10-approles.yml

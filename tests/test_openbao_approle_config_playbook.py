@@ -98,6 +98,10 @@ def test_playbook_is_localhost_only_and_imports_only_scoped_role_tasks():
     assert "roles/openbao/tasks/init/07z-load-arrangement.yml" in relative
     assert "roles/openbao/tasks/init/02b-policy-sync.yml" in relative
     assert "roles/openbao/tasks/init/02c-policy-sync-preview.yml" in relative
+    assert "roles/openbao/tasks/init/08-rbac-policies.yml" in relative
+    assert "roles/openbao/tasks/init/08-policy-declaration-assertions.yml" in relative
+    assert "roles/openbao/tasks/init/08a-roster-live-collisions.yml" in relative
+    assert "roles/openbao/tasks/init/08b-rbac-policy-writes.yml" in relative
 
     forbidden = {
         "roles/openbao/tasks/main/install.yml",
@@ -134,8 +138,11 @@ def test_selection_and_proxy_refusal_asserts_fire_for_missing_inputs():
     playbook = yaml.safe_load(PLAYBOOK.read_text(encoding="utf-8"))
     tasks = list(_play_tasks(playbook[0]))
 
-    selection_guard = _named_task(tasks, "Require a nonempty AppRole or reconcile-policy selection")
+    selection_guard = _named_task(
+        tasks, "Require a nonempty AppRole, RBAC-policy or reconcile-policy selection"
+    )
     assert "reconcile_policy" in selection_guard["ansible.builtin.assert"]["fail_msg"]
+    assert "policies" in selection_guard["ansible.builtin.assert"]["fail_msg"]
     refused = (
         {},
         {"openbao_select": {}},
@@ -143,15 +150,20 @@ def test_selection_and_proxy_refusal_asserts_fire_for_missing_inputs():
         {"openbao_select": {"approles": "example"}},
         {"openbao_select": {"approles": {"name": "example"}}},
         {"openbao_select": {"approles": ["example"], "reconcile_policy": []}},
-        {"openbao_select": {"policies": ["example"]}},
+        {"openbao_select": {"policies": []}},
+        {"openbao_select": {"policies": "example"}},
+        {"openbao_select": {"policies": {"name": "example"}}},
         {"openbao_select": {"approles": ["example"], "kv_mounts": ["example"]}},
     )
     for variables in refused:
         assert not all(_assert_conditions(selection_guard, variables)), variables
     for selection in (
         {"approles": ["example"]},
+        {"policies": ["example"]},
         {"reconcile_policy": ["openbao-reconcile"]},
         {"approles": ["example"], "reconcile_policy": ["openbao-reconcile"]},
+        {"approles": ["example"], "policies": ["example-policy"]},
+        {"policies": ["example-policy"], "reconcile_policy": ["openbao-reconcile"]},
     ):
         assert all(_assert_conditions(selection_guard, {"openbao_select": selection})), selection
 
@@ -170,13 +182,55 @@ def test_check_mode_reports_create_and_policy_drift_without_running_writes():
     for name in (
         "Report AppRoles that would be created in check mode",
         "Report AppRole policy attachment changes in check mode",
+        "Sync selected RBAC policies through the role's policy path",
+        "Compute unified diffs for selected RBAC policy changes in check mode",
+        "Show selected RBAC policy diffs in check mode",
     ):
+        if name.startswith("Report AppRole"):
+            task = _named_task(tasks, name)
+            assert task["changed_when"] is True
+            assert "ansible_check_mode" in task["when"]
+            assert "ansible.builtin.debug" in task
+            continue
+        if name == "Sync selected RBAC policies through the role's policy path":
+            task = _named_task(tasks, name)
+            assert (
+                task["ansible.builtin.include_role"]["tasks_from"]
+                == "init/08-rbac-policies.yml"
+            )
+            assert task["when"] == "openbao_select.policies is defined"
+            continue
         task = _named_task(tasks, name)
-        assert task["changed_when"] is True
         assert "ansible_check_mode" in task["when"]
-        assert "ansible.builtin.debug" in task
+        if name.startswith("Compute"):
+            assert "ansible.utils.fact_diff" in task
+        else:
+            assert "ansible.builtin.debug" in task
 
     assert "[--check]" in PLAYBOOK.read_text(encoding="utf-8")
+
+
+def test_policy_sync_reuses_declared_policy_selection_and_check_mode_path():
+    policy_tasks = yaml.safe_load(
+        (INIT_TASKS / "08-rbac-policies.yml").read_text(encoding="utf-8")
+    )
+    select = _named_task(policy_tasks, "Select RBAC policy objects")
+    assert select["ansible.builtin.import_tasks"] == "init/select-objects.yml"
+    assert select["vars"]["openbao_select_kind"] == "policies"
+    assert select["vars"]["openbao_select_declared_candidates"] == "{{ openbao_policies }}"
+
+    selection_tasks = yaml.safe_load(
+        (INIT_TASKS / "select-objects.yml").read_text(encoding="utf-8")
+    )
+    unknown_guard = _named_task(
+        selection_tasks, "Require every OpenBao selector to match a declared object"
+    )
+    assert unknown_guard["ansible.builtin.assert"]["that"] == ["item.names | length > 0"]
+
+    policy_writes = yaml.safe_load((INIT_TASKS / "08b-rbac-policy-writes.yml").read_text(encoding="utf-8"))
+    report = _named_task(policy_writes, "Report RBAC policies that would be written in check mode")
+    assert "ansible_check_mode" in report["when"]
+    assert "ansible.builtin.debug" in report
 
 
 def test_policy_sync_inputs_are_required_and_read_through_the_proxy():

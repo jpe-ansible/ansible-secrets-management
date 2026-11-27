@@ -62,7 +62,7 @@ def test_live_roster_collision_audit_runs_only_outside_window_mode(
 ):
     values, _approles, _policies = rendered_defaults
     task = _named_task(RBAC_TASKS, "Refuse live objects that collide with roster agent names")
-    assert task["ansible.builtin.import_tasks"] == "08a-roster-live-collisions.yml"
+    assert task["ansible.builtin.import_tasks"] == "init/08a-roster-live-collisions.yml"
     context = dict(
         values,
         openbao_ai_agents=ROSTER,
