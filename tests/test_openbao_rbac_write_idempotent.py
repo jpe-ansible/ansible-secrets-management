@@ -240,7 +240,7 @@ class SelectedPolicyLoops(unittest.TestCase):
     def test_declaration_assertions_are_imported_before_policy_work(self):
         imported = _task("Assert RBAC policy declaration invariants", POLICY_TASKS)
         self.assertEqual(
-            imported["ansible.builtin.import_tasks"], "08-policy-declaration-assertions.yml"
+            imported["ansible.builtin.import_tasks"], "init/08-policy-declaration-assertions.yml"
         )
         tasks = yaml.safe_load(POLICY_DECLARATION_TASKS.read_text(encoding="utf-8"))
         self.assertEqual(
