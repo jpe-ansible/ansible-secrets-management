@@ -269,6 +269,19 @@ openbao_github_enterprise_read_installation_id: >-
 openbao_github_enterprise_mount: github-enterprise
 openbao_github_enterprise_installation_id: >-
   {{ openbao_platform_env['OPENBAO_GITHUB_ENTERPRISE_INSTALLATION_ID'] | default('', true) }}
+# Per-org PR merge sets grant contents and pull_requests write; only the human-gated enterprise policy mints them.
+openbao_github_enterprise_pr_merge_permissions:
+  contents: write
+  pull_requests: write
+openbao_github_enterprise_pr_merge_tier: enterprise-pr-merge
+openbao_github_enterprise_pr_merge_permission_sets: >-
+  {%- set _sets = [] -%}
+  {%- for org in openbao_github_org_secrets_installations -%}
+  {%- set _ = _sets.append({'name': (org.name | lower) ~ '-pr-merge',
+      'tier': openbao_github_enterprise_pr_merge_tier, 'org_name': org.name,
+      'permissions': openbao_github_enterprise_pr_merge_permissions}) -%}
+  {%- endfor -%}
+  {{ _sets }}
 openbao_github_enterprise_owner_mount: github-enterprise-owner
 openbao_github_enterprise_app_mounts: >-
   {{ ([{'mount': openbao_github_enterprise_read_mount,
@@ -279,8 +292,9 @@ openbao_github_enterprise_app_mounts: >-
      + ([{'mount': openbao_github_enterprise_mount,
           'app_id': lookup('env', 'OPENBAO_GITHUB_ENTERPRISE_APP_ID') | default('', true),
           'private_key': lookup('env', 'OPENBAO_GITHUB_ENTERPRISE_PRIVATE_KEY') | default('', true),
-          'permission_sets': []}]
-        if openbao_github_enterprise_installation_id | length > 0 else []) }}
+          'permission_sets': openbao_github_enterprise_pr_merge_permission_sets}]
+        if (openbao_github_enterprise_installation_id | length > 0
+            or openbao_github_enterprise_pr_merge_permission_sets | length > 0) else []) }}
 
 # The runner App is scoped by GitHub's installations, so it has no OpenBao
 # permission sets or installation-ID list. Its credentials are one-time
