@@ -63,6 +63,19 @@ class RouterKeyPrefixRegeneration(unittest.TestCase):
             "hermes_youtrack_clerk_api_server_key",
             "hermes_vikunja_clerk_api_server_key",
             "hermes_zammad_clerk_api_server_key",
+            "hermes_vikunja_clerk_workstation_api_server_key",
+            "hermes_vikunja_clerk_hermes_api_server_key",
+            "hermes_vikunja_clerk_pepper_api_server_key",
+            "hermes_vikunja_clerk_untrusted_api_server_key",
+            "hermes_vikunja_clerk_jobs_api_server_key",
+            "hermes_vikunja_clerk_inbox_api_server_key",
+            "hermes_vikunja_triage_api_server_key",
+            "hermes_vikunja_nightly_api_server_key",
+            "hermes_vikunja_windows_api_server_key",
+            "hermes_vikunja_clerk_acceptance_api_server_key",
+            "hermes_vikunja_triage_acceptance_api_server_key",
+            "hermes_vikunja_nightly_acceptance_api_server_key",
+            "hermes_vikunja_windows_acceptance_api_server_key",
         ):
             with self.subTest(field=name):
                 field = _field_declaration(name)
