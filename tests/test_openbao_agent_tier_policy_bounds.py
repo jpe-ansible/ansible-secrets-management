@@ -10,6 +10,10 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULTS = ROOT / "roles/openbao/defaults/main"
 TEMPLATES = ROOT / "roles/openbao/templates"
+NEW_VIKUNJA_TIER_ROLES = (
+    "workstation", "hermes", "pepper", "untrusted", "machines", "jobs",
+    "inbox", "acceptance", "triage", "nightly", "windows",
+)
 
 
 def _defaults():
@@ -95,6 +99,24 @@ def test_reader_policy_grants_only_its_exact_data_and_metadata_leaf():
                 assert other["tier"] not in rendered
 
 
+def test_new_vikunja_tiers_follow_the_clerk_row_with_the_clerk_shape():
+    readers = _defaults()["openbao_app_agent_tier_readers"]
+    clerk_index = next(
+        index for index, reader in enumerate(readers) if reader["tier"] == "vikunja-clerk"
+    )
+    for offset, role in enumerate(NEW_VIKUNJA_TIER_ROLES):
+        reader = readers[clerk_index + 1 + offset]
+        assert reader == {
+            "tier": f"vikunja-{role}",
+            "trust_class": "trusted-agent-read",
+            "cidr_class": "machine_or_workstation",
+            "legacy_app_path": "apps/vikunja",
+            "login_path": f"vikunja-{role}-login",
+            "login_fields": [f"vikunja_agent_{role}_password"],
+        }
+    assert readers[clerk_index + 1 + len(NEW_VIKUNJA_TIER_ROLES)]["tier"] == "zammad-write"
+
+
 def test_reconcile_grant_has_no_list_or_other_agent_tier_path():
     values = _defaults()
     source = (TEMPLATES / "openbao-reconcile-policy.hcl.j2").read_text(
@@ -147,6 +169,7 @@ def test_legacy_removal_is_field_scoped_and_uses_kv_check_and_set():
         "vikunja_agent_read_password",
         "vikunja_agent_write_password",
         "vikunja_agent_clerk_password",
+    ] + [f"vikunja_agent_{role}_password" for role in NEW_VIKUNJA_TIER_ROLES] + [
         "zammad_agent_write_api_token",
     ]
     assert "login_path | default(openbao_agent_tier_reader.tier)" in task

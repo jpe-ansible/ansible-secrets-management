@@ -33,6 +33,10 @@ PATH_BLOCK = re.compile(
 )
 WRITE_CAPABILITIES = {"create", "update", "patch", "delete", "sudo"}
 EVAL_LEAVES = ("hatchet/eval",)
+VIKUNJA_TIER_ROLES = (
+    "workstation", "hermes", "pepper", "untrusted", "machines", "jobs",
+    "inbox", "acceptance", "triage", "nightly", "windows",
+)
 
 
 def _yaml(path: Path) -> dict:
@@ -242,6 +246,7 @@ def test_vikunja_generated_password_coexists_with_promoted_fields():
         "vikunja_agent_read_password",
         "vikunja_agent_write_password",
         "vikunja_agent_clerk_password",
+        *(f"vikunja_agent_{role}_password" for role in VIKUNJA_TIER_ROLES),
     } == tier_fields
     assert not any("vikunja_agent_" in field for reader in readers for field in reader.get("generated_fields", []))
     assert not tier_fields.intersection(generated)
