@@ -7,7 +7,7 @@ collections:
     version: "6.1.1"
 
   - name: community.crypto
-    version: "3.5.1"
+    version: "3.6.0"
 
   - name: community.docker
     version: "5.4.0"  # docker driver create/destroy playbooks
