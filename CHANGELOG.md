@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.156.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.155.0...v0.156.0) (2026-11-28)
+
+
+### Features
+
+* **openbao:** declare a router value and an API value for each tracker agent profile ([#959](https://github.com/jpe-ansible/ansible-secrets-management/issues/959)) ([3402ef7](https://github.com/jpe-ansible/ansible-secrets-management/commit/3402ef7c79a7db50a9d2ab1683f91a999766f83a))
+
 ## [0.155.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.154.0...v0.155.0) (2026-11-28)
 
 
