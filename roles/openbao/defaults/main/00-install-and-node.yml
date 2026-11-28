@@ -4,7 +4,7 @@
 # pinning convention (Renovate keeps the .deb/checksums pin fresh; see
 # renovate.json and AGENTS.md "Working rules"). Do NOT scatter the
 # version across multiple files — change it here only.
-openbao_version: "2.7.2"
+openbao_version: "2.7.3"
 
 # --- Download (checksum-verified .deb from GitHub releases) ------------------
 # The controller stages the .deb + the release checksums file, verifies the
