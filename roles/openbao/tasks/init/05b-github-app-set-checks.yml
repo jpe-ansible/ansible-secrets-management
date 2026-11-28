@@ -117,6 +117,21 @@
     _openhands_set: "{{ _openhands_pilot_sets | first | default({}) }}"
   when: gm.mount == openbao_github_openhands_mount
 
+- name: "Assert the enterprise PR merge sets on mount {{ gm.mount }}"
+  ansible.builtin.assert:
+    that:
+      - item.tier == openbao_github_enterprise_pr_merge_tier
+      - item.name is match('^[a-z0-9-]+-pr-merge$')
+      - item.permissions == openbao_github_enterprise_pr_merge_permissions
+    fail_msg: >-
+      {{ gm.mount }}/permissionset/{{ item.name }} must use the declared
+      enterprise PR merge tier and permission map.
+    quiet: true
+  loop: "{{ gm.permission_sets }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: gm.mount == openbao_github_enterprise_mount
+
 - name: "Assert each write route mount contains exactly its declared sets: {{ gm.mount }}"
   ansible.builtin.assert:
     that:

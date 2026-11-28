@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.158.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.157.0...v0.158.0) (2026-11-28)
+
+
+### Features
+
+* **openbao:** add per-org pr-merge permission sets on the enterprise mount ([#966](https://github.com/jpe-ansible/ansible-secrets-management/issues/966)) ([c538721](https://github.com/jpe-ansible/ansible-secrets-management/commit/c538721cc572c206a9b46457682f1b20f64cd5b0))
+
 ## [0.157.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.156.0...v0.157.0) (2026-11-28)
 
 

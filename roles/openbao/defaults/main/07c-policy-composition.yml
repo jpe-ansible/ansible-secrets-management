@@ -66,7 +66,8 @@ openbao_policies_without_inputs: >-
      + ([openbao_github_enterprise_read_policy_name]
         if openbao_github_enterprise_read_installation_id | length == 0 else [])
      + ([openbao_github_enterprise_admin_policy_name]
-        if openbao_github_enterprise_installation_id | length == 0 else []) }}
+        if (openbao_github_enterprise_installation_id | length == 0
+            and openbao_github_enterprise_pr_merge_permission_sets | length == 0) else []) }}
 
 openbao_policies: >-
   {{ (openbao_base_policies
