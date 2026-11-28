@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.157.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.156.0...v0.157.0) (2026-11-28)
+
+
+### Features
+
+* **openbao:** generate the fleet board administrator password ([#962](https://github.com/jpe-ansible/ansible-secrets-management/issues/962)) ([ea9f9e9](https://github.com/jpe-ansible/ansible-secrets-management/commit/ea9f9e9b345e47e21392b39a42ea67d3244400bc))
+* **openbao:** generate the Zammad triage and clerk service values ([#963](https://github.com/jpe-ansible/ansible-secrets-management/issues/963)) ([ee2bb58](https://github.com/jpe-ansible/ansible-secrets-management/commit/ee2bb58004c1ce2236115b71cf26191a18570778))
+
 ## [0.156.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.155.0...v0.156.0) (2026-11-28)
 
 
