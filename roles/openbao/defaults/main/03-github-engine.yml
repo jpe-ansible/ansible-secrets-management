@@ -585,8 +585,8 @@ openbao_github_admin_permission_sets: >-
      + openbao_github_workflows_write_permission_sets
      + openbao_github_dispatch_permission_sets
      + openbao_github_runner_register_permission_sets }}
-# Every set on every GitHub mount, each tagged with its mount, for the policy
-# templates.
+# Generic GitHub sets used by the shared policy templates, each tagged with its mount.
+# Enterprise PR merge sets stay on their dedicated mount and policy input.
 openbao_github_permission_sets: >-
   {{ (openbao_github_admin_permission_sets
       | map('combine', {'mount': openbao_github_mount}) | list)

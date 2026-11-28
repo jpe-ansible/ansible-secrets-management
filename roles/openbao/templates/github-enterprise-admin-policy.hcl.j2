@@ -9,3 +9,9 @@ path "{{ openbao_github_enterprise_mount }}/token" {
   allowed_parameters = { "installation_id" = ["{{ openbao_github_enterprise_installation_id }}"] }
 }
 {% endif %}
+
+{% for permission_set in openbao_github_enterprise_pr_merge_permission_sets %}
+path "{{ openbao_github_enterprise_mount }}/token/{{ permission_set.name }}" {
+  capabilities = ["create", "update"]
+}
+{% endfor %}
