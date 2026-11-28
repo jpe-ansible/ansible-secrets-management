@@ -281,7 +281,25 @@ def test_router_catalog_entries_feed_generation_and_the_apps_read_paths():
     assert 'path "secret/metadata/apps/*"' not in policy
 
 
-@pytest.mark.parametrize("profile", ["eval", "youtrack_clerk", "vikunja_clerk", "zammad_clerk"])
+HERMES_API_PROFILES = [
+    "eval", "youtrack_clerk", "vikunja_clerk", "zammad_clerk",
+    "vikunja_clerk_workstation",
+    "vikunja_clerk_hermes",
+    "vikunja_clerk_pepper",
+    "vikunja_clerk_untrusted",
+    "vikunja_clerk_jobs",
+    "vikunja_clerk_inbox",
+    "vikunja_triage",
+    "vikunja_nightly",
+    "vikunja_windows",
+    "vikunja_clerk_acceptance",
+    "vikunja_triage_acceptance",
+    "vikunja_nightly_acceptance",
+    "vikunja_windows_acceptance",
+]
+
+
+@pytest.mark.parametrize("profile", HERMES_API_PROFILES)
 def test_hermes_profile_api_server_key_stays_outside_the_router_catalog(profile):
     app = f"hermes-{profile.replace('_', '-')}"
     api_server_key = f"hermes_{profile}_api_server_key"
