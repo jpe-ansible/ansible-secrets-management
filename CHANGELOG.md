@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.155.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.154.0...v0.155.0) (2026-11-28)
+
+
+### Features
+
+* **openbao:** add one reader row per Vikunja calling role ([#955](https://github.com/jpe-ansible/ansible-secrets-management/issues/955)) ([6d8ab86](https://github.com/jpe-ansible/ansible-secrets-management/commit/6d8ab86926c87ec74a1997650db5b55b97beadcd))
+
 ## [0.154.0](https://github.com/jpe-ansible/ansible-secrets-management/compare/v0.153.1...v0.154.0) (2026-11-27)
 
 
